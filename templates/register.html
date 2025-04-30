@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Go Chat | {{.Title}}</title>
+    <link rel="stylesheet" href="static/style.css" />
+  </head>
+  <body>
+    {{template "header" .}}
+    <main>
+      <form id="register-form">
+        <fieldset>
+          <legend>Register</legend>
+          <div class="input-container">
+            <label for="username">Username</label>
+            <input name="username" type="text" required />
+          </div>
+          <br />
+          <div class="input-container">
+            <label for="email">Email</label>
+            <input name="email" type="email" required autofocus />
+          </div>
+          <br />
+          <div class="input-container">
+            <label for="password">Password</label>
+            <input name="password" type="password" required />
+          </div>
+          <br />
+          <button type="submit">Submit</button>
+        </fieldset>
+      </form>
+    </main>
+    {{template "footer" .}}
+  </body>
+  <script>
+    document
+      .getElementById("register-form")
+      .addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const form = e.target;
+        const formData = new FormData(form);
+        const jsonData = Object.fromEntries(formData.entries())
+        console.log(jsonData)
+
+        try {
+          const response = await fetch("/api/register", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify(jsonData),
+          });
+          
+          const result = await response.json();
+          // if (response.status == 400) {
+          //   handle issue
+          // }
+
+          console.log(result);
+        } catch (error) {
+          console.log(error);
+        }
+      });
+  </script>
+</html>

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Chat</title>
+		<link rel="stylesheet" href="static/style.css">
+</head>
+<body>
+
+<h1>WebSocket Chat</h1>
+
+<p><strong>Chat Room:</strong> <input type="text" id="roomName" placeholder="Enter room name"></p>
+<p><strong>Username:</strong> <input type="text" id="username" placeholder="Enter your username"></p>
+
+<button id="joinButton">Join Room</button>
+
+<h2>Messages:</h2>
+<div id="messages"></div>
+
+<input type="text" id="chatInput" placeholder="Type a message" disabled>
+<button id="sendButton" disabled>Send</button>
+
+<script>
+    let socket = null;
+
+    document.getElementById('joinButton').addEventListener('click', function() {
+        const roomName = document.getElementById('roomName').value.trim();
+        const username = document.getElementById('username').value.trim();
+
+        if (!roomName || !username) {
+            alert('Please enter both room name and username.');
+            return;
+        }
+
+        // Connect to WebSocket server
+        socket = new WebSocket(`ws://localhost:8080/ws?room=${roomName}&username=${username}`);
+
+        // On WebSocket open
+        socket.onopen = function() {
+            console.log('Connected to the WebSocket server');
+            document.getElementById('chatInput').disabled = false;
+            document.getElementById('sendButton').disabled = false;
+            appendMessage(`Connected to ${roomName} as ${username}`);
+        };
+
+        // On receiving a message from WebSocket
+        socket.onmessage = function(event) {
+            appendMessage(event.data);
+        };
+
+        // On WebSocket close
+        socket.onclose = function() {
+            appendMessage('Disconnected from the chat');
+        };
+
+        // On WebSocket error
+        socket.onerror = function(error) {
+            console.log('WebSocket error:', error);
+        };
+    });
+
+    document.getElementById('sendButton').addEventListener('click', function() {
+        const message = document.getElementById('chatInput').value.trim();
+
+        if (message && socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(message);
+            document.getElementById('chatInput').value = ''; // Clear input
+        }
+    });
+
+    function appendMessage(message) {
+        const messagesDiv = document.getElementById('messages');
+        const messageElement = document.createElement('div');
+        messageElement.textContent = message;
+        messagesDiv.appendChild(messageElement);
+    }
+</script>
+
+</body>
+</html>
