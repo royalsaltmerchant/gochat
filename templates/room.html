@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GoChat | {{.Title}}</title>
+    <link rel="stylesheet" href="/static/style.css" />
+    <link rel="stylesheet" href="/static/chatapp.css" />
+    <script type="module" src="/js/chatapp.js" defer></script>
+  </head>
+  <body>
+    {{template "header" .}}
+    <main>
+      <h2>Room: {{.Title}}</h2>
+      <div id="chatapp"></div>
+    </main>
+    {{template "footer" .}}
+  </body>
+</html>

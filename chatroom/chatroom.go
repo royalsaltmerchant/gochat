@@ -1,10 +1,12 @@
 package chatroom
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -19,22 +21,47 @@ var upgrader = websocket.Upgrader{
 // Struct for chat rooms and their users
 type ChatRoom struct {
 	Users map[*websocket.Conn]string
+	Name  string
 	mu    sync.Mutex
 }
 
-var ChatRooms = map[string]*ChatRoom{
-	"general": {Users: make(map[*websocket.Conn]string)},
-	"random":  {Users: make(map[*websocket.Conn]string)},
+type WSMessage struct {
+	Type string      `json:"type"` // "system", "chat", "join", "leave"
+	Data interface{} `json:"data"`
 }
 
-// List all chat rooms
+type ChatPayload struct {
+	Username  string    `json:"username"`
+	Message   string    `json:"message"`
+	Timestamp time.Time `json:"timestamp"`
+}
+
+var ChatRooms = map[string]*ChatRoom{
+	"a3f2b19e-879f-4b8f-9c16-b8ecf3a7cf5b": {Users: make(map[*websocket.Conn]string), Name: "First"},
+	"5d3ce2f4-b2a0-4a74-a91f-2a0c9b568f42": {Users: make(map[*websocket.Conn]string), Name: "Second"},
+}
+
+// List all chat rooms with their UUID and Name
 func ListChatRooms(c *gin.Context) {
-	var rooms []string
-	for name := range ChatRooms {
-		rooms = append(rooms, name)
+	type RoomInfo struct {
+		UUID string `json:"uuid"`
+		Name string `json:"name"`
 	}
+
+	var rooms []RoomInfo
+	for uuid, room := range ChatRooms {
+		rooms = append(rooms, RoomInfo{
+			UUID: uuid,
+			Name: room.Name,
+		})
+	}
+
 	userEmail, _ := c.Get("userEmail")
-	c.JSON(200, gin.H{"rooms": rooms, "userEmail": userEmail})
+
+	c.JSON(200, gin.H{
+		"rooms":     rooms,
+		"userEmail": userEmail,
+	})
 }
 
 // Join a specific chat room and handle WebSocket communication
@@ -47,15 +74,23 @@ func JoinChatRoom(c *gin.Context) {
 	}
 	defer conn.Close()
 
-	// Extract chat room and username from the URL query parameters
-	roomName := c.DefaultQuery("room", "")
-	username := c.DefaultQuery("username", "")
-
+	// Extract room from the URL query parameters
+	roomUUID := c.Param("uuid")
 	// Ensure the room exists
-	chatRoom, exists := ChatRooms[roomName]
+	chatRoom, exists := ChatRooms[roomUUID]
 	if !exists {
 		log.Println("Error: Chat room does not exist")
 		return
+	}
+
+	// Get username from context. This should be stored from Authentication middleware
+	usernameRaw, exists := c.Get("userUsername")
+	if !exists {
+		log.Println("Error: Username does not exist")
+	}
+	username, ok := usernameRaw.(string)
+	if !ok {
+		log.Println("Error: Username is not a string")
 	}
 
 	// Add user to the chat room
@@ -63,15 +98,20 @@ func JoinChatRoom(c *gin.Context) {
 	chatRoom.Users[conn] = username
 	chatRoom.mu.Unlock()
 
-	// Send a welcome message to the new user
-	conn.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("Welcome %s to the %s chat room!", username, roomName)))
+	msg := WSMessage{
+		Type: "join",
+		Data: ChatPayload{
+			Username:  "System",
+			Message:   fmt.Sprintf("%s has joined the chat", username),
+			Timestamp: time.Now().UTC(),
+		},
+	}
+	jsonBytes, _ := json.Marshal(msg)
 
 	// Broadcast the new user's arrival to all users in the room
 	chatRoom.mu.Lock()
 	for userConn := range chatRoom.Users {
-		if userConn != conn {
-			userConn.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("%s has joined the chat", username)))
-		}
+		userConn.WriteMessage(websocket.TextMessage, jsonBytes)
 	}
 	chatRoom.mu.Unlock()
 
@@ -83,10 +123,21 @@ func JoinChatRoom(c *gin.Context) {
 			break
 		}
 
+		msg = WSMessage{
+			Type: "chat",
+			Data: ChatPayload{
+				Username:  username,
+				Message:   string(message),
+				Timestamp: time.Now().UTC(),
+			},
+		}
+
+		jsonBytes, _ := json.Marshal(msg)
+
 		// Broadcast the message to everyone in the chat room
 		chatRoom.mu.Lock()
 		for userConn := range chatRoom.Users {
-			userConn.WriteMessage(websocket.TextMessage, message)
+			userConn.WriteMessage(websocket.TextMessage, jsonBytes)
 		}
 		chatRoom.mu.Unlock()
 	}
@@ -98,8 +149,18 @@ func JoinChatRoom(c *gin.Context) {
 
 	// Notify others that the user has left the room
 	chatRoom.mu.Lock()
+	msg = WSMessage{
+		Type: "leave",
+		Data: ChatPayload{
+			Username:  "System",
+			Message:   fmt.Sprintf("%s has left the chat", username),
+			Timestamp: time.Now().UTC(),
+		},
+	}
+	jsonBytes, _ = json.Marshal(msg)
+
 	for userConn := range chatRoom.Users {
-		userConn.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("%s has left the chat", username)))
+		userConn.WriteMessage(websocket.TextMessage, jsonBytes)
 	}
 	chatRoom.mu.Unlock()
 }

@@ -46,7 +46,7 @@ func main() {
 	// Rate Limit
 	store := ratelimit.InMemoryStore(&ratelimit.InMemoryOptions{
 		Rate:  time.Second,
-		Limit: 5, // This makes it so each ip can only make 5 requests per second
+		Limit: 100, // This makes it so each ip can only make 100 requests per second
 	})
 
 	mw := ratelimit.RateLimiter(store, &ratelimit.Options{
@@ -58,6 +58,7 @@ func main() {
 
 	// Serve static files using Gin's static route
 	r.Static("/static", "./static")
+	r.Static("/js", "./js")
 	// Load Template files
 	r.LoadHTMLGlob("templates/*")
 
@@ -67,13 +68,32 @@ func main() {
 		})
 	})
 
+	r.GET("/login", func(c *gin.Context) {
+		c.HTML(200, "login.html", gin.H{
+			"Title": "Login",
+		})
+	})
+
+	r.GET("/room/:uuid", func(c *gin.Context) {
+		uuid := c.Param("uuid")
+		room, exists := cr.ChatRooms[uuid]
+		if !exists {
+			c.JSON(404, gin.H{"error": "Room not found"})
+			return
+		}
+
+		c.HTML(200, "room.html", gin.H{
+			"Title": room.Name,
+		})
+	})
+
 	// API
 	r.POST("/api/register", auth.HandleRegister)
 	r.POST("/api/login", auth.HandleLogin)
-	r.GET("/api/rooms", auth.JwtMiddleware(), cr.ListChatRooms)
+	r.GET("/api/rooms", auth.AuthMiddleware(), cr.ListChatRooms)
 
 	// Join chat room endpoint
-	r.GET("/ws", cr.JoinChatRoom)
+	r.GET("/ws/:uuid", auth.AuthMiddleware(), cr.JoinChatRoom)
 
 	// Start the server
 	go func() {

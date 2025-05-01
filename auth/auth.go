@@ -22,12 +22,12 @@ type UserData struct {
 	Password string
 }
 
-func JwtMiddleware() gin.HandlerFunc {
+func AuthMiddleware() gin.HandlerFunc {
 
 	return func(c *gin.Context) {
 		jwtSecret := os.Getenv("JWT_SECRET")
 
-		tokenString := c.GetHeader("Authorization")
+		tokenString := c.Query("auth")
 
 		if tokenString == "" {
 			c.JSON(401, gin.H{"error": "Authorization header required"})
@@ -53,7 +53,22 @@ func JwtMiddleware() gin.HandlerFunc {
 		}
 
 		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-			c.Set("userEmail", claims["userEmail"])
+			var userData UserData
+			query := `SELECT * FROM users WHERE email = ?`
+			err := db.DB.QueryRow(query, claims["userEmail"]).Scan(&userData.ID, &userData.Username, &userData.Email, &userData.Password)
+			if err != nil {
+				if err == sql.ErrNoRows {
+					c.JSON(400, gin.H{"error": "User not found by email"})
+				} else {
+					c.JSON(500, gin.H{"error": "Database Error extracting user data"})
+				}
+				return
+			}
+
+			// Set user data on the context
+			c.Set("userID", userData.ID)
+			c.Set("userEmail", userData.Email)
+			c.Set("userUsername", userData.Username)
 		}
 
 		c.Next()
@@ -85,8 +100,8 @@ func hashPassword(password string) (string, error) {
 
 func HandleLogin(c *gin.Context) {
 	var json struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
+		Email    string `json:"email" binding:"required"`
+		Password string `json:"password" binding:"required"`
 	}
 
 	if err := c.BindJSON(&json); err != nil {
@@ -101,7 +116,7 @@ func HandleLogin(c *gin.Context) {
 		if err == sql.ErrNoRows {
 			c.JSON(400, gin.H{"error": "User not found by email"})
 		} else {
-			c.JSON(500, gin.H{"error": "Error extracting data"})
+			c.JSON(500, gin.H{"error": "Database Error extracting user data"})
 		}
 		return
 	}
@@ -118,18 +133,18 @@ func HandleLogin(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, gin.H{"auth_token": token})
+	c.JSON(200, gin.H{"token": token})
 }
 
 func HandleRegister(c *gin.Context) {
 	var json struct {
-		Username string `json:"username"`
-		Email    string `json:"email"`
-		Password string `json:"password"`
+		Username string `json:"username" binding:"required"`
+		Email    string `json:"email" binding:"required"`
+		Password string `json:"password" binding:"required"`
 	}
 
-	if err := c.BindJSON(&json); err != nil {
-		c.JSON(400, gin.H{"error": "Invalid request data"})
+	if err := c.ShouldBindJSON(&json); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
 

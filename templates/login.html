@@ -10,14 +10,9 @@
     {{template "header" .}}
     <main>
       <div id="toast-message" class="toast-warning"></div>
-      <form id="register-form">
+      <form id="login-form">
         <fieldset>
-          <legend>Register</legend>
-          <div class="input-container">
-            <label for="username">Username</label>
-            <input name="username" type="text" required />
-          </div>
-          <br />
+          <legend>Login</legend>
           <div class="input-container">
             <label for="email">Email</label>
             <input name="email" type="email" required autofocus />
@@ -36,16 +31,17 @@
   </body>
   <script>
     document
-      .getElementById("register-form")
+      .getElementById("login-form")
       .addEventListener("submit", async (e) => {
         e.preventDefault();
 
         const form = e.target;
         const formData = new FormData(form);
         const jsonData = Object.fromEntries(formData.entries())
+        console.log(jsonData)
 
         try {
-          const response = await fetch("/api/register", {
+          const response = await fetch("/api/login", {
             method: "POST",
             headers: {
               "Content-Type": "application/json"
@@ -55,13 +51,15 @@
           
           const result = await response.json();
           console.log(result);
-          
           if (response.status == 400) {
             document.getElementById("toast-message").textContent = result.error;
           }
 
-          window.alert("Thanks for registering! Now you can login.")
-          window.location.href = "/login";
+          // save token and reroute
+          localStorage.setItem("authToken", `Bearer ${result.token}`);
+
+          window.alert("Welcome Back!")
+          window.location.href = "/dashboard";
           return;
 
         } catch (error) {
