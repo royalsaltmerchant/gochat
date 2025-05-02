@@ -1,6 +1,6 @@
 CREATE TABLE users (
-  id integer primary key,
-  username text not null,
-  email text not null unique,
-  password text not null
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  username TEXT NOT NULL,
+  email TEXT NOT NULL UNIQUE,
+  password TEXT NOT NULL
 );

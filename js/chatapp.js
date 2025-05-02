@@ -8,8 +8,8 @@ class ChatApp {
     this.params = props.params;
 
     const pathParts = window.location.pathname.split('/');
-    const roomUUID = pathParts[pathParts.length - 1];
-    this.socketConn = new SocketConn({ roomUUID: roomUUID, chatapp: this });    
+    const channelUUID = pathParts[pathParts.length - 1];
+    this.socketConn = new SocketConn({ channelUUID: channelUUID, chatapp: this });    
 
     this.chatBoxComponent = new ChatBoxComponent({
       domComponent: createElement("div"),

@@ -21,7 +21,6 @@ var upgrader = websocket.Upgrader{
 // Struct for chat rooms and their users
 type ChatRoom struct {
 	Users map[*websocket.Conn]string
-	Name  string
 	mu    sync.Mutex
 }
 
@@ -36,33 +35,7 @@ type ChatPayload struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
-var ChatRooms = map[string]*ChatRoom{
-	"a3f2b19e-879f-4b8f-9c16-b8ecf3a7cf5b": {Users: make(map[*websocket.Conn]string), Name: "First"},
-	"5d3ce2f4-b2a0-4a74-a91f-2a0c9b568f42": {Users: make(map[*websocket.Conn]string), Name: "Second"},
-}
-
-// List all chat rooms with their UUID and Name
-func ListChatRooms(c *gin.Context) {
-	type RoomInfo struct {
-		UUID string `json:"uuid"`
-		Name string `json:"name"`
-	}
-
-	var rooms []RoomInfo
-	for uuid, room := range ChatRooms {
-		rooms = append(rooms, RoomInfo{
-			UUID: uuid,
-			Name: room.Name,
-		})
-	}
-
-	userEmail, _ := c.Get("userEmail")
-
-	c.JSON(200, gin.H{
-		"rooms":     rooms,
-		"userEmail": userEmail,
-	})
-}
+var ChatRooms = map[string]*ChatRoom{}
 
 // Join a specific chat room and handle WebSocket communication
 func JoinChatRoom(c *gin.Context) {

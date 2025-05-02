@@ -1,15 +1,18 @@
 package main
 
 import (
+	"database/sql"
 	"gochat/auth"
 	cr "gochat/chatroom"
 	"gochat/db"
+	"gochat/spaces"
 	"log"
 	"os"
 	"time"
 
 	ratelimit "github.com/JGLTechnologies/gin-rate-limit"
 	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
 	"github.com/joho/godotenv"
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -74,23 +77,32 @@ func main() {
 		})
 	})
 
-	r.GET("/room/:uuid", func(c *gin.Context) {
+	r.GET("/channel/:uuid", func(c *gin.Context) {
 		uuid := c.Param("uuid")
-		room, exists := cr.ChatRooms[uuid]
-		if !exists {
-			c.JSON(404, gin.H{"error": "Room not found"})
+
+		var channel spaces.Channel
+		query := `SELECT * FROM channels WHERE uuid = ?`
+		err := db.DB.QueryRow(query, uuid).Scan(&channel.ID, &channel.UUID, &channel.Name, &channel.SpaceID)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				c.JSON(400, gin.H{"error": "Channel not found by UUID"})
+			} else {
+				c.JSON(500, gin.H{"error": "Database Error extracting channel data"})
+			}
 			return
 		}
 
-		c.HTML(200, "room.html", gin.H{
-			"Title": room.Name,
+		cr.ChatRooms[uuid] = &cr.ChatRoom{Users: make(map[*websocket.Conn]string)}
+
+		c.HTML(200, "channel.html", gin.H{
+			"Title": channel.Name,
 		})
 	})
 
 	// API
 	r.POST("/api/register", auth.HandleRegister)
 	r.POST("/api/login", auth.HandleLogin)
-	r.GET("/api/rooms", auth.AuthMiddleware(), cr.ListChatRooms)
+	r.POST("/api/new_space", auth.AuthMiddleware(), spaces.HandleInsertSpace)
 
 	// Join chat room endpoint
 	r.GET("/ws/:uuid", auth.AuthMiddleware(), cr.JoinChatRoom)

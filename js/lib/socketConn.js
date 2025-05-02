@@ -1,6 +1,6 @@
 class SocketConn {
   constructor(props) {
-    this.roomUUID = props.roomUUID;
+    this.channelUUID = props.channelUUID;
     this.socket = null;
     this.chatapp = props.chatapp;
 
@@ -8,9 +8,9 @@ class SocketConn {
   }
 
   connect = () => {
-    const authToken = localStorage.getItem("authToken");
+    const authToken = localStorage.getItem("authToken").split(" ")[1];
     const url = `ws://${location.host}/ws/${encodeURIComponent(
-      this.roomUUID
+      this.channelUUID
     )}?auth=${encodeURIComponent(authToken)}`;
     this.socket = new WebSocket(url);
 

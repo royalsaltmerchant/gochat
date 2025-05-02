@@ -56,7 +56,8 @@
           }
 
           // save token and reroute
-          localStorage.setItem("authToken", `Bearer ${result.token}`);
+          localStorage.setItem("authToken", `Bearer ${result.token}`); // For access in WS connection
+          document.cookie = `auth_token=${result.token}; HttpOnly; Path=/; SameSite=Strict`; // NOT SECURE YET, remember to add Secure; For page access
 
           window.alert("Welcome Back!")
           window.location.href = "/dashboard";

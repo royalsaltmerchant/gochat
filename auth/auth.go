@@ -27,10 +27,16 @@ func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		jwtSecret := os.Getenv("JWT_SECRET")
 
-		tokenString := c.Query("auth")
+		tokenString, _ := c.Cookie("auth_token")
 
+		// If no token is found in the cookie, try to get it from the query parameter
 		if tokenString == "" {
-			c.JSON(401, gin.H{"error": "Authorization header required"})
+			tokenString = c.DefaultQuery("auth", "")
+		}
+
+		// If token is still empty, return an error
+		if tokenString == "" {
+			c.JSON(401, gin.H{"error": "Authorization token required"})
 			c.Abort()
 			return
 		}
