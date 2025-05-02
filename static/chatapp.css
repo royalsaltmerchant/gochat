@@ -29,6 +29,12 @@
   margin-right: 2.5px;
 }
 
+.chat-box-message-content {
+  display: flex; 
+  flex-direction: row; 
+  align-items: center;
+}
+
 .chat-box-form {
   display: flex;
   align-items: center;
