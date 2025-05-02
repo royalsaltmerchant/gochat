@@ -94,7 +94,7 @@ class ChatBoxMessagesComponent {
   renderMessages = () => {
     return [
       ...this.chatBoxMessages.map((data) =>
-        createElement("div", { style: "display: flex; flex-direction: row; align-items: center;" }, [
+        createElement("div", { class: "chat-box-message-content" }, [
           createElement(
             "small",
             { style: "margin-right: var(--main-distance)" },
@@ -107,7 +107,7 @@ class ChatBoxMessagesComponent {
             },
             `${data.username}:`
           ),
-          createElement("div", {}, data.message),
+          data.message
         ])
       ),
     ];
