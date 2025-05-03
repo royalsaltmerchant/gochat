@@ -59,6 +59,8 @@ func AuthMiddleware() gin.HandlerFunc {
 		}
 
 		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+			setCookie(tokenString, c) // Refresh cookie
+			// Get User data
 			var userData UserData
 			query := `SELECT * FROM users WHERE email = ?`
 			err := db.DB.QueryRow(query, claims["userEmail"]).Scan(&userData.ID, &userData.Username, &userData.Email, &userData.Password)
@@ -93,6 +95,12 @@ func generateJWT(userEmail string, expirationTime time.Duration) (string, error)
 		return "", err
 	}
 	return tokenString, nil
+}
+
+func setCookie(token string, c *gin.Context) {
+	isSecure := os.Getenv("ENV") == "production"
+	host := strings.Split(c.Request.Host, ":")[0]
+	c.SetCookie("auth_token", token, 3600, "/", host, isSecure, true)
 }
 
 func hashPassword(password string) (string, error) {
@@ -138,6 +146,8 @@ func HandleLogin(c *gin.Context) {
 		c.JSON(500, gin.H{"error": "Failed to generate JWT token"})
 		return
 	}
+
+	setCookie(token, c)
 
 	c.JSON(200, gin.H{"token": token})
 }

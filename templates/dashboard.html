@@ -10,8 +10,46 @@
     {{template "header" .}}
     <main>
       <div id="toast-message" class="toast-warning"></div>
+      <h3>Created Spaces List</h3>
+      <div id="spaces-list">
+        {{if .userSpaces}} {{range .userSpaces}}
+        <a href="/spaces/{{.UUID}}">{{.Name}}</a>
+        {{end}} {{else}}
+        <p>No spaces...</p>
+        {{end}}
+      </div>
+      <br />
+      <button id="new-space-btn">Create New Space</button>
     </main>
     {{template "footer" .}}
   </body>
-  <script></script>
+  <script>
+    document
+      .getElementById("new-space-btn")
+      .addEventListener("click", async (event) => {
+        const spaceName = window.prompt("Please enter Space 'Name'");
+        if (spaceName) {
+          console.log(spaceName);
+          try {
+            const response = await fetch("/api/new_space", {
+              method: "POST",
+              credentials: "include",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ name: spaceName }),
+            });
+
+            const result = await response.json();
+            console.log(result);
+            const a = document.createElement("a");
+            a.innerText = result.space.name;
+            a.href = `/spaces/${result.space.UUID}`; // optionally set href
+            document.getElementById("spaces-list").appendChild(a);
+          } catch (error) {
+            console.log(error);
+          }
+        }
+      });
+  </script>
 </html>

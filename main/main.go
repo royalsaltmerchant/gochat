@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"gochat/auth"
 	cr "gochat/chatroom"
 	"gochat/db"
@@ -96,6 +97,34 @@ func main() {
 
 		c.HTML(200, "channel.html", gin.H{
 			"Title": channel.Name,
+		})
+	})
+
+	r.GET("/dashboard", auth.AuthMiddleware(), func(c *gin.Context) {
+		authorID, _ := c.Get("userID") // From middleware
+
+		rows, err := db.DB.Query(`SELECT * FROM spaces WHERE author_id = ? LIMIT 10`, authorID)
+		if err != nil {
+			fmt.Println("Error querying spaces:", err)
+			c.Status(500)
+			return
+		}
+		defer rows.Close()
+
+		var userSpaces []spaces.Space
+		for rows.Next() {
+			var space spaces.Space
+			err := rows.Scan(&space.ID, &space.UUID, &space.Name, &space.AuthorID)
+			if err != nil {
+				fmt.Println("Error scanning space:", err)
+				continue
+			}
+			userSpaces = append(userSpaces, space)
+		}
+
+		c.HTML(200, "dashboard.html", gin.H{
+			"Title":      "Dashboard",
+			"userSpaces": userSpaces,
 		})
 	})
 
