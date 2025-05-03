@@ -141,7 +141,7 @@ class ChatBoxMessagesComponent {
           ])
         ),
       ];
-    }
+    } else return []
   };
 
   render = () => {
