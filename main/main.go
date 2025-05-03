@@ -82,6 +82,8 @@ func main() {
 		uuid := c.Param("uuid")
 		username, _ := c.Get("userUsername")
 
+		// TODO: Ensure user is authorized to view this channel
+
 		// Get channel data
 		var channel spaces.Channel
 		query := `SELECT * FROM channels WHERE uuid = ?`
@@ -176,7 +178,6 @@ func main() {
 		userID, _ := c.Get("userID")
 		username, _ := c.Get("userUsername")
 
-		//TODO Ensure user has access to this space, either is author or is space_user
 		// First get author ID
 		var space spaces.Space
 

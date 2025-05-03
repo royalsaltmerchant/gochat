@@ -108,7 +108,9 @@ class ChatBoxMessagesComponent {
       
       const result = await response.json();
       console.log(result);
-      this.chatBoxMessages = result.messages
+      if (result.messages && result.messages.length) {
+        this.chatBoxMessages = result.messages
+      }
     } catch (error) {
       console.log(error);
     }
@@ -119,25 +121,27 @@ class ChatBoxMessagesComponent {
   };
 
   renderMessages = () => {
-    return [
-      ...this.chatBoxMessages.map((data) =>
-        createElement("div", { class: "chat-box-message-content" }, [
-          createElement(
-            "small",
-            { style: "margin-right: var(--main-distance)" },
-            isoDateFormat(data.Timestamp)
-          ),
-          createElement(
-            "div",
-            {
-              style: "font-weight: bold; margin-right: var(--main-distance);",
-            },
-            `${data.Username}:`
-          ),
-          data.Content
-        ])
-      ),
-    ];
+    if (this.chatBoxMessages.length) {
+      return [
+        ...this.chatBoxMessages.map((data) =>
+          createElement("div", { class: "chat-box-message-content" }, [
+            createElement(
+              "small",
+              { style: "margin-right: var(--main-distance)" },
+              isoDateFormat(data.Timestamp)
+            ),
+            createElement(
+              "div",
+              {
+                style: "font-weight: bold; margin-right: var(--main-distance);",
+              },
+              `${data.Username}:`
+            ),
+            data.Content
+          ])
+        ),
+      ];
+    }
   };
 
   render = () => {
