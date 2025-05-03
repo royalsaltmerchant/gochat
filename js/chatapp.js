@@ -14,6 +14,7 @@ class ChatApp {
     this.chatBoxComponent = new ChatBoxComponent({
       domComponent: createElement("div"),
       socketConn: this.socketConn,
+      channelUUID: channelUUID
     });
 
     this.render();
@@ -31,12 +32,14 @@ class ChatBoxComponent {
     this.domComponent = props.domComponent;
     this.domComponent.className = "chat-box-container";
     this.socketConn = props.socketConn;
+    this.channelUUID = props.channelUUID
 
     this.chatBoxMessagesComponent = new ChatBoxMessagesComponent({
       domComponent: createElement("div", {
         class: "chat-box-messages",
         id: "chat-box-messages",
       }),
+      channelUUID: this.channelUUID
     });
 
     this.render();
@@ -83,8 +86,32 @@ class ChatBoxMessagesComponent {
   constructor(props) {
     this.domComponent = props.domComponent;
     this.chatBoxMessages = [];
+    this.channelUUID = props.channelUUID
 
-    this.render();
+    this.init();
+  }
+
+  init = async () => {
+    await this.getPreviousMessages()
+    this.render()
+  }
+
+  getPreviousMessages = async () => {
+    try {
+      const response = await fetch("/api/get_messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({channelUUID: this.channelUUID}),
+      });
+      
+      const result = await response.json();
+      console.log(result);
+      this.chatBoxMessages = result.messages
+    } catch (error) {
+      console.log(error);
+    }
   }
 
   scrollDown = () => {
@@ -98,16 +125,16 @@ class ChatBoxMessagesComponent {
           createElement(
             "small",
             { style: "margin-right: var(--main-distance)" },
-            isoDateFormat(data.timestamp)
+            isoDateFormat(data.Timestamp)
           ),
           createElement(
             "div",
             {
               style: "font-weight: bold; margin-right: var(--main-distance);",
             },
-            `${data.username}:`
+            `${data.Username}:`
           ),
-          data.message
+          data.Content
         ])
       ),
     ];

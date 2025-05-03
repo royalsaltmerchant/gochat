@@ -1,8 +1,10 @@
 package chatroom
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
+	"gochat/spaces"
 	"log"
 	"net/http"
 	"sync"
@@ -30,9 +32,9 @@ type WSMessage struct {
 }
 
 type ChatPayload struct {
-	Username  string    `json:"username"`
-	Message   string    `json:"message"`
-	Timestamp time.Time `json:"timestamp"`
+	Username  string    `json:"Username"`
+	Content   string    `json:"Content"`
+	Timestamp time.Time `json:"Timestamp"`
 }
 
 var ChatRooms = map[string]*ChatRoom{}
@@ -71,12 +73,25 @@ func JoinChatRoom(c *gin.Context) {
 	chatRoom.Users[conn] = username
 	chatRoom.mu.Unlock()
 
+	msgUsername := "System"
+	msgContent := fmt.Sprintf("%s has joined the chat", username)
+	msgTimestamp := time.Now().UTC()
+
+	// userIDDefault := 0
+	// nulUserIDDefault := sql.NullInt64{
+	// 	Int64: int64(userIDDefault),
+	// 	Valid: true,
+	// }
+
+	// Store message in DB
+	// go spaces.InsertMessage(roomUUID, msgContent, msgUsername, nulUserIDDefault, msgTimestamp.Format(time.RFC3339))
+
 	msg := WSMessage{
 		Type: "join",
 		Data: ChatPayload{
-			Username:  "System",
-			Message:   fmt.Sprintf("%s has joined the chat", username),
-			Timestamp: time.Now().UTC(),
+			Username:  msgUsername,
+			Content:   msgContent,
+			Timestamp: msgTimestamp,
 		},
 	}
 	jsonBytes, _ := json.Marshal(msg)
@@ -96,12 +111,34 @@ func JoinChatRoom(c *gin.Context) {
 			break
 		}
 
+		msgUsername = username
+		msgContent = string(message)
+		msgTimestamp = time.Now().UTC()
+
+		userIDRaw, exists := c.Get("userID")
+		if !exists {
+			fmt.Println("Failed to retrieve user ID")
+		}
+
+		userIDInt, ok := userIDRaw.(int)
+		if !ok {
+			fmt.Println("Failed to convert user ID to int")
+		}
+
+		msgUserID := sql.NullInt64{
+			Int64: int64(userIDInt),
+			Valid: true,
+		}
+
+		// Store message in DB
+		go spaces.InsertMessage(roomUUID, msgContent, msgUsername, msgUserID, msgTimestamp.Format(time.RFC3339))
+
 		msg = WSMessage{
 			Type: "chat",
 			Data: ChatPayload{
-				Username:  username,
-				Message:   string(message),
-				Timestamp: time.Now().UTC(),
+				Username:  msgUsername,
+				Content:   msgContent,
+				Timestamp: msgTimestamp,
 			},
 		}
 
@@ -121,13 +158,20 @@ func JoinChatRoom(c *gin.Context) {
 	chatRoom.mu.Unlock()
 
 	// Notify others that the user has left the room
+	msgUsername = "System"
+	msgContent = fmt.Sprintf("%s has left the chat", username)
+	msgTimestamp = time.Now().UTC()
+
+	// Store message in DB
+	// go spaces.InsertMessage(roomUUID, msgContent, msgUsername, nulUserIDDefault, msgTimestamp.Format(time.RFC3339))
+
 	chatRoom.mu.Lock()
 	msg = WSMessage{
 		Type: "leave",
 		Data: ChatPayload{
-			Username:  "System",
-			Message:   fmt.Sprintf("%s has left the chat", username),
-			Timestamp: time.Now().UTC(),
+			Username:  msgUsername,
+			Content:   msgContent,
+			Timestamp: msgTimestamp,
 		},
 	}
 	jsonBytes, _ = json.Marshal(msg)

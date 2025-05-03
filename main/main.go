@@ -80,7 +80,7 @@ func main() {
 
 	r.GET("/channel/:uuid", func(c *gin.Context) {
 		uuid := c.Param("uuid")
-
+		// Get channel data
 		var channel spaces.Channel
 		query := `SELECT * FROM channels WHERE uuid = ?`
 		err := db.DB.QueryRow(query, uuid).Scan(&channel.ID, &channel.UUID, &channel.Name, &channel.SpaceUUID)
@@ -134,7 +134,6 @@ func main() {
 		rows, err := db.DB.Query(`SELECT * FROM channels WHERE space_uuid = ? LIMIT 10`, uuid)
 		if err != nil {
 			fmt.Println("Error querying channels:", err)
-			c.Status(500)
 			return
 		}
 		defer rows.Close()
@@ -161,6 +160,7 @@ func main() {
 	r.POST("/api/login", auth.HandleLogin)
 	r.POST("/api/new_space", auth.AuthMiddleware(), spaces.HandleInsertSpace)
 	r.POST("/api/new_channel", auth.AuthMiddleware(), spaces.HandleInsertChannel)
+	r.POST("/api/get_messages", auth.AuthMiddleware(), spaces.HandleGetMessages)
 
 	// Join chat room endpoint
 	r.GET("/ws/:uuid", auth.AuthMiddleware(), cr.JoinChatRoom)
