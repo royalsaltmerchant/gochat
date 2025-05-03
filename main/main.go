@@ -83,7 +83,7 @@ func main() {
 
 		var channel spaces.Channel
 		query := `SELECT * FROM channels WHERE uuid = ?`
-		err := db.DB.QueryRow(query, uuid).Scan(&channel.ID, &channel.UUID, &channel.Name, &channel.SpaceID)
+		err := db.DB.QueryRow(query, uuid).Scan(&channel.ID, &channel.UUID, &channel.Name, &channel.SpaceUUID)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				c.JSON(400, gin.H{"error": "Channel not found by UUID"})
@@ -128,10 +128,39 @@ func main() {
 		})
 	})
 
+	r.GET("/space/:uuid", auth.AuthMiddleware(), func(c *gin.Context) {
+		uuid := c.Param("uuid")
+
+		rows, err := db.DB.Query(`SELECT * FROM channels WHERE space_uuid = ? LIMIT 10`, uuid)
+		if err != nil {
+			fmt.Println("Error querying channels:", err)
+			c.Status(500)
+			return
+		}
+		defer rows.Close()
+
+		var channels []spaces.Channel
+		for rows.Next() {
+			var channel spaces.Channel
+			err := rows.Scan(&channel.ID, &channel.UUID, &channel.Name, &channel.SpaceUUID)
+			if err != nil {
+				fmt.Println("Error scanning channel:", err)
+				continue
+			}
+			channels = append(channels, channel)
+		}
+
+		c.HTML(200, "space.html", gin.H{
+			"Title":    "Dashboard",
+			"channels": channels,
+		})
+	})
+
 	// API
 	r.POST("/api/register", auth.HandleRegister)
 	r.POST("/api/login", auth.HandleLogin)
 	r.POST("/api/new_space", auth.AuthMiddleware(), spaces.HandleInsertSpace)
+	r.POST("/api/new_channel", auth.AuthMiddleware(), spaces.HandleInsertChannel)
 
 	// Join chat room endpoint
 	r.GET("/ws/:uuid", auth.AuthMiddleware(), cr.JoinChatRoom)

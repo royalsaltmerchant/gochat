@@ -32,14 +32,18 @@ body {
   letter-spacing: 0.8px;
 }
 
+div {
+  display: inline-block;
+}
+
 p {
   display: inline-block;
 }
 
 a {
+  display: inline-block;
   color: var(--a-blue);
   text-decoration: none;
-  display: inline-block;
 }
 
 a:hover {
@@ -49,7 +53,7 @@ a:hover {
 br {
   display: block;
   content: "";
-  margin-top: 10px;
+  margin-top: var(--main-distance);
 }
 
 main {
@@ -58,7 +62,7 @@ main {
 
 header {
   color: var(--bright-white);
-  padding: 5px 10px;
+  padding: calc(var(--main-distance) / 2) var(--main-distance);
   background-color: var(--dark-blue);
   display: flex;
   justify-content: space-between;
@@ -69,7 +73,7 @@ nav {
 }
 
 nav a {
-  margin-left: 10px;
+  margin-left: var(--main-distance);
 }
 
 legend {
@@ -136,6 +140,22 @@ button:hover {
 
 button:focus {
   outline: 1px solid var(--light-blue);
+}
+
+.plus-btn {
+  color: var(--a-blue);
+  cursor: pointer;
+  outline: dotted;
+  padding: var(--main-distance)
+}
+
+.plus-btn:Hover {
+  color: var(--light-blue);
+}
+
+.a-list {
+  display: flex;
+  flex-direction: column;
 }
 
 .toast-warning {

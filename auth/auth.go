@@ -36,7 +36,8 @@ func AuthMiddleware() gin.HandlerFunc {
 
 		// If token is still empty, return an error
 		if tokenString == "" {
-			c.JSON(401, gin.H{"error": "Authorization token required"})
+			// c.JSON(401, gin.H{"error": "Authorization token required"})
+			c.Redirect(302, "/login")
 			c.Abort()
 			return
 		}
@@ -53,22 +54,25 @@ func AuthMiddleware() gin.HandlerFunc {
 		})
 
 		if err != nil || !token.Valid {
-			c.JSON(401, gin.H{"error": "Invalid or expired token"})
+			// c.JSON(401, gin.H{"error": "Invalid or expired token"})
+			c.Redirect(302, "/login")
 			c.Abort()
 			return
 		}
 
 		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-			setCookie(tokenString, c) // Refresh cookie
+			// setCookie(tokenString, c) // Refresh cookie
 			// Get User data
 			var userData UserData
 			query := `SELECT * FROM users WHERE email = ?`
 			err := db.DB.QueryRow(query, claims["userEmail"]).Scan(&userData.ID, &userData.Username, &userData.Email, &userData.Password)
 			if err != nil {
 				if err == sql.ErrNoRows {
-					c.JSON(400, gin.H{"error": "User not found by email"})
+					c.JSON(500, gin.H{"error": "User not found by email"})
+					c.Abort()
 				} else {
 					c.JSON(500, gin.H{"error": "Database Error extracting user data"})
+					c.Abort()
 				}
 				return
 			}
@@ -100,7 +104,7 @@ func generateJWT(userEmail string, expirationTime time.Duration) (string, error)
 func setCookie(token string, c *gin.Context) {
 	isSecure := os.Getenv("ENV") == "production"
 	host := strings.Split(c.Request.Host, ":")[0]
-	c.SetCookie("auth_token", token, 3600, "/", host, isSecure, true)
+	c.SetCookie("auth_token", token, 28*24*3600, "/", host, isSecure, true) // 28 days like the JWT
 }
 
 func hashPassword(password string) (string, error) {

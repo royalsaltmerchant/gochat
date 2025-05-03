@@ -10,42 +10,45 @@
     {{template "header" .}}
     <main>
       <div id="toast-message" class="toast-warning"></div>
-      <h3>Created Spaces List</h3>
-      <div class="a-list" id="spaces-list">
-        {{if .userSpaces}} {{range .userSpaces}}
-        <a href="/space/{{.UUID}}">{{.Name}}</a>
+      <h3>Channels</h3>
+      <div class="a-list" id="channels-list">
+        {{if .channels}} {{range .channels}}
+        <a href="/channel/{{.UUID}}">{{.Name}}</a>
         {{end}} {{else}}
-        <p>No spaces...</p>
+        <p>No channels...</p>
         {{end}}
       </div>
       <br />
-      <div class="plus-btn" id="new-space-btn">+ Create New</div>
+      <div class="plus-btn" id="new-channel-btn">+ Create New</div>
     </main>
     {{template "footer" .}}
   </body>
   <script>
     document
-      .getElementById("new-space-btn")
+      .getElementById("new-channel-btn")
       .addEventListener("click", async (event) => {
-        const spaceName = window.prompt("Please enter Space 'Name'");
-        if (spaceName) {
-          console.log(spaceName);
+        const pathParts = window.location.pathname.split('/');
+        const spaceUUID = pathParts[pathParts.length - 1];
+        const channelName = window.prompt("Please enter Channel 'Name'");
+
+        if (channelName) {
+          console.log(channelName);
           try {
-            const response = await fetch("/api/new_space", {
+            const response = await fetch("/api/new_channel", {
               method: "POST",
               credentials: "include",
               headers: {
                 "Content-Type": "application/json",
               },
-              body: JSON.stringify({ name: spaceName }),
+              body: JSON.stringify({ name: channelName, spaceUUID: spaceUUID }),
             });
 
             const result = await response.json();
             console.log(result);
             const a = document.createElement("a");
-            a.innerText = result.space.name;
-            a.href = `/space/${result.space.UUID}`; // optionally set href
-            document.getElementById("spaces-list").appendChild(a);
+            a.innerText = result.channel.name;
+            a.href = `/channel/${result.channel.UUID}`; // optionally set href
+            document.getElementById("channels-list").appendChild(a);
           } catch (error) {
             console.log(error);
           }
