@@ -10,12 +10,32 @@
     {{template "header" .}}
     <main>
       <div id="toast-message" class="toast-warning"></div>
-      <h3>Created Spaces List</h3>
+      <h3>Pending Invites:</h3>
+      <div class="invites-list">
+        {{range .invites}}
+        <div class="pending-invites-item">
+          <p>{{.Name}} -</p>
+          <button
+            onclick="handleAcceptInvite(event, '{{.ID}}')"
+            id="accept-space-invite"
+          >
+            Accept
+          </button>
+          <button
+            onclick="handleDeclineInvite(event, '{{.ID}}')"
+            id="decline-space-invite"
+            class="btn-red"
+          >
+            Decline
+          </button>
+        </div>
+        {{end}}
+      </div>
+      <br />
+      <h3>Spaces List:</h3>
       <div class="a-list" id="spaces-list">
-        {{if .userSpaces}} {{range .userSpaces}}
+        {{range .userSpaces}}
         <a href="/space/{{.UUID}}">{{.Name}}</a>
-        {{end}} {{else}}
-        <p>No spaces...</p>
         {{end}}
       </div>
       <br />
@@ -41,9 +61,9 @@
             });
 
             const result = await response.json();
-            console.log(result);
+            // console.log(result);
             const a = document.createElement("a");
-            a.innerText = result.space.name;
+            a.innerText = result.space.Name;
             a.href = `/space/${result.space.UUID}`; // optionally set href
             document.getElementById("spaces-list").appendChild(a);
           } catch (error) {
@@ -51,5 +71,54 @@
           }
         }
       });
+
+    async function handleAcceptInvite(event, inviteID) {
+      try {
+        const response = await fetch("/api/accept_invite", {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ spaceUserID: inviteID }),
+        });
+
+        const result = await response.json();
+
+        // console.log(result);
+        const a = document.createElement("a");
+        a.innerText = result.space.Name;
+        a.href = `/space/${result.space.UUID}`; // optionally set href
+        document.getElementById("spaces-list").appendChild(a);
+        // remove invite
+        event.target.parentElement.remove();
+      } catch (error) {
+        console.log(error);
+      }
+    }
+
+    async function handleDeclineInvite(event, inviteID) {
+      try {
+        const response = await fetch("/api/decline_invite", {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ spaceUserID: inviteID }),
+        });
+
+        const result = await response.json();
+
+        if (response.status == 400) {
+          window.alert("Error: Failed to decline invite!")
+          return
+        }
+
+        event.target.parentElement.remove();
+      } catch (error) {
+        console.log(error);
+      }
+    }
   </script>
 </html>

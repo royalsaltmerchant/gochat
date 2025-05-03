@@ -65,6 +65,7 @@ header {
   padding: calc(var(--main-distance) / 2) var(--main-distance);
   background-color: var(--dark-blue);
   display: flex;
+  align-items: baseline;
   justify-content: space-between;
 }
 
@@ -142,6 +143,10 @@ button:focus {
   outline: 1px solid var(--light-blue);
 }
 
+.btn-red {
+  background-color: var(--light-red);
+}
+
 .plus-btn {
   color: var(--a-blue);
   cursor: pointer;
@@ -156,11 +161,21 @@ button:focus {
 .a-list {
   display: flex;
   flex-direction: column;
+  padding-bottom: calc(var(--main-distance) * 3);
+}
+
+.a-list a {
+  padding-top: var(--main-distance);
+  margin-left: var(--main-distance);
+}
+
+.pending-invites-item {
+  padding-top: var(--main-distance);
+  margin-left: var(--main-distance);
 }
 
 .toast-warning {
   color: var(--light-red);
-  font-size: small;
 }
 
 footer {

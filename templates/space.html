@@ -20,19 +20,21 @@
       </div>
       <br />
       <div class="plus-btn" id="new-channel-btn">+ Create New</div>
+      <br />
+      <div class="plus-btn" id="invite-btn">+ Invite</div>
     </main>
     {{template "footer" .}}
   </body>
   <script>
+    // For new channel
     document
       .getElementById("new-channel-btn")
       .addEventListener("click", async (event) => {
-        const pathParts = window.location.pathname.split('/');
+        const pathParts = window.location.pathname.split("/");
         const spaceUUID = pathParts[pathParts.length - 1];
         const channelName = window.prompt("Please enter Channel 'Name'");
 
         if (channelName) {
-          console.log(channelName);
           try {
             const response = await fetch("/api/new_channel", {
               method: "POST",
@@ -46,9 +48,45 @@
             const result = await response.json();
             console.log(result);
             const a = document.createElement("a");
-            a.innerText = result.channel.name;
+            a.innerText = result.channel.Name;
             a.href = `/channel/${result.channel.UUID}`; // optionally set href
             document.getElementById("channels-list").appendChild(a);
+          } catch (error) {
+            console.log(error);
+          }
+        }
+      });
+    // For add invite
+    document
+      .getElementById("invite-btn")
+      .addEventListener("click", async (event) => {
+        const pathParts = window.location.pathname.split("/");
+        const spaceUUID = pathParts[pathParts.length - 1];
+        const invitedUserEmail = window.prompt(
+          "Please enter email address of user"
+        );
+
+        if (invitedUserEmail) {
+          try {
+            const response = await fetch("/api/new_space_user", {
+              method: "POST",
+              credentials: "include",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                userEmail: invitedUserEmail.trim(),
+                spaceUUID: spaceUUID,
+              }),
+            });
+
+            const result = await response.json();
+            if (response.status === 400) {
+              document.getElementById("toast-message").textContent = `ERROR: ${result.error}`;
+              return;
+            }
+
+            window.alert(`Invite Sent to ${invitedUserEmail}!`)
           } catch (error) {
             console.log(error);
           }

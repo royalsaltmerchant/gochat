@@ -80,6 +80,8 @@ func main() {
 
 	r.GET("/channel/:uuid", func(c *gin.Context) {
 		uuid := c.Param("uuid")
+		username, _ := c.Get("userUsername")
+
 		// Get channel data
 		var channel spaces.Channel
 		query := `SELECT * FROM channels WHERE uuid = ?`
@@ -96,17 +98,28 @@ func main() {
 		cr.ChatRooms[uuid] = &cr.ChatRoom{Users: make(map[*websocket.Conn]string)}
 
 		c.HTML(200, "channel.html", gin.H{
-			"Title": channel.Name,
+			"Username": username,
+			"Title":    channel.Name,
 		})
 	})
 
 	r.GET("/dashboard", auth.AuthMiddleware(), func(c *gin.Context) {
-		authorID, _ := c.Get("userID") // From middleware
+		userID, _ := c.Get("userID")
+		username, _ := c.Get("userUsername")
 
-		rows, err := db.DB.Query(`SELECT * FROM spaces WHERE author_id = ? LIMIT 10`, authorID)
+		// 1. Collect user spaces (as author OR accepted invite)
+		query := `
+			SELECT DISTINCT s.id, s.uuid, s.name, s.author_id
+			FROM spaces s
+			LEFT JOIN space_users su ON su.space_uuid = s.uuid
+			WHERE s.author_id = ?
+				 OR (su.user_id = ? AND su.joined = 1)
+		`
+
+		rows, err := db.DB.Query(query, userID, userID)
 		if err != nil {
-			fmt.Println("Error querying spaces:", err)
-			c.Status(500)
+			fmt.Println("Error querying user spaces:", err)
+			c.JSON(500, gin.H{"error": "Database error fetching user spaces"})
 			return
 		}
 		defer rows.Close()
@@ -122,14 +135,73 @@ func main() {
 			userSpaces = append(userSpaces, space)
 		}
 
+		// 2. Collect invites (space_users.joined = 0) + space.name
+		query = `
+			SELECT su.id, su.space_uuid, su.user_id, su.joined, s.name
+			FROM space_users su
+			JOIN spaces s ON su.space_uuid = s.uuid
+			WHERE su.user_id = ? AND su.joined = 0
+		`
+
+		rows, err = db.DB.Query(query, userID)
+		if err != nil {
+			fmt.Println("Error querying invites:", err)
+			c.JSON(500, gin.H{"error": "Database error fetching invites"})
+			return
+		}
+		defer rows.Close()
+
+		var invites []spaces.SpaceUser
+		for rows.Next() {
+			var invite spaces.SpaceUser
+			err := rows.Scan(&invite.ID, &invite.SpaceUUID, &invite.UserID, &invite.Joined, &invite.Name)
+			if err != nil {
+				fmt.Println("Error scanning invite:", err)
+				continue
+			}
+			invites = append(invites, invite)
+		}
+
+		// 3. Render dashboard
 		c.HTML(200, "dashboard.html", gin.H{
 			"Title":      "Dashboard",
+			"Username":   username,
 			"userSpaces": userSpaces,
+			"invites":    invites,
 		})
 	})
 
 	r.GET("/space/:uuid", auth.AuthMiddleware(), func(c *gin.Context) {
 		uuid := c.Param("uuid")
+		userID, _ := c.Get("userID")
+		username, _ := c.Get("userUsername")
+
+		//TODO Ensure user has access to this space, either is author or is space_user
+		// First get author ID
+		var space spaces.Space
+
+		query := `SELECT * FROM spaces WHERE uuid = ?`
+		err := db.DB.QueryRow(query, uuid).Scan(&space.ID, &space.UUID, &space.Name, &space.AuthorID)
+
+		if err != nil {
+			c.JSON(500, gin.H{"error": "Failed to query space by UUID"})
+			return
+		}
+
+		if space.AuthorID != userID {
+			var spaceUser spaces.SpaceUser
+			query := `SELECT * FROM space_users WHERE user_id = ? AND joined = 1`
+			err = db.DB.QueryRow(query, userID).Scan(&spaceUser.ID, &spaceUser.SpaceUUID, &spaceUser.UserID, &spaceUser.Joined)
+			if err != nil {
+				if err == sql.ErrNoRows {
+					c.JSON(401, gin.H{"error": "User not authorized to visit this page"})
+				} else {
+					c.JSON(500, gin.H{"error": "Database Error extracting user data"})
+				}
+				return
+			}
+		}
+		// Then get space users user ID
 
 		rows, err := db.DB.Query(`SELECT * FROM channels WHERE space_uuid = ? LIMIT 10`, uuid)
 		if err != nil {
@@ -150,7 +222,8 @@ func main() {
 		}
 
 		c.HTML(200, "space.html", gin.H{
-			"Title":    "Dashboard",
+			"Username": username,
+			"Title":    space.Name,
 			"channels": channels,
 		})
 	})
@@ -159,6 +232,9 @@ func main() {
 	r.POST("/api/register", auth.HandleRegister)
 	r.POST("/api/login", auth.HandleLogin)
 	r.POST("/api/new_space", auth.AuthMiddleware(), spaces.HandleInsertSpace)
+	r.POST("/api/new_space_user", auth.AuthMiddleware(), spaces.HandleInsertSpaceUser)
+	r.POST("/api/accept_invite", auth.AuthMiddleware(), spaces.HandleAcceptInvite)
+	r.POST("/api/decline_invite", auth.AuthMiddleware(), spaces.HandleDeclineInvite)
 	r.POST("/api/new_channel", auth.AuthMiddleware(), spaces.HandleInsertChannel)
 	r.POST("/api/get_messages", auth.AuthMiddleware(), spaces.HandleGetMessages)
 

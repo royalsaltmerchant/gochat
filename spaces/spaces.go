@@ -16,6 +16,14 @@ type Space struct {
 	AuthorID int
 }
 
+type SpaceUser struct {
+	ID        int
+	SpaceUUID string
+	UserID    int
+	Joined    int
+	Name      string
+}
+
 type Channel struct {
 	ID        int
 	UUID      string
@@ -97,16 +105,115 @@ func HandleInsertSpace(c *gin.Context) {
 		"space": gin.H{
 			"ID":       space.ID,
 			"UUID":     space.UUID,
-			"name":     space.Name,
-			"authorID": space.AuthorID,
+			"Name":     space.Name,
+			"AuthorID": space.AuthorID,
 		},
 		"channel": gin.H{
-			"ID":       channel.ID,
-			"UUID":     channel.UUID,
-			"name":     channel.Name,
-			"space_id": channel.SpaceUUID,
+			"ID":        channel.ID,
+			"UUID":      channel.UUID,
+			"Name":      channel.Name,
+			"SpaceUUID": channel.SpaceUUID,
 		},
 	})
+}
+
+func HandleInsertSpaceUser(c *gin.Context) {
+	var json struct {
+		UserEmail string `json:"userEmail" binding:"required"`
+		SpaceUUID string `json:"spaceUUID" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&json); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	var userID int
+	err := db.DB.QueryRow(`SELECT id FROM users WHERE email = ?`, json.UserEmail).Scan(&userID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(400, gin.H{"error": "User not found"})
+		} else {
+			c.JSON(500, gin.H{"error": "Database error finding user"})
+		}
+		return
+	}
+
+	var spaceUser SpaceUser
+
+	query := `INSERT INTO space_users (space_uuid, user_id) VALUES (?, ?) RETURNING *`
+	err = db.DB.QueryRow(query, json.SpaceUUID, userID).Scan(&spaceUser.ID, &spaceUser.SpaceUUID, &spaceUser.UserID, &spaceUser.Joined)
+
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Database error inserting channel data"})
+		return
+	}
+
+	c.JSON(201, gin.H{
+		"message": "Successfully created new space user",
+	})
+}
+
+func HandleAcceptInvite(c *gin.Context) {
+	var json struct {
+		SpaceUserID string `json:"spaceUserID" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&json); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Get space user
+	var spaceUUID string
+	query := `UPDATE space_users SET joined = 1 WHERE id = ? RETURNING space_uuid`
+	err := db.DB.QueryRow(query, json.SpaceUserID).Scan(&spaceUUID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(404, gin.H{"error": "space user not found by id"})
+		} else {
+			c.JSON(500, gin.H{"error": "Database error finding space user"})
+		}
+		return
+	}
+	// Get and return space
+	var space Space
+	err = db.DB.QueryRow(`SELECT * FROM spaces WHERE uuid = ?`, spaceUUID).Scan(&space.ID, &space.UUID, &space.Name, &space.AuthorID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(404, gin.H{"error": "Space not found by uuid"})
+		} else {
+			c.JSON(500, gin.H{"error": "Database error finding space"})
+		}
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"space": space,
+	})
+}
+
+func HandleDeclineInvite(c *gin.Context) {
+	var json struct {
+		SpaceUserID string `json:"spaceUserID" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&json); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	res, err := db.DB.Exec(`DELETE FROM space_users WHERE id = ?`, json.SpaceUserID)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to delete invite"})
+		return
+	}
+
+	if rows, _ := res.RowsAffected(); rows == 0 {
+		c.JSON(400, gin.H{"error": "Invite not found"})
+		return
+	}
+
+	c.JSON(200, gin.H{"message": "Invite declined"})
 }
 
 func HandleInsertChannel(c *gin.Context) {
@@ -143,10 +250,10 @@ func HandleInsertChannel(c *gin.Context) {
 	c.JSON(201, gin.H{
 		"message": "Successfully created new channel",
 		"channel": gin.H{
-			"ID":         channel.ID,
-			"UUID":       channel.UUID,
-			"name":       channel.Name,
-			"space_uuid": channel.SpaceUUID,
+			"ID":        channel.ID,
+			"UUID":      channel.UUID,
+			"Name":      channel.Name,
+			"SpaceUUID": channel.SpaceUUID,
 		},
 	})
 }

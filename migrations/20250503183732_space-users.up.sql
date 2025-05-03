@@ -1,0 +1,8 @@
+CREATE TABLE space_users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    space_uuid TEXT NOT NULL,
+    user_id INTEGER NOT NULL,
+    joined INTEGER NOT NULL DEFAULT 0,
+    FOREIGN KEY (space_uuid) REFERENCES spaces(uuid) ON DELETE CASCADE
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
