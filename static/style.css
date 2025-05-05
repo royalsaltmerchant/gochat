@@ -1,4 +1,3 @@
-
 :root {
   --main-white: rgb(235, 235, 235);
   --bright-white: rgb(245, 245, 245);
@@ -161,6 +160,17 @@ button:focus {
 
 .plus-btn:Hover {
   color: var(--light-blue);
+}
+
+.plus-btn-red {
+  color: var(--light-red);
+  cursor: pointer;
+  outline: dotted;
+  padding: var(--main-distance);
+}
+
+.plus-btn-red:hover {
+  color: var(--dark-red);
 }
 
 .a-list {

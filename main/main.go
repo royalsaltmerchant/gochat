@@ -264,6 +264,7 @@ func main() {
 			"Username": username,
 			"Title":    space.Name,
 			"channels": channels,
+			"IsAuthor": space.AuthorID == userID,
 		})
 	})
 
@@ -277,6 +278,7 @@ func main() {
 	r.POST("/api/decline_invite", auth.AuthMiddleware(), spaces.HandleDeclineInvite)
 	r.POST("/api/new_channel", auth.AuthMiddleware(), spaces.HandleInsertChannel)
 	r.POST("/api/get_messages", auth.AuthMiddleware(), spaces.HandleGetMessages)
+	r.DELETE("/api/space/:uuid", auth.AuthMiddleware(), spaces.HandleDeleteSpace)
 
 	// Join chat room endpoint
 	r.GET("/ws/:uuid", auth.AuthMiddleware(), cr.JoinChatRoom)

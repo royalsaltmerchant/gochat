@@ -22,6 +22,10 @@
       <div class="plus-btn" id="new-channel-btn">+ Create New</div>
       <br />
       <div class="plus-btn" id="invite-btn">+ Invite</div>
+      {{if .IsAuthor}}
+      <br />
+      <div class="plus-btn-red" id="delete-space-btn">Delete Space</div>
+      {{end}}
     </main>
     {{template "footer" .}}
   </body>
@@ -90,6 +94,30 @@
           } catch (error) {
             console.log(error);
           }
+        }
+      });
+    // For delete space
+    document
+      .getElementById("delete-space-btn")
+      .addEventListener("click", async (event) => {
+        if (!confirm("Are you sure you want to delete this space? This cannot be undone.")) {
+          return;
+        }
+        const pathParts = window.location.pathname.split("/");
+        const spaceUUID = pathParts[pathParts.length - 1];
+        try {
+          const response = await fetch(`/api/space/${spaceUUID}`, {
+            method: "DELETE",
+            credentials: "include",
+          });
+          const result = await response.json();
+          if (response.status === 200) {
+            window.location.href = "/dashboard";
+          } else {
+            document.getElementById("toast-message").textContent = `ERROR: ${result.error}`;
+          }
+        } catch (error) {
+          document.getElementById("toast-message").textContent = `ERROR: ${error}`;
         }
       });
   </script>

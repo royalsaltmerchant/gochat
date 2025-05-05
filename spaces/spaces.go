@@ -303,3 +303,39 @@ func HandleGetMessages(c *gin.Context) {
 		"messages": messages,
 	})
 }
+
+// HandleDeleteSpace deletes a space by UUID if the user is the author
+func HandleDeleteSpace(c *gin.Context) {
+	uuid := c.Param("uuid")
+	userID, _ := c.Get("userID")
+
+	// Check if the space exists and get the author
+	var authorID int
+	err := db.DB.QueryRow("SELECT author_id FROM spaces WHERE uuid = ?", uuid).Scan(&authorID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(404, gin.H{"error": "Space not found"})
+			return
+		}
+		c.JSON(500, gin.H{"error": "Database error finding space"})
+		return
+	}
+
+	if authorID != userID {
+		c.JSON(403, gin.H{"error": "Not authorized to delete this space"})
+		return
+	}
+
+	// Delete the space (cascades to channels, messages, space_users)
+	res, err := db.DB.Exec("DELETE FROM spaces WHERE uuid = ?", uuid)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Database error deleting space"})
+		return
+	}
+	if rows, _ := res.RowsAffected(); rows == 0 {
+		c.JSON(404, gin.H{"error": "Space not found"})
+		return
+	}
+
+	c.JSON(200, gin.H{"message": "Space deleted successfully"})
+}
