@@ -263,3 +263,20 @@ func HandlePasswordResetRequest(c *gin.Context) {
 
 	c.JSON(200, gin.H{"message": "Password reset email sent"})
 }
+
+func HandleLogout(c *gin.Context) {
+	host := strings.Split(c.Request.Host, ":")[0]
+	isSecure := os.Getenv("ENV") == "production"
+	// Overwrite the cookie with an expired one
+	c.SetCookie(
+		"auth_token", // name
+		"",           // value
+		-1,           // maxAge (negative = delete immediately)
+		"/",          // path
+		host,         // domain ("" = current domain)
+		isSecure,     // secure
+		true,         // httpOnly
+	)
+
+	c.JSON(200, gin.H{"message": "Logged out successfully"})
+}

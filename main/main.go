@@ -247,6 +247,7 @@ func main() {
 	// API
 	r.POST("/api/register", auth.HandleRegister)
 	r.POST("/api/login", auth.HandleLogin)
+	r.POST("/api/logout", auth.HandleLogout)
 	r.POST("/api/new_space", auth.AuthMiddleware(), spaces.HandleInsertSpace)
 	r.POST("/api/new_space_user", auth.AuthMiddleware(), spaces.HandleInsertSpaceUser)
 	r.POST("/api/accept_invite", auth.AuthMiddleware(), spaces.HandleAcceptInvite)
