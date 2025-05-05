@@ -93,11 +93,10 @@ func main() {
 		})
 	})
 
-	r.GET("/channel/:uuid", func(c *gin.Context) {
+	r.GET("/channel/:uuid", auth.AuthMiddleware(), func(c *gin.Context) {
 		uuid := c.Param("uuid")
+		userID, _ := c.Get("userID")
 		username, _ := c.Get("userUsername")
-
-		// TODO: Ensure user is authorized to view this channel
 
 		// Get channel data
 		var channel spaces.Channel
@@ -112,11 +111,35 @@ func main() {
 			return
 		}
 
+		// Authorize user to visit this space
+		var space spaces.Space
+		query = `SELECT * FROM spaces WHERE uuid = ?`
+		err = db.DB.QueryRow(query, channel.SpaceUUID).Scan(&space.ID, &space.UUID, &space.Name, &space.AuthorID)
+
+		if err != nil {
+			c.JSON(500, gin.H{"error": "Failed to query space by UUID"})
+			return
+		}
+
+		if space.AuthorID != userID {
+			var spaceUser spaces.SpaceUser
+			query := `SELECT * FROM space_users WHERE user_id = ? AND joined = 1`
+			err = db.DB.QueryRow(query, userID).Scan(&spaceUser.ID, &spaceUser.SpaceUUID, &spaceUser.UserID, &spaceUser.Joined)
+			if err != nil {
+				if err == sql.ErrNoRows {
+					c.JSON(401, gin.H{"error": "User not authorized to visit this page"})
+				} else {
+					c.JSON(500, gin.H{"error": "Database Error extracting user data"})
+				}
+				return
+			}
+		}
+
 		cr.ChatRooms[uuid] = &cr.ChatRoom{Users: make(map[*websocket.Conn]string)}
 
 		c.HTML(200, "channel.html", gin.H{
-			"Username": username,
 			"Title":    channel.Name,
+			"Username": username,
 		})
 	})
 
@@ -193,9 +216,9 @@ func main() {
 		userID, _ := c.Get("userID")
 		username, _ := c.Get("userUsername")
 
-		// First get author ID
 		var space spaces.Space
 
+		// Authorize user to visit this space
 		query := `SELECT * FROM spaces WHERE uuid = ?`
 		err := db.DB.QueryRow(query, uuid).Scan(&space.ID, &space.UUID, &space.Name, &space.AuthorID)
 
@@ -217,8 +240,8 @@ func main() {
 				return
 			}
 		}
-		// Then get space users user ID
 
+		// Get channels
 		rows, err := db.DB.Query(`SELECT * FROM channels WHERE space_uuid = ? LIMIT 10`, uuid)
 		if err != nil {
 			fmt.Println("Error querying channels:", err)

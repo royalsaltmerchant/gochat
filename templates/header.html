@@ -1,8 +1,12 @@
 {{define "header"}}
 <header>
-  <h3>GoChat - {{.Title}}</h3>
+  <h3>GoChat - {{.Title}} - {{.Username}}</h3>
   {{if .Username}}
-  <a href="/account">{{.Username}}</a>
+  <div>
+    <a href="/dashboard">Dashboard</a>
+    <a href="/account">Account</a>
+
+  </div>
   {{end}}
 </header>
 {{end}}
