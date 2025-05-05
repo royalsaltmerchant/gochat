@@ -66,6 +66,21 @@ func main() {
 	// Load Template files
 	r.LoadHTMLGlob("templates/*")
 
+	r.GET("/", func(c *gin.Context) {
+		c.HTML(200, "index.html", gin.H{
+			"Title": "Index",
+		})
+	})
+
+	r.GET("/account", auth.AuthMiddleware(), func(c *gin.Context) {
+		username, _ := c.Get("userUsername")
+
+		c.HTML(200, "account.html", gin.H{
+			"Title":    "Account",
+			"Username": username,
+		})
+	})
+
 	r.GET("/register", func(c *gin.Context) {
 		c.HTML(200, "register.html", gin.H{
 			"Title": "Register",

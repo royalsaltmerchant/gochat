@@ -11,6 +11,7 @@
   --a-blue: rgb(157, 179, 211);
   --main-gray: rgb(89, 96, 117);
   --light-red: rgb(209, 102, 124);
+  --dark-red: rgb(152, 74, 90);
   --main-distance: 10px;
 }
 
@@ -145,6 +146,10 @@ button:focus {
 
 .btn-red {
   background-color: var(--light-red);
+}
+
+.btn-red:hover {
+  background: linear-gradient(var(--light-red) 25%, var(--dark-red) 75%);
 }
 
 .plus-btn {
