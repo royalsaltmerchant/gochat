@@ -21,6 +21,7 @@ func SetupAPIRoutes(r *gin.Engine) {
 		api.POST("/new_channel", auth.AuthMiddleware(), spaces.HandleInsertChannel)
 		api.POST("/get_messages", auth.AuthMiddleware(), spaces.HandleGetMessages)
 		api.DELETE("/space/:uuid", auth.AuthMiddleware(), spaces.HandleDeleteSpace)
+		api.DELETE("/channel/:uuid", auth.AuthMiddleware(), spaces.HandleDeleteChannel)
 		api.PUT("/update_username", auth.AuthMiddleware(), auth.HandleUpdateUsername)
 
 		api.GET("/dashboard_data", auth.AuthMiddleware(), func(c *gin.Context) {

@@ -340,3 +340,41 @@ func HandleDeleteSpace(c *gin.Context) {
 
 	c.JSON(200, gin.H{"message": "Space deleted successfully"})
 }
+
+func HandleDeleteChannel(c *gin.Context) {
+	uuid := c.Param("uuid")
+	userID, _ := c.Get("userID")
+
+	// First verify that the user has access to this channel by checking if they're part of the space
+	query := `
+		SELECT 1 FROM channels c
+		JOIN spaces s ON c.space_uuid = s.uuid
+		LEFT JOIN space_users su ON su.space_uuid = s.uuid
+		WHERE c.uuid = ? AND (s.author_id = ? OR (su.user_id = ? AND su.joined = 1))
+	`
+
+	var exists int
+	err := db.DB.QueryRow(query, uuid, userID, userID).Scan(&exists)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(403, gin.H{"error": "You don't have permission to delete this channel"})
+		} else {
+			c.JSON(500, gin.H{"error": "Database error checking channel access"})
+		}
+		return
+	}
+
+	// Delete the channel
+	res, err := db.DB.Exec(`DELETE FROM channels WHERE uuid = ?`, uuid)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to delete channel"})
+		return
+	}
+
+	if rows, _ := res.RowsAffected(); rows == 0 {
+		c.JSON(404, gin.H{"error": "Channel not found"})
+		return
+	}
+
+	c.JSON(200, gin.H{"message": "Channel successfully deleted"})
+}

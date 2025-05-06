@@ -59,6 +59,8 @@ class DashboardApp {
       });
       const result = await response.json();
       if (result.space) {
+        // Initialize the Channels array with the initial channel
+        result.space.Channels = [result.channel];
         this.data.spaces.push(result.space);
         this.sidebar.addSpace(result.space);
       }
@@ -98,8 +100,25 @@ class DashboardApp {
         credentials: "include",
       });
       if (response.ok) {
+        // Store the current channel UUID before updating the data
+        const currentChannelUUID = this.mainContent.currentChannelUUID;
+        
+        // Update the data structure
         this.data.spaces = this.data.spaces.filter(s => s.UUID !== this.currentSpaceUUID);
-        this.sidebar.spaceComponents = this.sidebar.spaceComponents.filter(comp => comp.space.UUID !== this.currentSpaceUUID);
+        
+        // Preserve the channelsOpen state of remaining spaces
+        const remainingComponents = this.sidebar.spaceComponents.filter(comp => comp.space.UUID !== this.currentSpaceUUID);
+        this.sidebar.spaceComponents = remainingComponents;
+        
+        // Check if the current channel still exists in any space
+        const channelStillExists = this.data.spaces.some(space => 
+          space.Channels.some(channel => channel.UUID === currentChannelUUID)
+        );
+        
+        if (!channelStillExists) {
+          this.mainContent.render();
+        }
+        
         this.sidebar.render();
         this.closeSpaceSettings();
       } else {
@@ -152,6 +171,64 @@ class DashboardApp {
 
   loadChannel = (channelUUID) => {
     this.mainContent.renderChannel(channelUUID);
+  }
+
+  createNewChannel = async () => {
+    if (!this.currentSpace) return;
+    const channelName = window.prompt("Please enter Channel 'Name'");
+    if (!channelName) return;
+    try {
+      const response = await fetch("/api/new_channel", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          name: channelName,
+          spaceUUID: this.currentSpace.UUID 
+        }),
+      });
+      const result = await response.json();
+      if (result.channel) {
+        this.currentSpace.Channels.push(result.channel);
+        this.app.sidebar.render();
+        this.render();
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  deleteChannel = async (channelUUID) => {
+    if (!this.currentSpace) return;
+    if (!window.confirm("Are you sure you want to delete this channel? This action cannot be undone.")) return;
+    try {
+      const response = await fetch(`/api/channel/${channelUUID}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (response.ok) {
+        // Update the channels array - this will automatically update the app's data structure
+        this.currentSpace.Channels = this.currentSpace.Channels.filter(c => c.UUID !== channelUUID);
+        
+        // Check if the current channel still exists in any space
+        const channelStillExists = this.app.data.spaces.some(space => 
+          space.Channels.some(channel => channel.UUID === this.app.mainContent.currentChannelUUID)
+        );
+        
+        if (!channelStillExists) {
+          this.app.mainContent.render();
+        }
+        
+        // Re-render both the sidebar and the modal
+        this.app.sidebar.render();
+        this.render();
+      } else {
+        const result = await response.json();
+        window.alert(`ERROR: ${result.error}`);
+      }
+    } catch (error) {
+      console.log(error);
+    }
   }
 }
 
@@ -237,7 +314,10 @@ class SpaceItemComponent {
 
   renderActions = (isAuthor) => (
     isAuthor
-      ? [createElement('button', { class: 'btn-icon open-settings' }, '⚙️', { type: 'click', event: () => this.onOpenSpaceSettings(this.space) })]
+      ? [createElement('button', { class: 'btn-icon open-settings' }, '⚙️', { type: 'click', event: (e) => {
+          e.stopPropagation(); // Prevent the click from triggering toggleChannels
+          this.onOpenSpaceSettings(this.space);
+        }})]
       : []
   );
 
@@ -274,6 +354,15 @@ class SpaceItemComponent {
   }
 
   render = () => {
+    // Store the current state
+    const wasOpen = this.channelsOpen;
+    
+    // Update the space data
+    this.space = this.space;
+    
+    // Restore the state
+    this.channelsOpen = wasOpen;
+    
     this.domComponent.innerHTML = "";
     const isAuthor = String(this.space.AuthorID) === String(this.user.id);
     this.domComponent.append(
@@ -285,15 +374,14 @@ class SpaceItemComponent {
 
 class MainContentComponent {
   constructor() {
-    this.domComponent = createElement('div', { id: 'channel-content', class: 'channel-content' }, [
-      createElement('div', { class: 'no-channel-selected' }, [
-        createElement('h2', {}, 'Select a channel to start chatting')
-      ])
-    ]);
+    this.domComponent = createElement('div', { id: 'channel-content', class: 'channel-content' });
     this.chatApp = null;
+    this.currentChannelUUID = null;
+    this.render();
   }
 
   renderChannel = (channelUUID) => {
+    this.currentChannelUUID = channelUUID;
     this.domComponent.innerHTML = '';
     const chatAppDiv = createElement('div', { id: 'chatapp' });
     this.domComponent.append(chatAppDiv);
@@ -305,7 +393,17 @@ class MainContentComponent {
     this.chatApp.initialize(channelUUID);
   }
 
+  cleanup = () => {
+    if (this.chatApp) {
+      // Clean up any WebSocket connections or event listeners
+      this.chatApp.cleanup?.();
+      this.chatApp = null;
+    }
+    this.currentChannelUUID = null;
+  }
+
   render = () => {
+    this.cleanup();
     this.domComponent.innerHTML = "";
     this.domComponent.append(
       createElement('div', { class: 'no-channel-selected' }, [
@@ -318,55 +416,132 @@ class MainContentComponent {
 class SpaceSettingsModal {
   constructor(app) {
     this.app = app;
-    this.domComponent = createElement('div', { id: 'space-settings-modal', class: 'modal' }, [
-      createElement('div', { class: 'modal-content' }, [
-        createElement('div', { class: 'modal-header' }, [
-          createElement('h2', {}, 'Space Settings'),
-          createElement(
-            'button',
-            { class: 'close-modal' },
-            '×',
-            { type: 'click', event: () => this.app.closeSpaceSettings() }
-          )
-        ]),
-        createElement('div', { class: 'modal-body' }, [
-          createElement('div', { class: 'space-info' }, [
-            createElement('h3', { id: 'modal-space-name' })
-          ]),
-          createElement('div', { class: 'space-actions' }, [
-            createElement(
-              'button',
-              { id: 'invite-btn', class: 'btn-primary' },
-              '+ Invite User',
-              { type: 'click', event: () => this.app.inviteUser() }
-            ),
-            createElement(
-              'button',
-              { id: 'delete-space-btn', class: 'btn-danger' },
-              'Delete Space',
-              { type: 'click', event: () => this.app.deleteSpace() }
-            )
-          ])
-        ])
-      ])
-    ]);
-    this.spaceNameElem = this.domComponent.querySelector('#modal-space-name');
-    this.deleteBtn = this.domComponent.querySelector('#delete-space-btn');
+    this.domComponent = createElement('div', { class: 'modal' });
+    this.currentSpace = null;
+    this.render();
   }
 
   open = (space) => {
-    this.spaceNameElem.textContent = space.Name;
-    const isAuthor = String(space.AuthorID) === String(this.app.data.user.id);
-    this.deleteBtn.style.display = isAuthor ? 'block' : 'none';
+    this.currentSpace = space;
     this.domComponent.style.display = 'block';
+    this.render();
   }
 
   close = () => {
     this.domComponent.style.display = 'none';
+    this.currentSpace = null;
+  }
+
+  createNewChannel = async () => {
+    if (!this.currentSpace) return;
+    const channelName = window.prompt("Please enter Channel 'Name'");
+    if (!channelName) return;
+    try {
+      const response = await fetch("/api/new_channel", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          name: channelName,
+          spaceUUID: this.currentSpace.UUID 
+        }),
+      });
+      const result = await response.json();
+      if (result.channel) {
+        this.currentSpace.Channels.push(result.channel);
+        // Update the space component directly instead of re-rendering the whole sidebar
+        const spaceComponent = this.app.sidebar.spaceComponents.find(comp => comp.space.UUID === this.currentSpace.UUID);
+        if (spaceComponent) {
+          spaceComponent.render();
+        }
+        this.render();
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  deleteChannel = async (channelUUID) => {
+    if (!this.currentSpace) return;
+    if (!window.confirm("Are you sure you want to delete this channel? This action cannot be undone.")) return;
+    try {
+      const response = await fetch(`/api/channel/${channelUUID}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (response.ok) {
+        // Update the channels array - this will automatically update the app's data structure
+        this.currentSpace.Channels = this.currentSpace.Channels.filter(c => c.UUID !== channelUUID);
+        
+        // Check if the current channel still exists in any space
+        const channelStillExists = this.app.data.spaces.some(space => 
+          space.Channels.some(channel => channel.UUID === this.app.mainContent.currentChannelUUID)
+        );
+        
+        if (!channelStillExists) {
+          this.app.mainContent.render();
+        }
+        
+        // Update the space component directly instead of re-rendering the whole sidebar
+        const spaceComponent = this.app.sidebar.spaceComponents.find(comp => comp.space.UUID === this.currentSpace.UUID);
+        if (spaceComponent) {
+          spaceComponent.render();
+        }
+        this.render();
+      } else {
+        const result = await response.json();
+        window.alert(`ERROR: ${result.error}`);
+      }
+    } catch (error) {
+      console.log(error);
+    }
   }
 
   render = () => {
-    // Not used, but included for convention
+    if (!this.currentSpace) {
+      this.domComponent.innerHTML = "";
+      return;
+    }
+
+    const isAuthor = this.currentSpace.AuthorID === this.app.data.user.id;
+
+    this.domComponent.innerHTML = "";
+    this.domComponent.append(
+      createElement('div', { class: 'modal-content' }, [
+        createElement('div', { class: 'modal-header' }, [
+          createElement('h2', {}, `Space Settings: ${this.currentSpace.Name}`),
+          createElement('button', { class: 'close-btn' }, '×', { type: 'click', event: this.close })
+        ]),
+        createElement('div', { class: 'modal-body' }, [
+          // Space Management Section
+          createElement('div', { class: 'settings-section' }, [
+            createElement('h3', {}, 'Space Management'),
+            createElement('div', { class: 'settings-actions' }, [
+              createElement('button', { class: 'btn' }, 'Invite User', { type: 'click', event: this.app.inviteUser }),
+              isAuthor && createElement('button', { class: 'btn btn-red' }, 'Delete Space', { type: 'click', event: this.app.deleteSpace })
+            ])
+          ]),
+          // Channel Management Section
+          createElement('div', { class: 'settings-section' }, [
+            createElement('h3', {}, 'Channel Management'),
+            createElement('div', { class: 'settings-actions' }, [
+              createElement('button', { class: 'btn' }, '+ Create Channel', { type: 'click', event: this.createNewChannel })
+            ]),
+            createElement('div', { class: 'channels-list' }, 
+              this.currentSpace.Channels.map(channel => 
+                createElement('div', { class: 'channel-item' }, [
+                  createElement('span', {}, channel.Name),
+                  createElement('button', { class: 'btn-small btn-red' }, 'Delete', { 
+                    type: 'click', 
+                    event: () => this.deleteChannel(channel.UUID)
+                  })
+                ])
+              )
+            )
+          ])
+        ])
+      ])
+    );
   }
 }
 

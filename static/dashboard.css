@@ -244,4 +244,50 @@
   flex-direction: column;
   gap: 10px;
   margin-top: 20px;
+}
+
+.settings-section {
+  margin-bottom: 20px;
+  padding: 15px;
+  background: var(--main-dark);
+  border-radius: 8px;
+}
+
+
+.settings-actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.channels-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.channel-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  /* background: white; */
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+
+.btn-small {
+  padding: 4px 8px;
+  font-size: 12px;
+  border-radius: 4px;
+}
+
+.btn-red {
+  background-color: var(--light-red);
+  border: none;
+}
+
+.btn-red:hover {
+  background-color: var(--dark-red);
 } 
