@@ -61,37 +61,23 @@ func AuthMiddleware() gin.HandlerFunc {
 		}
 
 		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-			// setCookie(tokenString, c) // Refresh cookie
-			// Get User data
-			var userData UserData
-			query := `SELECT * FROM users WHERE email = ?`
-			err := db.DB.QueryRow(query, claims["userEmail"]).Scan(&userData.ID, &userData.Username, &userData.Email, &userData.Password)
-			if err != nil {
-				if err == sql.ErrNoRows {
-					c.JSON(500, gin.H{"error": "User not found by email"})
-					c.Abort()
-				} else {
-					c.JSON(500, gin.H{"error": "Database Error extracting user data"})
-					c.Abort()
-				}
-				return
-			}
-
-			// Set user data on the context
-			c.Set("userID", userData.ID)
-			c.Set("userEmail", userData.Email)
-			c.Set("userUsername", userData.Username)
+			// Set user data on the context directly from claims
+			c.Set("userID", int(claims["userID"].(float64)))
+			c.Set("userEmail", claims["userEmail"].(string))
+			c.Set("userUsername", claims["userUsername"].(string))
 		}
 
 		c.Next()
 	}
 }
 
-func generateJWT(userEmail string, expirationTime time.Duration) (string, error) {
+func generateJWT(userData UserData, expirationTime time.Duration) (string, error) {
 	jwtSecret := os.Getenv("JWT_SECRET")
 	claims := jwt.MapClaims{
-		"userEmail": userEmail,
-		"exp":       time.Now().Add(expirationTime).Unix(), // Token expiration
+		"userID":       userData.ID,
+		"userEmail":    userData.Email,
+		"userUsername": userData.Username,
+		"exp":          time.Now().Add(expirationTime).Unix(), // Token expiration
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString([]byte(jwtSecret))
@@ -145,7 +131,7 @@ func HandleLogin(c *gin.Context) {
 		return
 	}
 
-	token, err := generateJWT(userData.Email, time.Hour*672) // 28 days
+	token, err := generateJWT(userData, time.Hour*672) // 28 days
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Failed to generate JWT token"})
 		return
@@ -247,7 +233,7 @@ func HandlePasswordResetRequest(c *gin.Context) {
 	}
 
 	// Generate a password reset token
-	resetToken, err := generateJWT(userData.Email, time.Hour*2) // 2 hours
+	resetToken, err := generateJWT(userData, time.Hour*2) // 2 hours
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Failed to generate reset token"})
 		return
