@@ -51,21 +51,25 @@ func JoinChatRoom(c *gin.Context) {
 
 	// Extract room from the URL query parameters
 	roomUUID := c.Param("uuid")
-	// Ensure the room exists
+
+	// Create chat room if it doesn't exist
 	chatRoom, exists := ChatRooms[roomUUID]
 	if !exists {
-		log.Println("Error: Chat room does not exist")
-		return
+		log.Println("Creating new chat room for:", roomUUID)
+		chatRoom = &ChatRoom{Users: make(map[*websocket.Conn]string)}
+		ChatRooms[roomUUID] = chatRoom
 	}
 
 	// Get username from context. This should be stored from Authentication middleware
 	usernameRaw, exists := c.Get("userUsername")
 	if !exists {
 		log.Println("Error: Username does not exist")
+		return
 	}
 	username, ok := usernameRaw.(string)
 	if !ok {
 		log.Println("Error: Username is not a string")
+		return
 	}
 
 	// Add user to the chat room
@@ -76,15 +80,6 @@ func JoinChatRoom(c *gin.Context) {
 	msgUsername := "System"
 	msgContent := fmt.Sprintf("%s has joined the chat", username)
 	msgTimestamp := time.Now().UTC()
-
-	// userIDDefault := 0
-	// nulUserIDDefault := sql.NullInt64{
-	// 	Int64: int64(userIDDefault),
-	// 	Valid: true,
-	// }
-
-	// Store message in DB
-	// go spaces.InsertMessage(roomUUID, msgContent, msgUsername, nulUserIDDefault, msgTimestamp.Format(time.RFC3339))
 
 	msg := WSMessage{
 		Type: "join",
@@ -162,10 +157,6 @@ func JoinChatRoom(c *gin.Context) {
 	msgContent = fmt.Sprintf("%s has left the chat", username)
 	msgTimestamp = time.Now().UTC()
 
-	// Store message in DB
-	// go spaces.InsertMessage(roomUUID, msgContent, msgUsername, nulUserIDDefault, msgTimestamp.Format(time.RFC3339))
-
-	chatRoom.mu.Lock()
 	msg = WSMessage{
 		Type: "leave",
 		Data: ChatPayload{
@@ -176,6 +167,7 @@ func JoinChatRoom(c *gin.Context) {
 	}
 	jsonBytes, _ = json.Marshal(msg)
 
+	chatRoom.mu.Lock()
 	for userConn := range chatRoom.Users {
 		userConn.WriteMessage(websocket.TextMessage, jsonBytes)
 	}

@@ -6,9 +6,17 @@ class ChatApp {
   constructor(props) {
     this.domComponent = props.domComponent;
     this.params = props.params;
+    this.socketConn = null;
+    this.chatBoxComponent = null;
+  }
 
-    const pathParts = window.location.pathname.split('/');
-    const channelUUID = pathParts[pathParts.length - 1];
+  initialize(channelUUID) {
+    // Clean up existing connection if any
+    if (this.socketConn) {
+      this.socketConn.close();
+    }
+
+    // Initialize new connection
     this.socketConn = new SocketConn({ channelUUID: channelUUID, chatapp: this });    
 
     this.chatBoxComponent = new ChatBoxComponent({
@@ -22,8 +30,9 @@ class ChatApp {
 
   render = () => {
     this.domComponent.innerHTML = "";
-
-    this.domComponent.append(this.chatBoxComponent.domComponent);
+    if (this.chatBoxComponent) {
+      this.domComponent.append(this.chatBoxComponent.domComponent);
+    }
   };
 }
 
@@ -32,7 +41,9 @@ class ChatBoxComponent {
     this.domComponent = props.domComponent;
     this.domComponent.className = "chat-box-container";
     this.socketConn = props.socketConn;
-    this.channelUUID = props.channelUUID
+    this.channelUUID = props.channelUUID;
+
+    console.log('ChatBoxComponent initialized with socketConn:', this.socketConn);
 
     this.chatBoxMessagesComponent = new ChatBoxMessagesComponent({
       domComponent: createElement("div", {
@@ -69,7 +80,10 @@ class ChatBoxComponent {
           type: "submit",
           event: (e) => {
             e.preventDefault();
+            console.log('Form submitted');
             const content = e.target.elements["chat-box-form-input"].value;
+            console.log('Message content:', content);
+            console.log('Socket connection:', this.socketConn);
             this.socketConn.sendMessage(content);
 
             // clear input
@@ -152,7 +166,5 @@ class ChatBoxMessagesComponent {
   };
 }
 
-const chatApp = new ChatApp({
-  domComponent: document.getElementById("chatapp"),
-});
-export default chatApp;
+// Export the class instead of an instance
+export default ChatApp;

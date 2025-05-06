@@ -266,3 +266,50 @@ func HandleLogout(c *gin.Context) {
 
 	c.JSON(200, gin.H{"message": "Logged out successfully"})
 }
+
+func HandleUpdateUsername(c *gin.Context) {
+	var json struct {
+		Username string `json:"username" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&json); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	userID, _ := c.Get("userID")
+	userEmail, _ := c.Get("userEmail")
+
+	// Update the username in the database
+	query := `UPDATE users SET username = ? WHERE id = ?`
+	res, err := db.DB.Exec(query, json.Username, userID)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Database error updating username"})
+		return
+	}
+
+	// Check if any rows were affected
+	if rows, _ := res.RowsAffected(); rows == 0 {
+		c.JSON(404, gin.H{"error": "User not found"})
+		return
+	}
+
+	userData := UserData{
+		ID:       userID.(int),
+		Username: json.Username,
+		Email:    userEmail.(string),
+	}
+
+	token, err := generateJWT(userData, time.Hour*672) // 28 days
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to generate new JWT token"})
+		return
+	}
+
+	setCookie(token, c)
+
+	c.JSON(200, gin.H{
+		"message": "Username updated successfully",
+		"token":   token,
+	})
+}

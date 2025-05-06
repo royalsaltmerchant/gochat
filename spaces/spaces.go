@@ -14,6 +14,7 @@ type Space struct {
 	UUID     string
 	Name     string
 	AuthorID int
+	Channels []Channel
 }
 
 type SpaceUser struct {

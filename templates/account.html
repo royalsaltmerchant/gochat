@@ -12,8 +12,20 @@
       <h1>Account</h1>
       <br />
       <div>
-        <p>Username: {{.Username}}</p>
+        <p>Current Username: {{.Username}}</p>
       </div>
+      <br />
+      <form id="update-username-form">
+        <fieldset>
+          <legend>Update Username</legend>
+          <div class="input-container">
+            <label for="username">New Username</label>
+            <input name="username" type="text" required />
+          </div>
+          <br />
+          <button type="submit">Update Username</button>
+        </fieldset>
+      </form>
       <br />
       <button id="logout-btn" class="btn-red">Logout</button>
     </main>
@@ -30,6 +42,37 @@
           window.location.href = "/login";
         }
       });
+    });
+
+    document.getElementById("update-username-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      
+      const form = e.target;
+      const formData = new FormData(form);
+      const jsonData = Object.fromEntries(formData.entries());
+
+      try {
+        const response = await fetch("/api/update_username", {
+          method: "PUT",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(jsonData),
+        });
+
+        const result = await response.json();
+        
+        if (response.ok) {
+          window.alert("Username updated successfully!");
+          window.location.reload();
+        } else {
+          window.alert(`Error: ${result.error}`);
+        }
+      } catch (error) {
+        console.error("Error updating username:", error);
+        window.alert("An error occurred while updating your username");
+      }
     });
   </script>
 </html>

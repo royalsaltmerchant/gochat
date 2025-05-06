@@ -3,122 +3,15 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>GoChat | {{.Title}}</title>
+    <title>GoChat | Dashboard</title>
     <link rel="stylesheet" href="/static/style.css" />
+    <link rel="stylesheet" href="/static/dashboard.css" />
+    <link rel="stylesheet" href="/static/chatapp.css" />
+    <script type="module" src="/js/dashboard.js" defer></script>
   </head>
   <body>
     {{template "header" .}}
-    <main>
-      <div id="toast-message" class="toast-warning"></div>
-      <h3>Pending Invites:</h3>
-      <div class="invites-list">
-        {{range .invites}}
-        <div class="pending-invites-item">
-          <p>{{.Name}} -</p>
-          <button
-            onclick="handleAcceptInvite(event, '{{.ID}}')"
-            id="accept-space-invite"
-          >
-            Accept
-          </button>
-          <button
-            onclick="handleDeclineInvite(event, '{{.ID}}')"
-            id="decline-space-invite"
-            class="btn-red"
-          >
-            Decline
-          </button>
-        </div>
-        {{end}}
-      </div>
-      <br />
-      <h3>Spaces List:</h3>
-      <div class="a-list" id="spaces-list">
-        {{range .userSpaces}}
-        <a href="/space/{{.UUID}}">{{.Name}}</a>
-        {{end}}
-      </div>
-      <br />
-      <div class="plus-btn" id="new-space-btn">+ Create New</div>
-    </main>
-    {{template "footer" .}}
+    <div id="dashboard-app"></div>
+    <!-- {{template "footer" .}} -->
   </body>
-  <script>
-    document
-      .getElementById("new-space-btn")
-      .addEventListener("click", async (event) => {
-        const spaceName = window.prompt("Please enter Space 'Name'");
-        if (spaceName) {
-          console.log(spaceName);
-          try {
-            const response = await fetch("/api/new_space", {
-              method: "POST",
-              credentials: "include",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({ name: spaceName }),
-            });
-
-            const result = await response.json();
-            // console.log(result);
-            const a = document.createElement("a");
-            a.innerText = result.space.Name;
-            a.href = `/space/${result.space.UUID}`; // optionally set href
-            document.getElementById("spaces-list").appendChild(a);
-          } catch (error) {
-            console.log(error);
-          }
-        }
-      });
-
-    async function handleAcceptInvite(event, inviteID) {
-      try {
-        const response = await fetch("/api/accept_invite", {
-          method: "POST",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ spaceUserID: inviteID }),
-        });
-
-        const result = await response.json();
-
-        // console.log(result);
-        const a = document.createElement("a");
-        a.innerText = result.space.Name;
-        a.href = `/space/${result.space.UUID}`; // optionally set href
-        document.getElementById("spaces-list").appendChild(a);
-        // remove invite
-        event.target.parentElement.remove();
-      } catch (error) {
-        console.log(error);
-      }
-    }
-
-    async function handleDeclineInvite(event, inviteID) {
-      try {
-        const response = await fetch("/api/decline_invite", {
-          method: "POST",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ spaceUserID: inviteID }),
-        });
-
-        const result = await response.json();
-
-        if (response.status == 400) {
-          window.alert("Error: Failed to decline invite!")
-          return
-        }
-
-        event.target.parentElement.remove();
-      } catch (error) {
-        console.log(error);
-      }
-    }
-  </script>
 </html>

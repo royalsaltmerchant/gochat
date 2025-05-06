@@ -45,6 +45,19 @@ func SetupRegularRoutes(r *gin.Engine) {
 		})
 	})
 
+	r.GET("/channel/:uuid/content", auth.AuthMiddleware(), spaces.ChannelAuthMiddleware(), func(c *gin.Context) {
+		username, _ := c.Get("userUsername")
+		channel, _ := c.Get("channel")
+
+		cr.ChatRooms[channel.(spaces.Channel).UUID] = &cr.ChatRoom{Users: make(map[*websocket.Conn]string)}
+
+		// Return just the chat app div
+		c.HTML(200, "channel_content.html", gin.H{
+			"Title":    channel.(spaces.Channel).Name,
+			"Username": username,
+		})
+	})
+
 	r.GET("/channel/:uuid", auth.AuthMiddleware(), spaces.ChannelAuthMiddleware(), func(c *gin.Context) {
 		username, _ := c.Get("userUsername")
 		channel, _ := c.Get("channel")
@@ -58,70 +71,10 @@ func SetupRegularRoutes(r *gin.Engine) {
 	})
 
 	r.GET("/dashboard", auth.AuthMiddleware(), func(c *gin.Context) {
-		userID, _ := c.Get("userID")
 		username, _ := c.Get("userUsername")
-
-		// 1. Collect user spaces (as author OR accepted invite)
-		query := `
-			SELECT DISTINCT s.id, s.uuid, s.name, s.author_id
-			FROM spaces s
-			LEFT JOIN space_users su ON su.space_uuid = s.uuid
-			WHERE s.author_id = ?
-				 OR (su.user_id = ? AND su.joined = 1)
-		`
-
-		rows, err := db.DB.Query(query, userID, userID)
-		if err != nil {
-			fmt.Println("Error querying user spaces:", err)
-			c.JSON(500, gin.H{"error": "Database error fetching user spaces"})
-			return
-		}
-		defer rows.Close()
-
-		var userSpaces []spaces.Space
-		for rows.Next() {
-			var space spaces.Space
-			err := rows.Scan(&space.ID, &space.UUID, &space.Name, &space.AuthorID)
-			if err != nil {
-				fmt.Println("Error scanning space:", err)
-				continue
-			}
-			userSpaces = append(userSpaces, space)
-		}
-
-		// 2. Collect invites (space_users.joined = 0) + space.name
-		query = `
-			SELECT su.id, su.space_uuid, su.user_id, su.joined, s.name
-			FROM space_users su
-			JOIN spaces s ON su.space_uuid = s.uuid
-			WHERE su.user_id = ? AND su.joined = 0
-		`
-
-		rows, err = db.DB.Query(query, userID)
-		if err != nil {
-			fmt.Println("Error querying invites:", err)
-			c.JSON(500, gin.H{"error": "Database error fetching invites"})
-			return
-		}
-		defer rows.Close()
-
-		var invites []spaces.SpaceUser
-		for rows.Next() {
-			var invite spaces.SpaceUser
-			err := rows.Scan(&invite.ID, &invite.SpaceUUID, &invite.UserID, &invite.Joined, &invite.Name)
-			if err != nil {
-				fmt.Println("Error scanning invite:", err)
-				continue
-			}
-			invites = append(invites, invite)
-		}
-
-		// 3. Render dashboard
 		c.HTML(200, "dashboard.html", gin.H{
-			"Title":      "Dashboard",
-			"Username":   username,
-			"userSpaces": userSpaces,
-			"invites":    invites,
+			"Title":    "Dashboard",
+			"Username": username,
 		})
 	})
 
@@ -159,4 +112,5 @@ func SetupRegularRoutes(r *gin.Engine) {
 
 	// Join chat room endpoint
 	r.GET("/ws/:uuid", auth.AuthMiddleware(), spaces.ChannelAuthMiddleware(), cr.JoinChatRoom)
+
 }
