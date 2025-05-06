@@ -23,20 +23,13 @@ type UserData struct {
 }
 
 func AuthMiddleware() gin.HandlerFunc {
-
 	return func(c *gin.Context) {
 		jwtSecret := os.Getenv("JWT_SECRET")
 
 		tokenString, _ := c.Cookie("auth_token")
 
-		// If no token is found in the cookie, try to get it from the query parameter
+		// If no token is found in the cookie, redirect to login
 		if tokenString == "" {
-			tokenString = c.DefaultQuery("auth", "")
-		}
-
-		// If token is still empty, return an error
-		if tokenString == "" {
-			// c.JSON(401, gin.H{"error": "Authorization token required"})
 			c.Redirect(302, "/login")
 			c.Abort()
 			return
@@ -54,7 +47,6 @@ func AuthMiddleware() gin.HandlerFunc {
 		})
 
 		if err != nil || !token.Valid {
-			// c.JSON(401, gin.H{"error": "Invalid or expired token"})
 			c.Redirect(302, "/login")
 			c.Abort()
 			return

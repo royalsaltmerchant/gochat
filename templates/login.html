@@ -49,13 +49,9 @@
           });
           
           const result = await response.json();
-          // console.log(result);
           if (response.status == 400) {
             document.getElementById("toast-message").textContent = `ERROR: ${result.error}`;
           }
-
-          // save token and reroute
-          localStorage.setItem("authToken", `Bearer ${result.token}`); // For access in WS connection
 
           window.alert("Welcome Back!")
           window.location.href = "/dashboard";

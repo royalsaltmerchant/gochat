@@ -8,10 +8,7 @@ class SocketConn {
   }
 
   connect = () => {
-    const authToken = localStorage.getItem("authToken").split(" ")[1];
-    const url = `ws://${location.host}/ws/${encodeURIComponent(
-      this.channelUUID
-    )}?auth=${encodeURIComponent(authToken)}`;
+    const url = `ws://${location.host}/ws/${encodeURIComponent(this.channelUUID)}`;
     console.log('Connecting to WebSocket:', url);
     this.socket = new WebSocket(url);
 
