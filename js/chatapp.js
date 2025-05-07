@@ -1,6 +1,7 @@
 import createElement from "./components/createElement.js";
 import isoDateFormat from "./lib/isoDateFormat.js";
 import SocketConn from "./lib/socketConn.js";
+import { isImageUrl, createValidatedImage } from "./lib/imageValidation.js";
 
 class ChatApp {
   constructor(props) {
@@ -17,12 +18,15 @@ class ChatApp {
     }
 
     // Initialize new connection
-    this.socketConn = new SocketConn({ channelUUID: channelUUID, chatapp: this });    
+    this.socketConn = new SocketConn({
+      channelUUID: channelUUID,
+      chatapp: this,
+    });
 
     this.chatBoxComponent = new ChatBoxComponent({
       domComponent: createElement("div"),
       socketConn: this.socketConn,
-      channelUUID: channelUUID
+      channelUUID: channelUUID,
     });
 
     this.render();
@@ -43,14 +47,17 @@ class ChatBoxComponent {
     this.socketConn = props.socketConn;
     this.channelUUID = props.channelUUID;
 
-    console.log('ChatBoxComponent initialized with socketConn:', this.socketConn);
+    console.log(
+      "ChatBoxComponent initialized with socketConn:",
+      this.socketConn
+    );
 
     this.chatBoxMessagesComponent = new ChatBoxMessagesComponent({
       domComponent: createElement("div", {
         class: "chat-box-messages",
         id: "chat-box-messages",
       }),
-      channelUUID: this.channelUUID
+      channelUUID: this.channelUUID,
     });
 
     this.render();
@@ -80,10 +87,10 @@ class ChatBoxComponent {
           type: "submit",
           event: (e) => {
             e.preventDefault();
-            console.log('Form submitted');
+            console.log("Form submitted");
             const content = e.target.elements["chat-box-form-input"].value;
-            console.log('Message content:', content);
-            console.log('Socket connection:', this.socketConn);
+            console.log("Message content:", content);
+            console.log("Socket connection:", this.socketConn);
             this.socketConn.sendMessage(content);
 
             // clear input
@@ -100,62 +107,89 @@ class ChatBoxMessagesComponent {
   constructor(props) {
     this.domComponent = props.domComponent;
     this.chatBoxMessages = [];
-    this.channelUUID = props.channelUUID
+    this.channelUUID = props.channelUUID;
 
     this.init();
   }
 
   init = async () => {
-    await this.getPreviousMessages()
-    this.render()
-  }
+    await this.getPreviousMessages();
+    this.render();
+  };
 
   getPreviousMessages = async () => {
     try {
       const response = await fetch("/api/get_messages", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify({channelUUID: this.channelUUID}),
+        body: JSON.stringify({ channelUUID: this.channelUUID }),
       });
-      
+
       const result = await response.json();
       console.log(result);
       if (result.messages && result.messages.length) {
-        this.chatBoxMessages = result.messages
+        this.chatBoxMessages = result.messages;
       }
     } catch (error) {
       console.log(error);
     }
-  }
+  };
 
   scrollDown = () => {
     this.domComponent.scrollTop = this.domComponent.scrollHeight;
   };
 
   renderMessages = () => {
-    if (this.chatBoxMessages.length) {
-      return [
-        ...this.chatBoxMessages.map((data) =>
-          createElement("div", { class: "chat-box-message-content" }, [
-            createElement(
-              "small",
-              { style: "margin-right: var(--main-distance)" },
-              isoDateFormat(data.Timestamp)
-            ),
-            createElement(
-              "div",
+    const parseMessageContent = (content) => {
+      const urlRegexAll = /(https?:\/\/[^\s]+)/g;
+      const urlRegex = /^https?:\/\/[^\s]+$/;
+      const parts = content.split(urlRegexAll);
+
+      return parts.map((part) => {
+        if (urlRegex.test(part)) {
+          if (isImageUrl(part)) {
+            return createValidatedImage(part);
+          } else {
+            return createElement(
+              "a",
               {
-                style: "font-weight: bold; margin-right: var(--main-distance);",
+                href: part,
+                target: "_blank",
+                rel: "noopener noreferrer",
+                style: "margin: 0 5px;",
               },
-              `${data.Username}:`
-            ),
-            data.Content
-          ])
-        ),
-      ];
-    } else return []
+              part
+            );
+          }
+        } else {
+          return part;
+        }
+      });
+    };
+
+    if (this.chatBoxMessages.length) {
+      return this.chatBoxMessages.map((data) =>
+        createElement("div", { class: "chat-box-message-content" }, [
+          createElement(
+            "small",
+            { style: "margin-right: var(--main-distance)" },
+            isoDateFormat(data.Timestamp)
+          ),
+          createElement(
+            "div",
+            {
+              style: "font-weight: bold; margin-right: var(--main-distance);",
+            },
+            `${data.Username}:`
+          ),
+          ...parseMessageContent(data.Content),
+        ])
+      );
+    } else {
+      return [];
+    }
   };
 
   render = () => {
