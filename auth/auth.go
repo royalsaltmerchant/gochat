@@ -22,6 +22,25 @@ type UserData struct {
 	Password string
 }
 
+func ValidateCSRFMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		cookie, err := c.Cookie("csrf_token")
+		fmt.Println(cookie)
+		if err != nil {
+			c.AbortWithStatusJSON(403, gin.H{"error": "Missing CSRF token cookie"})
+			return
+		}
+
+		header := c.GetHeader("X-CSRF-Token")
+		if header == "" || header != cookie {
+			c.AbortWithStatusJSON(403, gin.H{"error": "Invalid CSRF token"})
+			return
+		}
+
+		c.Next()
+	}
+}
+
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		jwtSecret := os.Getenv("JWT_SECRET")

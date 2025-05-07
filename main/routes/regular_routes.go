@@ -1,15 +1,25 @@
 package routes
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"gochat/auth"
 	cr "gochat/chatroom"
 	"gochat/db"
 	"gochat/spaces"
+	"os"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 )
+
+func GenerateCSRFToken() string {
+	b := make([]byte, 32)
+	rand.Read(b)
+	return base64.StdEncoding.EncodeToString(b)
+}
 
 func SetupRegularRoutes(r *gin.Engine) {
 	// Serve static files using Gin's static route
@@ -40,8 +50,23 @@ func SetupRegularRoutes(r *gin.Engine) {
 	})
 
 	r.GET("/login", func(c *gin.Context) {
+		// Set CSRF token as cookie
+		csrfToken := GenerateCSRFToken()
+		isSecure := os.Getenv("ENV") == "production"
+		host := strings.Split(c.Request.Host, ":")[0]
+		c.SetCookie(
+			"csrf_token",
+			csrfToken,
+			3600,
+			"/",
+			host,
+			isSecure,
+			false, // Must be accessible via JS
+		)
+
 		c.HTML(200, "login.html", gin.H{
-			"Title": "Login",
+			"Title":      "Login",
+			"csrf_token": csrfToken,
 		})
 	})
 

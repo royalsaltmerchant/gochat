@@ -37,26 +37,30 @@
 
         const form = e.target;
         const formData = new FormData(form);
-        const jsonData = Object.fromEntries(formData.entries())
+        const jsonData = Object.fromEntries(formData.entries());
 
         try {
+          const csrfToken = decodeURIComponent(document.cookie.split("csrf_token=")[1]);
+          console.log(csrfToken)
           const response = await fetch("/api/login", {
             method: "POST",
             headers: {
-              "Content-Type": "application/json"
+              "Content-Type": "application/json",
+              "X-CSRF-Token": csrfToken,
             },
             body: JSON.stringify(jsonData),
           });
-          
-          const result = await response.json();
-          if (response.status == 400) {
-            document.getElementById("toast-message").textContent = `ERROR: ${result.error}`;
+
+          if (response.ok) {
+            window.alert("Welcome Back!");
+            window.location.href = "/dashboard";
+          } else {
+            const result = await response.json();
+            document.getElementById(
+              "toast-message"
+            ).textContent = `ERROR: ${result.error}`;
           }
-
-          window.alert("Welcome Back!")
-          window.location.href = "/dashboard";
           return;
-
         } catch (error) {
           console.log(error);
         }

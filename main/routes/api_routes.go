@@ -12,7 +12,7 @@ func SetupAPIRoutes(r *gin.Engine) {
 	api := r.Group("/api")
 	{
 		api.POST("/register", auth.HandleRegister)
-		api.POST("/login", auth.HandleLogin)
+		api.POST("/login", auth.ValidateCSRFMiddleware(), auth.HandleLogin)
 		api.POST("/logout", auth.HandleLogout)
 		api.POST("/new_space", auth.AuthMiddleware(), spaces.HandleInsertSpace)
 		api.POST("/new_space_user", auth.AuthMiddleware(), spaces.HandleInsertSpaceUser)

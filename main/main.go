@@ -1,12 +1,11 @@
 package main
 
 import (
+	"gochat/db"
+	"gochat/main/routes"
 	"log"
 	"os"
 	"time"
-
-	"gochat/db"
-	"gochat/main/routes"
 
 	ratelimit "github.com/JGLTechnologies/gin-rate-limit"
 	"github.com/gin-gonic/gin"
