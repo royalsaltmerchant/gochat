@@ -1,9 +1,8 @@
 package spaces
 
 import (
-	"database/sql"
-	"fmt"
 	"gochat/db"
+	auth "gochat/users"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -15,30 +14,7 @@ type Space struct {
 	Name     string
 	AuthorID int
 	Channels []Channel
-}
-
-type SpaceUser struct {
-	ID        int
-	SpaceUUID string
-	UserID    int
-	Joined    int
-	Name      string
-}
-
-type Channel struct {
-	ID        int
-	UUID      string
-	Name      string
-	SpaceUUID string // space UUID
-}
-
-type Message struct {
-	ID          int
-	ChannelUUID string
-	Content     string
-	Username    string
-	UserID      int
-	Timestamp   string
+	Users    []auth.UserData
 }
 
 func HandleInsertSpace(c *gin.Context) {
@@ -101,231 +77,16 @@ func HandleInsertSpace(c *gin.Context) {
 		return
 	}
 
-	c.JSON(201, gin.H{
-		"message": "Successfully created new space with initial channel",
-		"space": gin.H{
-			"ID":       space.ID,
-			"UUID":     space.UUID,
-			"Name":     space.Name,
-			"AuthorID": space.AuthorID,
-		},
-		"channel": gin.H{
-			"ID":        channel.ID,
-			"UUID":      channel.UUID,
-			"Name":      channel.Name,
-			"SpaceUUID": channel.SpaceUUID,
-		},
-	})
-}
-
-func HandleInsertSpaceUser(c *gin.Context) {
-	var json struct {
-		UserEmail string `json:"userEmail" binding:"required"`
-		SpaceUUID string `json:"spaceUUID" binding:"required"`
-	}
-
-	if err := c.ShouldBindJSON(&json); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
-		return
-	}
-
-	var userID int
-	err := db.DB.QueryRow(`SELECT id FROM users WHERE email = ?`, json.UserEmail).Scan(&userID)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			c.JSON(400, gin.H{"error": "User not found"})
-		} else {
-			c.JSON(500, gin.H{"error": "Database error finding user"})
-		}
-		return
-	}
-
-	var spaceUser SpaceUser
-
-	query := `INSERT INTO space_users (space_uuid, user_id) VALUES (?, ?) RETURNING *`
-	err = db.DB.QueryRow(query, json.SpaceUUID, userID).Scan(&spaceUser.ID, &spaceUser.SpaceUUID, &spaceUser.UserID, &spaceUser.Joined)
-
-	if err != nil {
-		c.JSON(500, gin.H{"error": "Database error inserting channel data"})
-		return
-	}
+	space.Channels = append(space.Channels, channel)
+	space.Users = append(space.Users, auth.UserData{})
 
 	c.JSON(201, gin.H{
-		"message": "Successfully created new space user",
+		"Space": space,
 	})
 }
 
-func HandleAcceptInvite(c *gin.Context) {
-	var json struct {
-		SpaceUserID string `json:"spaceUserID" binding:"required"`
-	}
-
-	if err := c.ShouldBindJSON(&json); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
-		return
-	}
-
-	// Get space user
-	var spaceUUID string
-	query := `UPDATE space_users SET joined = 1 WHERE id = ? RETURNING space_uuid`
-	err := db.DB.QueryRow(query, json.SpaceUserID).Scan(&spaceUUID)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			c.JSON(404, gin.H{"error": "space user not found by id"})
-		} else {
-			c.JSON(500, gin.H{"error": "Database error finding space user"})
-		}
-		return
-	}
-	// Get and return space
-	var space Space
-	err = db.DB.QueryRow(`SELECT * FROM spaces WHERE uuid = ?`, spaceUUID).Scan(&space.ID, &space.UUID, &space.Name, &space.AuthorID)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			c.JSON(404, gin.H{"error": "Space not found by uuid"})
-		} else {
-			c.JSON(500, gin.H{"error": "Database error finding space"})
-		}
-		return
-	}
-
-	c.JSON(200, gin.H{
-		"space": space,
-	})
-}
-
-func HandleDeclineInvite(c *gin.Context) {
-	var json struct {
-		SpaceUserID string `json:"spaceUserID" binding:"required"`
-	}
-	if err := c.ShouldBindJSON(&json); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
-		return
-	}
-
-	res, err := db.DB.Exec(`DELETE FROM space_users WHERE id = ?`, json.SpaceUserID)
-	if err != nil {
-		c.JSON(500, gin.H{"error": "Failed to delete invite"})
-		return
-	}
-
-	if rows, _ := res.RowsAffected(); rows == 0 {
-		c.JSON(400, gin.H{"error": "Invite not found"})
-		return
-	}
-
-	c.JSON(200, gin.H{"message": "Invite declined"})
-}
-
-func HandleInsertChannel(c *gin.Context) {
-	var json struct {
-		Name      string `json:"name" binding:"required"`
-		SpaceUUID string `json:"spaceUUID" binding:"required"`
-	}
-
-	if err := c.ShouldBindJSON(&json); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
-		return
-	}
-
-	// Get UUID and Author ID
-	channelUUID := uuid.New()
-
-	var channel Channel
-
-	query := `INSERT INTO channels (uuid, name, space_uuid) VALUES (?, ?, ?) RETURNING *`
-	err := db.DB.QueryRow(query, channelUUID, json.Name, json.SpaceUUID).Scan(&channel.ID, &channel.UUID, &channel.Name, &channel.SpaceUUID)
-
-	if err != nil {
-		// Check if the error message contains "UNIQUE constraint failed"
-		if err.Error() == "UNIQUE constraint failed: channels.uuid" {
-			c.JSON(500, gin.H{"error": "uuid is already taken"})
-			return
-		}
-
-		// For other database errors
-		c.JSON(500, gin.H{"error": "Database error inserting channel data"})
-		return
-	}
-
-	c.JSON(201, gin.H{
-		"message": "Successfully created new channel",
-		"channel": gin.H{
-			"ID":        channel.ID,
-			"UUID":      channel.UUID,
-			"Name":      channel.Name,
-			"SpaceUUID": channel.SpaceUUID,
-		},
-	})
-}
-
-func InsertMessage(channelUUID string, content string, username string, userID sql.NullInt64, timestamp string) {
-	query := `INSERT INTO messages (channel_uuid, content, username, user_id, timestamp) VALUES (?, ?, ?, ?, ?)`
-	_, err := db.DB.Exec(query, channelUUID, content, username, userID, timestamp)
-	if err != nil {
-		fmt.Println("Error: Database failed to insert message")
-	}
-}
-
-func HandleGetMessages(c *gin.Context) {
-	var json struct {
-		ChannelUUID string `json:"channelUUID" binding:"required"`
-	}
-
-	if err := c.ShouldBindJSON(&json); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
-		return
-	}
-
-	// Get channel messages limit by 100 for now
-	rows, err := db.DB.Query(`SELECT * FROM messages WHERE channel_uuid = ? LIMIT 100`, json.ChannelUUID)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			c.JSON(400, gin.H{"error": "Channel not found by UUID"})
-		} else {
-			c.JSON(500, gin.H{"error": "Database Error extracting messages data"})
-		}
-		return
-	}
-	defer rows.Close()
-
-	var messages []Message
-	for rows.Next() {
-		var message Message
-		err := rows.Scan(&message.ID, &message.ChannelUUID, &message.Content, &message.Username, &message.UserID, &message.Timestamp)
-		if err != nil {
-			fmt.Println("Error scanning message:", err)
-			continue
-		}
-		messages = append(messages, message)
-	}
-
-	c.JSON(200, gin.H{
-		"messages": messages,
-	})
-}
-
-// HandleDeleteSpace deletes a space by UUID if the user is the author
 func HandleDeleteSpace(c *gin.Context) {
 	uuid := c.Param("uuid")
-	userID, _ := c.Get("userID")
-
-	// Check if the space exists and get the author
-	var authorID int
-	err := db.DB.QueryRow("SELECT author_id FROM spaces WHERE uuid = ?", uuid).Scan(&authorID)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			c.JSON(404, gin.H{"error": "Space not found"})
-			return
-		}
-		c.JSON(500, gin.H{"error": "Database error finding space"})
-		return
-	}
-
-	if authorID != userID {
-		c.JSON(403, gin.H{"error": "Not authorized to delete this space"})
-		return
-	}
 
 	// Delete the space (cascades to channels, messages, space_users)
 	res, err := db.DB.Exec("DELETE FROM spaces WHERE uuid = ?", uuid)
@@ -339,42 +100,4 @@ func HandleDeleteSpace(c *gin.Context) {
 	}
 
 	c.JSON(200, gin.H{"message": "Space deleted successfully"})
-}
-
-func HandleDeleteChannel(c *gin.Context) {
-	uuid := c.Param("uuid")
-	userID, _ := c.Get("userID")
-
-	// First verify that the user has access to this channel by checking if they're part of the space
-	query := `
-		SELECT 1 FROM channels c
-		JOIN spaces s ON c.space_uuid = s.uuid
-		LEFT JOIN space_users su ON su.space_uuid = s.uuid
-		WHERE c.uuid = ? AND (s.author_id = ? OR (su.user_id = ? AND su.joined = 1))
-	`
-
-	var exists int
-	err := db.DB.QueryRow(query, uuid, userID, userID).Scan(&exists)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			c.JSON(403, gin.H{"error": "You don't have permission to delete this channel"})
-		} else {
-			c.JSON(500, gin.H{"error": "Database error checking channel access"})
-		}
-		return
-	}
-
-	// Delete the channel
-	res, err := db.DB.Exec(`DELETE FROM channels WHERE uuid = ?`, uuid)
-	if err != nil {
-		c.JSON(500, gin.H{"error": "Failed to delete channel"})
-		return
-	}
-
-	if rows, _ := res.RowsAffected(); rows == 0 {
-		c.JSON(404, gin.H{"error": "Channel not found"})
-		return
-	}
-
-	c.JSON(200, gin.H{"message": "Channel successfully deleted"})
 }

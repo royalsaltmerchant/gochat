@@ -11,6 +11,7 @@
   --main-gray: rgb(89, 96, 117);
   --light-red: rgb(209, 102, 124);
   --dark-red: rgb(152, 74, 90);
+  --light-yellow: rgb(255, 250, 155);
   --main-distance: 10px;
 }
 
@@ -195,11 +196,4 @@ footer {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-}
-
-#chatapp {
-	flex: 1;
-	display: flex;
-	flex-direction: column;
-	overflow: hidden;
 }

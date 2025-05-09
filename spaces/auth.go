@@ -7,110 +7,65 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// SpaceAuthMiddleware checks if the user has access to a space (either as author or member)
 func SpaceAuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		uuid := c.Param("uuid")
 		userID, _ := c.Get("userID")
 
-		// Get space data
-		var space Space
-		query := `SELECT * FROM spaces WHERE uuid = ?`
-		err := db.DB.QueryRow(query, uuid).Scan(&space.ID, &space.UUID, &space.Name, &space.AuthorID)
+		var authorID int
+		err := db.DB.QueryRow("SELECT author_id FROM spaces WHERE uuid = ?", uuid).Scan(&authorID)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				c.JSON(404, gin.H{"error": "Space not found"})
-			} else {
-				c.JSON(500, gin.H{"error": "Database error finding space"})
+				return
 			}
-			c.Abort()
+			c.JSON(500, gin.H{"error": "Database error finding space"})
 			return
 		}
 
-		// If user is the author, they have access
-		if space.AuthorID == userID {
-			c.Set("space", space)
-			c.Set("isAuthor", true)
-			c.Next()
+		if authorID == userID {
+			c.Set("isSpaceAuthor", true)
+		} else {
+			c.Set("isSpaceAuthor", false)
+			c.JSON(403, gin.H{"error": "Not authorized to manage this space"})
 			return
 		}
 
-		// Check if user is a member of the space
-		var spaceUser SpaceUser
-		query = `SELECT * FROM space_users WHERE space_uuid = ? AND user_id = ? AND joined = 1`
-		err = db.DB.QueryRow(query, uuid, userID).Scan(&spaceUser.ID, &spaceUser.SpaceUUID, &spaceUser.UserID, &spaceUser.Joined)
-		if err != nil {
-			if err == sql.ErrNoRows {
-				c.JSON(403, gin.H{"error": "Not authorized to access this space"})
-			} else {
-				c.JSON(500, gin.H{"error": "Database error checking space membership"})
-			}
-			c.Abort()
-			return
-		}
-
-		c.Set("space", space)
-		c.Set("isAuthor", false)
 		c.Next()
 	}
 }
 
-// ChannelAuthMiddleware checks if the user has access to a channel (by checking parent space access)
 func ChannelAuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		uuid := c.Param("uuid")
+		channelUUID := c.Param("uuid")
 		userID, _ := c.Get("userID")
 
-		// Get channel data
-		var channel Channel
-		query := `SELECT * FROM channels WHERE uuid = ?`
-		err := db.DB.QueryRow(query, uuid).Scan(&channel.ID, &channel.UUID, &channel.Name, &channel.SpaceUUID)
+		query := `
+			SELECT s.uuid AS space_uuid,
+			       CASE WHEN s.author_id = ? THEN 1 ELSE 0 END AS is_author
+			FROM channels c
+			JOIN spaces s ON c.space_uuid = s.uuid
+			LEFT JOIN space_users su ON su.space_uuid = s.uuid
+			WHERE c.uuid = ? AND (s.author_id = ? OR (su.user_id = ? AND su.joined = 1))
+			LIMIT 1
+		`
+
+		var spaceUUID string
+		var isAuthor int
+		err := db.DB.QueryRow(query, userID, channelUUID, userID, userID).Scan(&spaceUUID, &isAuthor)
 		if err != nil {
 			if err == sql.ErrNoRows {
-				c.JSON(404, gin.H{"error": "Channel not found"})
+				c.JSON(403, gin.H{"error": "You don't have permission to access this channel"})
 			} else {
-				c.JSON(500, gin.H{"error": "Database error finding channel"})
+				c.JSON(500, gin.H{"error": "Database error checking channel access"})
 			}
 			c.Abort()
 			return
 		}
 
-		// Get space data
-		var space Space
-		query = `SELECT * FROM spaces WHERE uuid = ?`
-		err = db.DB.QueryRow(query, channel.SpaceUUID).Scan(&space.ID, &space.UUID, &space.Name, &space.AuthorID)
-		if err != nil {
-			c.JSON(500, gin.H{"error": "Database error finding parent space"})
-			c.Abort()
-			return
-		}
+		c.Set("spaceUUID", spaceUUID)
+		c.Set("isSpaceAuthor", isAuthor == 1)
 
-		// If user is the author, they have access
-		if space.AuthorID == userID {
-			c.Set("channel", channel)
-			c.Set("space", space)
-			c.Set("isAuthor", true)
-			c.Next()
-			return
-		}
-
-		// Check if user is a member of the space
-		var spaceUser SpaceUser
-		query = `SELECT * FROM space_users WHERE space_uuid = ? AND user_id = ? AND joined = 1`
-		err = db.DB.QueryRow(query, channel.SpaceUUID, userID).Scan(&spaceUser.ID, &spaceUser.SpaceUUID, &spaceUser.UserID, &spaceUser.Joined)
-		if err != nil {
-			if err == sql.ErrNoRows {
-				c.JSON(403, gin.H{"error": "Not authorized to access this channel"})
-			} else {
-				c.JSON(500, gin.H{"error": "Database error checking space membership"})
-			}
-			c.Abort()
-			return
-		}
-
-		c.Set("channel", channel)
-		c.Set("space", space)
-		c.Set("isAuthor", false)
 		c.Next()
 	}
 }

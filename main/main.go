@@ -58,6 +58,7 @@ func main() {
 	// Setup routes
 	routes.SetupRegularRoutes(r)
 	routes.SetupAPIRoutes(r)
+	routes.SetupWebSocketRoutes(r)
 
 	// Start the server
 	go func() {

@@ -16,18 +16,23 @@ import (
 
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
-		return true // Allow all connections (you can add custom logic here)
+		return true
 	},
 }
 
-// Struct for chat rooms and their users
+// Types
 type ChatRoom struct {
 	Users map[*websocket.Conn]string
 	mu    sync.Mutex
 }
 
+type Client struct {
+	Conn     *websocket.Conn
+	Username string
+}
+
 type WSMessage struct {
-	Type string      `json:"type"` // "system", "chat", "join", "leave"
+	Type string      `json:"type"` // "join", "leave", "chat"
 	Data interface{} `json:"data"`
 }
 
@@ -37,139 +42,166 @@ type ChatPayload struct {
 	Timestamp time.Time `json:"Timestamp"`
 }
 
+// Global state
 var ChatRooms = map[string]*ChatRoom{}
+var ClientSubscriptions = map[*websocket.Conn]string{}
+var Clients = map[*websocket.Conn]*Client{}
 
-// Join a specific chat room and handle WebSocket communication
-func JoinChatRoom(c *gin.Context) {
-	// Upgrade HTTP connection to WebSocket
+func HandleSocket(c *gin.Context) {
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
-		log.Println("Error upgrading connection:", err)
+		log.Println("WebSocket upgrade failed:", err)
 		return
 	}
 	defer conn.Close()
 
-	// Extract room from the URL query parameters
-	roomUUID := c.Param("uuid")
-
-	// Create chat room if it doesn't exist
-	chatRoom, exists := ChatRooms[roomUUID]
-	if !exists {
-		log.Println("Creating new chat room for:", roomUUID)
-		chatRoom = &ChatRoom{Users: make(map[*websocket.Conn]string)}
-		ChatRooms[roomUUID] = chatRoom
-	}
-
-	// Get username from context. This should be stored from Authentication middleware
 	usernameRaw, exists := c.Get("userUsername")
 	if !exists {
-		log.Println("Error: Username does not exist")
+		log.Println("No username in context")
 		return
 	}
-	username, ok := usernameRaw.(string)
-	if !ok {
-		log.Println("Error: Username is not a string")
-		return
-	}
+	username := usernameRaw.(string)
 
-	// Add user to the chat room
-	chatRoom.mu.Lock()
-	chatRoom.Users[conn] = username
-	chatRoom.mu.Unlock()
+	Clients[conn] = &Client{Conn: conn, Username: username}
 
-	msgUsername := "System"
-	msgContent := fmt.Sprintf("%s has joined the chat", username)
-	msgTimestamp := time.Now().UTC()
-
-	msg := WSMessage{
-		Type: "join",
-		Data: ChatPayload{
-			Username:  msgUsername,
-			Content:   msgContent,
-			Timestamp: msgTimestamp,
-		},
-	}
-	jsonBytes, _ := json.Marshal(msg)
-
-	// Broadcast the new user's arrival to all users in the room
-	chatRoom.mu.Lock()
-	for userConn := range chatRoom.Users {
-		userConn.WriteMessage(websocket.TextMessage, jsonBytes)
-	}
-	chatRoom.mu.Unlock()
-
-	// Handle incoming messages from the user
 	for {
-		_, message, err := conn.ReadMessage()
+		_, msgBytes, err := conn.ReadMessage()
 		if err != nil {
-			log.Println("Error reading message:", err)
 			break
 		}
 
-		msgUsername = username
-		msgContent = string(message)
-		msgTimestamp = time.Now().UTC()
-
-		userIDRaw, exists := c.Get("userID")
-		if !exists {
-			fmt.Println("Failed to retrieve user ID")
+		var wsMsg WSMessage
+		if err := json.Unmarshal(msgBytes, &wsMsg); err != nil {
+			log.Println("Invalid message format:", err)
+			continue
 		}
 
-		userIDInt, ok := userIDRaw.(int)
-		if !ok {
-			fmt.Println("Failed to convert user ID to int")
+		switch wsMsg.Type {
+		case "join":
+			roomUUID, ok := wsMsg.Data.(string)
+			if !ok {
+				log.Println("Invalid join data")
+				continue
+			}
+
+			// Leave old room
+			leaveRoom(conn)
+
+			// Join new room
+			joinRoom(conn, username, roomUUID)
+
+		case "leave":
+			leaveRoom(conn)
+
+		case "chat":
+			msgContent, ok := wsMsg.Data.(string)
+			if !ok {
+				log.Println("Invalid chat data")
+				continue
+			}
+			msgTimestamp := time.Now().UTC()
+
+			userIDRaw, exists := c.Get("userID")
+			if !exists {
+				fmt.Println("Failed to retrieve user ID")
+			}
+			userIDInt, ok := userIDRaw.(int)
+			if !ok {
+				fmt.Println("Failed to convert user ID to int")
+			}
+			msgUserID := sql.NullInt64{
+				Int64: int64(userIDInt),
+				Valid: true,
+			}
+			roomUUID := ClientSubscriptions[conn]
+			if roomUUID != "" {
+				// Store message in DB
+				go spaces.InsertMessage(roomUUID, msgContent, username, msgUserID, msgTimestamp.Format(time.RFC3339))
+
+				broadcast(roomUUID, WSMessage{
+					Type: "chat",
+					Data: ChatPayload{
+						Username:  username,
+						Content:   msgContent,
+						Timestamp: time.Now().UTC(),
+					},
+				})
+			}
+
+		default:
+			log.Println("Unknown message type:", wsMsg.Type)
 		}
-
-		msgUserID := sql.NullInt64{
-			Int64: int64(userIDInt),
-			Valid: true,
-		}
-
-		// Store message in DB
-		go spaces.InsertMessage(roomUUID, msgContent, msgUsername, msgUserID, msgTimestamp.Format(time.RFC3339))
-
-		msg = WSMessage{
-			Type: "chat",
-			Data: ChatPayload{
-				Username:  msgUsername,
-				Content:   msgContent,
-				Timestamp: msgTimestamp,
-			},
-		}
-
-		jsonBytes, _ := json.Marshal(msg)
-
-		// Broadcast the message to everyone in the chat room
-		chatRoom.mu.Lock()
-		for userConn := range chatRoom.Users {
-			userConn.WriteMessage(websocket.TextMessage, jsonBytes)
-		}
-		chatRoom.mu.Unlock()
 	}
 
-	// Remove the user from the room on disconnect
-	chatRoom.mu.Lock()
-	delete(chatRoom.Users, conn)
-	chatRoom.mu.Unlock()
+	leaveRoom(conn)
+	delete(Clients, conn)
+	conn.Close()
+}
 
-	// Notify others that the user has left the room
-	msgUsername = "System"
-	msgContent = fmt.Sprintf("%s has left the chat", username)
-	msgTimestamp = time.Now().UTC()
+// Helpers
 
-	msg = WSMessage{
+func joinRoom(conn *websocket.Conn, username, roomUUID string) {
+	if _, ok := ChatRooms[roomUUID]; !ok {
+		ChatRooms[roomUUID] = &ChatRoom{Users: make(map[*websocket.Conn]string)}
+	}
+	room := ChatRooms[roomUUID]
+
+	room.mu.Lock()
+	room.Users[conn] = username
+	room.mu.Unlock()
+
+	ClientSubscriptions[conn] = roomUUID
+
+	broadcast(roomUUID, WSMessage{
+		Type: "join",
+		Data: ChatPayload{
+			Username:  "System",
+			Content:   fmt.Sprintf("%s has joined", username),
+			Timestamp: time.Now().UTC(),
+		},
+	})
+}
+
+func leaveRoom(conn *websocket.Conn) {
+	roomUUID, ok := ClientSubscriptions[conn]
+	if !ok {
+		return
+	}
+
+	room, exists := ChatRooms[roomUUID]
+	if !exists {
+		return
+	}
+
+	username := Clients[conn].Username
+
+	room.mu.Lock()
+	delete(room.Users, conn)
+	room.mu.Unlock()
+
+	delete(ClientSubscriptions, conn)
+
+	broadcast(roomUUID, WSMessage{
 		Type: "leave",
 		Data: ChatPayload{
-			Username:  msgUsername,
-			Content:   msgContent,
-			Timestamp: msgTimestamp,
+			Username:  "System",
+			Content:   fmt.Sprintf("%s has left", username),
+			Timestamp: time.Now().UTC(),
 		},
-	}
-	jsonBytes, _ = json.Marshal(msg)
+	})
+}
 
-	chatRoom.mu.Lock()
-	for userConn := range chatRoom.Users {
-		userConn.WriteMessage(websocket.TextMessage, jsonBytes)
+func broadcast(roomUUID string, msg WSMessage) {
+	room, exists := ChatRooms[roomUUID]
+	if !exists {
+		return
 	}
-	chatRoom.mu.Unlock()
+
+	jsonBytes, _ := json.Marshal(msg)
+
+	room.mu.Lock()
+	defer room.mu.Unlock()
+	for conn := range room.Users {
+		conn.WriteMessage(websocket.TextMessage, jsonBytes)
+	}
 }

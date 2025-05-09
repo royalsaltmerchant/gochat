@@ -1,28 +1,15 @@
 import createElement from "./components/createElement.js";
 import isoDateFormat from "./lib/isoDateFormat.js";
-import SocketConn from "./lib/socketConn.js";
 import { isImageUrl, createValidatedImage } from "./lib/imageValidation.js";
 
 class ChatApp {
   constructor(props) {
     this.domComponent = props.domComponent;
-    this.params = props.params;
-    this.socketConn = null;
+    this.socketConn = props.socketConn;
     this.chatBoxComponent = null;
   }
 
-  initialize(channelUUID) {
-    // Clean up existing connection if any
-    if (this.socketConn) {
-      this.socketConn.close();
-    }
-
-    // Initialize new connection
-    this.socketConn = new SocketConn({
-      channelUUID: channelUUID,
-      chatapp: this,
-    });
-
+  initialize = (channelUUID) => {
     this.chatBoxComponent = new ChatBoxComponent({
       domComponent: createElement("div"),
       socketConn: this.socketConn,
@@ -46,11 +33,6 @@ class ChatBoxComponent {
     this.domComponent.className = "chat-box-container";
     this.socketConn = props.socketConn;
     this.channelUUID = props.channelUUID;
-
-    console.log(
-      "ChatBoxComponent initialized with socketConn:",
-      this.socketConn
-    );
 
     this.chatBoxMessagesComponent = new ChatBoxMessagesComponent({
       domComponent: createElement("div", {
@@ -87,10 +69,8 @@ class ChatBoxComponent {
           type: "submit",
           event: (e) => {
             e.preventDefault();
-            console.log("Form submitted");
             const content = e.target.elements["chat-box-form-input"].value;
             console.log("Message content:", content);
-            console.log("Socket connection:", this.socketConn);
             this.socketConn.sendMessage(content);
 
             // clear input
@@ -119,18 +99,17 @@ class ChatBoxMessagesComponent {
 
   getPreviousMessages = async () => {
     try {
-      const response = await fetch("/api/get_messages", {
-        method: "POST",
+      const response = await fetch(`/api/get_messages/${this.channelUUID}`, {
+        method: "GET",
         headers: {
           "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ channelUUID: this.channelUUID }),
+        }
       });
 
       const result = await response.json();
       console.log(result);
-      if (result.messages && result.messages.length) {
-        this.chatBoxMessages = result.messages;
+      if (result.Messages && result.Messages.length) {
+        this.chatBoxMessages = result.Messages;
       }
     } catch (error) {
       console.log(error);

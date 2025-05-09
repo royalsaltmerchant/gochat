@@ -11,7 +11,7 @@ function createValidatedImage(src) {
   const img = document.createElement("img");
   img.src = src;
   img.alt = "Image";
-  img.style = "max-width: 100%; max-height: 250px; margin-top: 5px; margin-bottom: 5px; cursor: pointer;";
+  img.style = "max-width: 100%; max-height: 250px; margin: 5px; cursor: pointer;";
   
   img.onerror = () => {
     img.src = placeholderImage;

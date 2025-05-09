@@ -1,14 +1,13 @@
 class SocketConn {
   constructor(props) {
-    this.channelUUID = props.channelUUID;
     this.socket = null;
-    this.chatapp = props.chatapp;
+    this.renderChatAppMessage = props.renderChatAppMessage;
 
     this.connect();
   }
 
   connect = () => {
-    const url = `ws://${location.host}/ws/${encodeURIComponent(this.channelUUID)}`;
+    const url = `ws://${location.host}/ws`;
     console.log('Connecting to WebSocket:', url);
     this.socket = new WebSocket(url);
 
@@ -36,15 +35,13 @@ class SocketConn {
           break;
         case "chat":
           console.log('Chat message:', data);
+          this.renderChatAppMessage(data);
           break;
         default:
           console.warn("Unknown message type", data);
       }
 
-      this.chatapp.chatBoxComponent.chatBoxMessagesComponent.chatBoxMessages.push(
-        data.data
-      );
-      this.chatapp.chatBoxComponent.chatBoxMessagesComponent.render();
+
     };
   };
 
@@ -52,11 +49,46 @@ class SocketConn {
     console.log('Attempting to send message:', text);
     if (this.socket?.readyState === WebSocket.OPEN) {
       console.log('Socket is open, sending message');
-      this.socket.send(text);
+      // We need more than just text
+      const wsMessage = {
+        type: "chat",
+        data: text
+      }
+      this.socket.send(JSON.stringify(wsMessage));
     } else {
       console.error('Socket is not open. State:', this.socket?.readyState);
     }
   };
+
+  joinChannel = (channelUUID) => {
+    console.log('Attempting to join channel:', channelUUID);
+    if (this.socket?.readyState === WebSocket.OPEN) {
+      console.log('Socket is open, sending message');
+      // We need more than just text
+      const wsMessage = {
+        type: "join",
+        data: channelUUID
+      }
+      this.socket.send(JSON.stringify(wsMessage));
+    } else {
+      console.error('Socket is not open. State:', this.socket?.readyState);
+    }
+  };
+
+  // leaveChannel = (channelUUID) => {
+  //   console.log('Attempting to leave channel:', channelUUID);
+  //   if (this.socket?.readyState === WebSocket.OPEN) {
+  //     console.log('Socket is open, sending message');
+  //     // We need more than just text
+  //     const wsMessage = {
+  //       type: "leave",
+  //       data: channelUUID
+  //     }
+  //     this.socket.send(JSON.stringify(wsMessage));
+  //   } else {
+  //     console.error('Socket is not open. State:', this.socket?.readyState);
+  //   }
+  // };
 
   close = () => {
     if (this.socket) {

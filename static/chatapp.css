@@ -1,9 +1,17 @@
+.chatapp-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  /* overflow: hidden; */
+  background-color: var(--main-dark);
+}
+
 .chat-box-container {
-  z-index: 4;
-	flex: 1;
+  /* z-index: 4; */
 	display: flex;
+	flex: 1;
 	flex-direction: column;
-	overflow: hidden;
+  /* overflow: hidden; */
 }
 
 .chat-box-messages {
@@ -11,13 +19,13 @@
 	display: flex;
 	flex-direction: column;
   justify-content: flex-end;
-  padding: var(--main-distance);
   background-color: var(--main-dark);
-  overflow-y: scroll;
+  overflow-y: auto;
   word-wrap: break-word;
 }
 
 .chat-box-messages * {
+  padding: 3px;
   user-select: text;
   display: flex;
   flex-direction: row;

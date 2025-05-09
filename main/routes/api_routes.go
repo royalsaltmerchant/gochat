@@ -1,9 +1,9 @@
 package routes
 
 import (
-	"gochat/auth"
 	"gochat/db"
 	"gochat/spaces"
+	auth "gochat/users"
 
 	"github.com/gin-gonic/gin"
 )
@@ -11,19 +11,26 @@ import (
 func SetupAPIRoutes(r *gin.Engine) {
 	api := r.Group("/api")
 	{
+		// User
 		api.POST("/register", auth.HandleRegister)
 		api.POST("/login", auth.ValidateCSRFMiddleware(), auth.HandleLogin)
 		api.POST("/logout", auth.HandleLogout)
+		api.PUT("/update_username", auth.AuthMiddleware(), auth.HandleUpdateUsername)
+		// Space
 		api.POST("/new_space", auth.AuthMiddleware(), spaces.HandleInsertSpace)
-		api.POST("/new_space_user", auth.AuthMiddleware(), spaces.HandleInsertSpaceUser)
+		api.DELETE("/space/:uuid", auth.AuthMiddleware(), spaces.SpaceAuthMiddleware(), spaces.HandleDeleteSpace)
+		// Channel
+		api.POST("/new_channel", auth.AuthMiddleware(), spaces.HandleInsertChannel)
+		api.DELETE("/channel/:uuid", auth.AuthMiddleware(), spaces.ChannelAuthMiddleware(), spaces.HandleDeleteChannel)
+		// Space User
+		api.POST("/new_space_user/:uuid", auth.AuthMiddleware(), spaces.SpaceAuthMiddleware(), spaces.HandleInsertSpaceUser)
+		api.DELETE("/space_user/:uuid", auth.AuthMiddleware(), spaces.SpaceAuthMiddleware(), spaces.HandleDeleteSpaceUser)
 		api.POST("/accept_invite", auth.AuthMiddleware(), spaces.HandleAcceptInvite)
 		api.POST("/decline_invite", auth.AuthMiddleware(), spaces.HandleDeclineInvite)
-		api.POST("/new_channel", auth.AuthMiddleware(), spaces.HandleInsertChannel)
-		api.POST("/get_messages", auth.AuthMiddleware(), spaces.HandleGetMessages)
-		api.DELETE("/space/:uuid", auth.AuthMiddleware(), spaces.HandleDeleteSpace)
-		api.DELETE("/channel/:uuid", auth.AuthMiddleware(), spaces.HandleDeleteChannel)
-		api.PUT("/update_username", auth.AuthMiddleware(), auth.HandleUpdateUsername)
+		// Message
+		api.GET("/get_messages/:uuid", auth.AuthMiddleware(), spaces.ChannelAuthMiddleware(), spaces.HandleGetMessages)
 
+		// Full Dashboard
 		api.GET("/dashboard_data", auth.AuthMiddleware(), func(c *gin.Context) {
 			userID, _ := c.Get("userID")
 			username, _ := c.Get("userUsername")
@@ -54,25 +61,9 @@ func SetupAPIRoutes(r *gin.Engine) {
 				userSpaces = append(userSpaces, space)
 			}
 
-			// Get channels for each space
+			// Get channels and space users for each space
 			for i := range userSpaces {
-				channelsQuery := `SELECT id, uuid, name, space_uuid FROM channels WHERE space_uuid = ?`
-				channelRows, err := db.DB.Query(channelsQuery, userSpaces[i].UUID)
-				if err != nil {
-					continue
-				}
-				defer channelRows.Close()
-
-				var channels []spaces.Channel
-				for channelRows.Next() {
-					var channel spaces.Channel
-					err := channelRows.Scan(&channel.ID, &channel.UUID, &channel.Name, &channel.SpaceUUID)
-					if err != nil {
-						continue
-					}
-					channels = append(channels, channel)
-				}
-				userSpaces[i].Channels = channels
+				spaces.AppendspaceChannelsAndUsers(&userSpaces[i])
 			}
 
 			// 2. Collect invites (space_users.joined = 0) + space.name
@@ -101,7 +92,7 @@ func SetupAPIRoutes(r *gin.Engine) {
 			}
 
 			c.JSON(200, gin.H{
-				"user":    gin.H{"id": userID, "username": username},
+				"user":    gin.H{"ID": userID, "Username": username},
 				"spaces":  userSpaces,
 				"invites": invites,
 			})

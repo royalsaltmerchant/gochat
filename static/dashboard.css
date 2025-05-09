@@ -1,9 +1,21 @@
 .dashboard-container {
   display: flex;
   flex: 1;
+  overflow: hidden;
+}
+
+.channel-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: auto;
+  background-color: var(--main-dark);
 }
 
 .sidebar {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
   width: 300px;
   padding: var(--main-distance);
   background-color: var(--second-dark);
@@ -12,18 +24,37 @@
   border-right: 1px solid var(--main-gray);
 }
 
-.main-content {
-  flex: 1;
-  overflow-y: auto;
-  background-color: var(--main-dark);
+.sidebar-spaces-container {
+  display: flex;
+  flex-direction: column;
+  height: 60%;
+  overflow: auto;
+}
+
+.space-users-list {
+  height: 40%;
+  border-top: 1px solid var(--main-gray);
+  overflow: auto;
+}
+
+.space-user-item {
+  color: var(--light-yellow);
+  padding: 5px;
+  cursor: pointer;
+}
+
+.space-user-item:hover {
+  background-color: var(--dark-blue);
 }
 
 .space-item {
+  display: flex;
+  flex-direction: column;
   margin-bottom: 5px;
   width: 100%;
   border: 1px solid var(--main-gray);
   transition: border-color 0.2s, background 0.2s;
-  min-height: 36px;
+  min-height: 30px;
 }
 
 .space-item:hover {
@@ -72,7 +103,7 @@
 }
 
 .channel-list {
-  padding-left: 15px;
+  padding-left: var(--main-distance);
   margin-top: 5px;
   width: 100%;
 }
@@ -88,12 +119,10 @@
 
 .channel-item:hover {
   background-color: var(--dark-blue);
-  color: var(--light-blue);
 }
 
 .active-channel {
   background-color: var(--dark-blue);
-  color: var(--light-blue);
 }
 
 .invites-section {
@@ -124,13 +153,6 @@
 
 .create-space-btn:hover {
   background: linear-gradient(var(--light-blue) 25%, var(--second-blue) 75%);
-}
-
-.channel-content {
-  display: flex;
-  flex: 1;
-  width: 100%;
-  flex-direction: column;
 }
 
 .no-channel-selected {
@@ -172,11 +194,11 @@
 }
 
 .close-modal {
+  width: 40px;
   background: none;
   border: none;
-  font-size: 24px;
+  font-size: 30px;
   cursor: pointer;
-  color: var(--main-gray);
 }
 
 .close-modal:hover {
