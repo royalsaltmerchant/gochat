@@ -1,15 +1,8 @@
 .dashboard-container {
   display: flex;
+  flex-direction: row;
   flex: 1;
   overflow: hidden;
-}
-
-.channel-content {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  overflow: auto;
-  background-color: var(--main-dark);
 }
 
 .sidebar {

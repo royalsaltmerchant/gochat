@@ -1,26 +1,17 @@
-.chatapp-container {
+.channel-content,
+.chatapp-container,
+.chat-box-container {
   display: flex;
   flex-direction: column;
   flex: 1;
-  /* overflow: hidden; */
-  background-color: var(--main-dark);
-}
-
-.chat-box-container {
-  /* z-index: 4; */
-	display: flex;
-	flex: 1;
-	flex-direction: column;
-  /* overflow: hidden; */
+  min-height: 0;
 }
 
 .chat-box-messages {
-	flex: 1;
-	display: flex;
-	flex-direction: column;
-  justify-content: flex-end;
-  background-color: var(--main-dark);
+  flex: 1;
+  flex-direction: column;
   overflow-y: auto;
+  background-color: var(--main-dark);
   word-wrap: break-word;
 }
 
@@ -38,8 +29,8 @@
 }
 
 .chat-box-message-content {
-  display: flex; 
-  flex-direction: row; 
+  display: flex;
+  flex-direction: row;
   align-items: center;
 }
 
