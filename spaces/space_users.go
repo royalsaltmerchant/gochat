@@ -104,22 +104,9 @@ func HandleAcceptInvite(c *gin.Context) {
 		}
 		return
 	}
-	// Get and return space
-	var space Space
-	err = db.DB.QueryRow(`SELECT * FROM spaces WHERE uuid = ?`, spaceUUID).Scan(&space.ID, &space.UUID, &space.Name, &space.AuthorID)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			c.JSON(404, gin.H{"error": "Space not found by uuid"})
-		} else {
-			c.JSON(500, gin.H{"error": "Database error finding space"})
-		}
-		return
-	}
-
-	AppendspaceChannelsAndUsers(&space)
 
 	c.JSON(200, gin.H{
-		"space": space,
+		"message": "Accepted Invite",
 	})
 }
 
