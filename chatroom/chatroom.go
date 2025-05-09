@@ -3,7 +3,6 @@ package chatroom
 import (
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"gochat/spaces"
 	"log"
 	"net/http"
@@ -22,13 +21,14 @@ var upgrader = websocket.Upgrader{
 
 // Types
 type ChatRoom struct {
-	Users map[*websocket.Conn]string
+	Users map[*websocket.Conn]int
 	mu    sync.Mutex
 }
 
 type Client struct {
 	Conn     *websocket.Conn
 	Username string
+	UserID   int
 }
 
 type WSMessage struct {
@@ -45,7 +45,8 @@ type ChatPayload struct {
 // Global state
 var ChatRooms = map[string]*ChatRoom{}
 var ClientSubscriptions = map[*websocket.Conn]string{}
-var Clients = map[*websocket.Conn]*Client{}
+var ClientsByConn = map[*websocket.Conn]*Client{}
+var ConnsByUserID = map[int]*websocket.Conn{}
 
 func HandleSocket(c *gin.Context) {
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
@@ -62,7 +63,25 @@ func HandleSocket(c *gin.Context) {
 	}
 	username := usernameRaw.(string)
 
-	Clients[conn] = &Client{Conn: conn, Username: username}
+	userIDRaw, exists := c.Get("userID")
+	if !exists {
+		log.Println("No userID in context")
+		return
+	}
+	userID, ok := userIDRaw.(int)
+	if !ok {
+		log.Println("userID is not an int")
+		return
+	}
+
+	client := &Client{
+		Conn:     conn,
+		Username: username,
+		UserID:   userID,
+	}
+
+	ClientsByConn[conn] = client
+	ConnsByUserID[userID] = conn
 
 	for {
 		_, msgBytes, err := conn.ReadMessage()
@@ -83,12 +102,8 @@ func HandleSocket(c *gin.Context) {
 				log.Println("Invalid join data")
 				continue
 			}
-
-			// Leave old room
 			leaveRoom(conn)
-
-			// Join new room
-			joinRoom(conn, username, roomUUID)
+			joinRoom(conn, userID, roomUUID)
 
 		case "leave":
 			leaveRoom(conn)
@@ -99,31 +114,23 @@ func HandleSocket(c *gin.Context) {
 				log.Println("Invalid chat data")
 				continue
 			}
-			msgTimestamp := time.Now().UTC()
 
-			userIDRaw, exists := c.Get("userID")
-			if !exists {
-				fmt.Println("Failed to retrieve user ID")
-			}
-			userIDInt, ok := userIDRaw.(int)
-			if !ok {
-				fmt.Println("Failed to convert user ID to int")
-			}
+			msgTimestamp := time.Now().UTC()
 			msgUserID := sql.NullInt64{
-				Int64: int64(userIDInt),
+				Int64: int64(userID),
 				Valid: true,
 			}
+
 			roomUUID := ClientSubscriptions[conn]
 			if roomUUID != "" {
-				// Store message in DB
 				go spaces.InsertMessage(roomUUID, msgContent, username, msgUserID, msgTimestamp.Format(time.RFC3339))
 
-				broadcast(roomUUID, WSMessage{
+				BroadcastToRoom(roomUUID, WSMessage{
 					Type: "chat",
 					Data: ChatPayload{
 						Username:  username,
 						Content:   msgContent,
-						Timestamp: time.Now().UTC(),
+						Timestamp: msgTimestamp,
 					},
 				})
 			}
@@ -134,64 +141,40 @@ func HandleSocket(c *gin.Context) {
 	}
 
 	leaveRoom(conn)
-	delete(Clients, conn)
-	conn.Close()
 }
 
-// Helpers
-
-func joinRoom(conn *websocket.Conn, username, roomUUID string) {
+func joinRoom(conn *websocket.Conn, userID int, roomUUID string) {
 	if _, ok := ChatRooms[roomUUID]; !ok {
-		ChatRooms[roomUUID] = &ChatRoom{Users: make(map[*websocket.Conn]string)}
+		ChatRooms[roomUUID] = &ChatRoom{Users: make(map[*websocket.Conn]int)}
 	}
 	room := ChatRooms[roomUUID]
 
 	room.mu.Lock()
-	room.Users[conn] = username
+	room.Users[conn] = userID
 	room.mu.Unlock()
 
 	ClientSubscriptions[conn] = roomUUID
-
-	broadcast(roomUUID, WSMessage{
-		Type: "join",
-		Data: ChatPayload{
-			Username:  "System",
-			Content:   fmt.Sprintf("%s has joined", username),
-			Timestamp: time.Now().UTC(),
-		},
-	})
 }
 
 func leaveRoom(conn *websocket.Conn) {
 	roomUUID, ok := ClientSubscriptions[conn]
-	if !ok {
-		return
+	if ok {
+		if room, exists := ChatRooms[roomUUID]; exists {
+			room.mu.Lock()
+			delete(room.Users, conn)
+			room.mu.Unlock()
+		}
+		delete(ClientSubscriptions, conn)
 	}
 
-	room, exists := ChatRooms[roomUUID]
-	if !exists {
-		return
+	client, exists := ClientsByConn[conn]
+	if exists {
+		delete(ConnsByUserID, client.UserID)
+		delete(ClientsByConn, conn)
 	}
-
-	username := Clients[conn].Username
-
-	room.mu.Lock()
-	delete(room.Users, conn)
-	room.mu.Unlock()
-
-	delete(ClientSubscriptions, conn)
-
-	broadcast(roomUUID, WSMessage{
-		Type: "leave",
-		Data: ChatPayload{
-			Username:  "System",
-			Content:   fmt.Sprintf("%s has left", username),
-			Timestamp: time.Now().UTC(),
-		},
-	})
 }
 
-func broadcast(roomUUID string, msg WSMessage) {
+func BroadcastToRoom(roomUUID string, msg WSMessage) {
 	room, exists := ChatRooms[roomUUID]
 	if !exists {
 		return
@@ -203,5 +186,19 @@ func broadcast(roomUUID string, msg WSMessage) {
 	defer room.mu.Unlock()
 	for conn := range room.Users {
 		conn.WriteMessage(websocket.TextMessage, jsonBytes)
+	}
+}
+
+// SendToUser sends a message to a user by userID from outside WebSocket flow
+func SendToUser(userID int, msg WSMessage) {
+	conn, ok := ConnsByUserID[userID]
+	if !ok {
+		log.Printf("User %d not connected", userID)
+		return
+	}
+
+	jsonBytes, _ := json.Marshal(msg)
+	if err := conn.WriteMessage(websocket.TextMessage, jsonBytes); err != nil {
+		log.Printf("Failed to send message to user %d: %v", userID, err)
 	}
 }

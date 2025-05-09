@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>GoChat | {{.Title}}</title>
     <link rel="stylesheet" href="static/style.css" />
+    <script type="module" src="/js/components/invites.js" defer></script>
   </head>
   <body>
     {{template "header" .}}
@@ -12,7 +13,7 @@
       <h1>Account</h1>
       <br />
       <div>
-        <p>Current Username: {{.Username}}</p>
+        <b>Current Username:</b> <p>{{.Username}}</p>
       </div>
       <br />
       <form id="update-username-form">
@@ -28,6 +29,9 @@
       </form>
       <br />
       <button id="logout-btn" class="btn-red">Logout</button>
+      <br>
+      <hr>
+      <div id="invites"></div>
     </main>
     {{template "footer" .}}
   </body>
@@ -74,5 +78,6 @@
         window.alert("An error occurred while updating your username");
       }
     });
+    
   </script>
 </html>

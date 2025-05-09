@@ -7,8 +7,6 @@ export default class SidebarComponent {
     this.spaceComponents = [];
     this.domComponent = createElement("div", { class: "sidebar" });
     this.createNewSpace = params.createNewSpace;
-    this.acceptInvite = params.acceptInvite;
-    this.declineInvite = params.declineInvite;
     this.openSpaceSettings = params.openSpaceSettings;
     this.loadChannel = params.loadChannel;
 
@@ -47,31 +45,6 @@ export default class SidebarComponent {
 
   render = () => {
     this.domComponent.innerHTML = "";
-    // Invites
-    if (this.data.invites && this.data.invites.length > 0) {
-      this.domComponent.append(
-        createElement("div", { class: "invites-section" }, [
-          createElement("h3", {}, "Pending Invites"),
-          ...this.data.invites.map((invite) =>
-            createElement("div", { class: "pending-invites-item" }, [
-              createElement("span", {}, invite.Name),
-              createElement(
-                "button",
-                { class: "btn-small accept-invite" },
-                "Accept",
-                { type: "click", event: () => this.acceptInvite(invite.ID) }
-              ),
-              createElement(
-                "button",
-                { class: "btn-small btn-red decline-invite" },
-                "Decline",
-                { type: "click", event: () => this.declineInvite(invite.ID) }
-              ),
-            ])
-          ),
-        ])
-      );
-    }
     // Spaces
     this.domComponent.append(
       createElement("div", { class: "sidebar-spaces-container" }, [
@@ -125,12 +98,18 @@ class SpaceUserListComponent {
             )
               return;
             try {
-              const response = await fetch(`/api/space_user/${currentSpace.UUID}`, {
-                method: "DELETE",
-                credentials: "include",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ spaceUUID: currentSpace.UUID, userID: user.ID }),
-              });
+              const response = await fetch(
+                `/api/space_user/${currentSpace.UUID}`,
+                {
+                  method: "DELETE",
+                  credentials: "include",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    spaceUUID: currentSpace.UUID,
+                    userID: user.ID,
+                  }),
+                }
+              );
               if (response.ok) {
                 // Remove space user from list
                 const index = currentSpace.Users.indexOf(user);
@@ -165,7 +144,11 @@ class SpaceUserListComponent {
     if (currentSpace.Users) {
       // space users "invited"
       currentSpace.Users.map((user) => {
-        elementList.push(this.createUserElement(currentSpace, user, isAuthor));
+        if (user.ID != this.data.user.ID) {
+          elementList.push(
+            this.createUserElement(currentSpace, user, isAuthor)
+          );
+        }
       });
     }
 

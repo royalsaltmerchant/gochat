@@ -118,21 +118,6 @@
   background-color: var(--dark-blue);
 }
 
-.invites-section {
-  margin-bottom: 20px;
-  padding: 10px;
-  background-color: var(--dark-blue);
-  border-radius: 4px;
-}
-
-.pending-invites-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 5px 0;
-  width: 100%;
-}
-
 .create-space-btn {
   width: 100%;
   padding: 7px;

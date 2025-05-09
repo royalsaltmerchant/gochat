@@ -29,6 +29,39 @@ func SetupAPIRoutes(r *gin.Engine) {
 		api.POST("/decline_invite", auth.AuthMiddleware(), spaces.HandleDeclineInvite)
 		// Message
 		api.GET("/get_messages/:uuid", auth.AuthMiddleware(), spaces.ChannelAuthMiddleware(), spaces.HandleGetMessages)
+		// Invites
+		api.GET("/get_invites", auth.AuthMiddleware(), func(c *gin.Context) {
+			userID, _ := c.Get("userID")
+
+			// Collect invites (space_users.joined = 0) + space.name
+			query := `
+						SELECT su.id, su.space_uuid, su.user_id, su.joined, s.name
+						FROM space_users su
+						JOIN spaces s ON su.space_uuid = s.uuid
+						WHERE su.user_id = ? AND su.joined = 0
+					`
+
+			rows, err := db.DB.Query(query, userID)
+			if err != nil {
+				c.JSON(500, gin.H{"error": "Database error fetching invites"})
+				return
+			}
+			defer rows.Close()
+
+			var invites []spaces.SpaceUser
+			for rows.Next() {
+				var invite spaces.SpaceUser
+				err := rows.Scan(&invite.ID, &invite.SpaceUUID, &invite.UserID, &invite.Joined, &invite.Name)
+				if err != nil {
+					continue
+				}
+				invites = append(invites, invite)
+			}
+
+			c.JSON(200, gin.H{
+				"invites": invites,
+			})
+		})
 
 		// Full Dashboard
 		api.GET("/dashboard_data", auth.AuthMiddleware(), func(c *gin.Context) {
@@ -66,35 +99,9 @@ func SetupAPIRoutes(r *gin.Engine) {
 				spaces.AppendspaceChannelsAndUsers(&userSpaces[i])
 			}
 
-			// 2. Collect invites (space_users.joined = 0) + space.name
-			query = `
-				SELECT su.id, su.space_uuid, su.user_id, su.joined, s.name
-				FROM space_users su
-				JOIN spaces s ON su.space_uuid = s.uuid
-				WHERE su.user_id = ? AND su.joined = 0
-			`
-
-			rows, err = db.DB.Query(query, userID)
-			if err != nil {
-				c.JSON(500, gin.H{"error": "Database error fetching invites"})
-				return
-			}
-			defer rows.Close()
-
-			var invites []spaces.SpaceUser
-			for rows.Next() {
-				var invite spaces.SpaceUser
-				err := rows.Scan(&invite.ID, &invite.SpaceUUID, &invite.UserID, &invite.Joined, &invite.Name)
-				if err != nil {
-					continue
-				}
-				invites = append(invites, invite)
-			}
-
 			c.JSON(200, gin.H{
-				"user":    gin.H{"ID": userID, "Username": username},
-				"spaces":  userSpaces,
-				"invites": invites,
+				"user":   gin.H{"ID": userID, "Username": username},
+				"spaces": userSpaces,
 			})
 		})
 	}

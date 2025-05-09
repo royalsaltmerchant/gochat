@@ -15,8 +15,8 @@ type SpaceUser struct {
 	Name      string
 }
 
-func HandleInsertSpaceUser(c *gin.Context) {
-	spaceUUID, _ := c.Get("uuid")
+func HandleInsertSpaceUser(c *gin.Context) { // Create invite
+	spaceUUID := c.Param("uuid")
 
 	var json struct {
 		UserEmail string `json:"userEmail" binding:"required"`
@@ -48,6 +48,8 @@ func HandleInsertSpaceUser(c *gin.Context) {
 		c.JSON(500, gin.H{"error": "Database error inserting space_user data"})
 		return
 	}
+
+	// Send through socket to invited user
 
 	c.JSON(201, gin.H{
 		"message": "Successfully created new space user",

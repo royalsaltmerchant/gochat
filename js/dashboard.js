@@ -13,14 +13,17 @@ class DashboardApp {
     this.mainContent = null;
     this.currentSpaceUUID = null;
     this.socketConn = null;
-
   }
 
   async initialize() {
     // Get dash data
-    const res = await fetch("/api/dashboard_data");
-    this.data = await res.json();
-    console.log(this.data);
+    try {
+      const res = await fetch("/api/dashboard_data");
+      this.data = await res.json();
+      console.log(this.data);
+    } catch (error) {
+      console.log(error);
+    }
 
     // Start socket conn
     this.socketConn = new SocketConn({
@@ -32,8 +35,6 @@ class DashboardApp {
       data: this.data,
       getCurrentSpaceUUID: this.getCurrentSpaceUUID,
       createNewSpace: this.createNewSpace,
-      acceptInvite: this.acceptInvite,
-      declineInvite: this.declineInvite,
       openSpaceSettings: this.openSpaceSettings,
       loadChannel: this.loadChannel,
     });
@@ -97,11 +98,12 @@ class DashboardApp {
         }
       );
       const result = await response.json();
-      if (response.status === 400) {
+      if (response.ok) {
+        window.alert(`Invite Sent to ${invitedUserEmail}!`);
+      } else {
         window.alert(`ERROR: ${result.error}`);
         return;
       }
-      window.alert(`Invite Sent to ${invitedUserEmail}!`);
     } catch (error) {
       console.log(error);
     }
@@ -153,52 +155,6 @@ class DashboardApp {
         const result = await response.json();
         window.alert(`ERROR: ${result.error}`);
       }
-    } catch (error) {
-      console.log(error);
-    }
-  };
-
-  acceptInvite = async (inviteID) => {
-    try {
-      const response = await fetch("/api/accept_invite", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ spaceUserID: String(inviteID) }),
-      });
-      const result = await response.json();
-      if (response.ok) {
-        if (result.space) {
-          this.data.spaces.push(result.space);
-          this.sidebar.addSpace(result.space);
-          this.data.invites = this.data.invites.filter(
-            (i) => i.ID !== inviteID
-          );
-          this.sidebar.render();
-        }
-      } else {
-        console.log(result);
-      }
-    } catch (error) {
-      console.log(error);
-      window.alert(error);
-    }
-  };
-
-  declineInvite = async (inviteID) => {
-    try {
-      const response = await fetch("/api/decline_invite", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ spaceUserID: String(inviteID) }),
-      });
-      if (response.status === 400) {
-        window.alert("Error: Failed to decline invite!");
-        return;
-      }
-      this.data.invites = this.data.invites.filter((i) => i.ID !== inviteID);
-      this.sidebar.render();
     } catch (error) {
       console.log(error);
     }
@@ -290,10 +246,13 @@ class DashboardApp {
 
   renderChatAppMessage = (data) => {
     if (this.mainContent.chatApp) {
-      this.mainContent.chatApp.chatBoxComponent.chatBoxMessagesComponent.chatBoxMessages.push(
+      this.mainContent.chatApp.chatBoxComponent.chatBoxMessagesComponent.appendNewMessage(
         data.data
       );
-      this.mainContent.chatApp.chatBoxComponent.chatBoxMessagesComponent.render();
+
+      if (data.data.Username === this.data.user.Username) {
+        this.mainContent.chatApp.chatBoxComponent.chatBoxMessagesComponent.scrollDown();
+      }
     }
   };
 
@@ -303,7 +262,7 @@ class DashboardApp {
     this.domComponent.append(
       this.sidebar.domComponent,
       this.mainContent.domComponent,
-      
+
       this.dashModal.domComponent
     );
   }

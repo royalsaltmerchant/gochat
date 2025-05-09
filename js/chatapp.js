@@ -17,7 +17,7 @@ class ChatApp {
     });
 
     this.render();
-  }
+  };
 
   render = () => {
     this.domComponent.innerHTML = "";
@@ -95,6 +95,12 @@ class ChatBoxMessagesComponent {
   init = async () => {
     await this.getPreviousMessages();
     this.render();
+
+    // Wait one second for images to load then scroll down...
+    setTimeout(() => {
+      this.scrollDown();
+
+    }, 1000)
   };
 
   getPreviousMessages = async () => {
@@ -103,7 +109,7 @@ class ChatBoxMessagesComponent {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
-        }
+        },
       });
 
       const result = await response.json();
@@ -120,7 +126,12 @@ class ChatBoxMessagesComponent {
     this.domComponent.scrollTop = this.domComponent.scrollHeight;
   };
 
-  renderMessages = () => {
+  appendNewMessage = (data) => {
+    this.chatBoxMessages.push(data);
+    this.domComponent.append(this.createMessage(data));
+  }
+
+  createMessage = (data) => {
     const parseMessageContent = (content) => {
       const urlRegexAll = /(https?:\/\/[^\s]+)/g;
       const urlRegex = /^https?:\/\/[^\s]+$/;
@@ -148,24 +159,26 @@ class ChatBoxMessagesComponent {
       });
     };
 
+    return createElement("div", { class: "chat-box-message-content" }, [
+      createElement(
+        "small",
+        { style: "margin-right: var(--main-distance)" },
+        isoDateFormat(data.Timestamp)
+      ),
+      createElement(
+        "div",
+        {
+          style: "font-weight: bold; margin-right: var(--main-distance);",
+        },
+        `${data.Username}:`
+      ),
+      ...parseMessageContent(data.Content),
+    ]);
+  };
+
+  renderMessages = () => {
     if (this.chatBoxMessages.length) {
-      return this.chatBoxMessages.map((data) =>
-        createElement("div", { class: "chat-box-message-content" }, [
-          createElement(
-            "small",
-            { style: "margin-right: var(--main-distance)" },
-            isoDateFormat(data.Timestamp)
-          ),
-          createElement(
-            "div",
-            {
-              style: "font-weight: bold; margin-right: var(--main-distance);",
-            },
-            `${data.Username}:`
-          ),
-          ...parseMessageContent(data.Content),
-        ])
-      );
+      return this.chatBoxMessages.map((data) => this.createMessage(data));
     } else {
       return [];
     }
