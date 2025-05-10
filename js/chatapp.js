@@ -99,8 +99,7 @@ class ChatBoxMessagesComponent {
     // Wait one second for images to load then scroll down...
     setTimeout(() => {
       this.scrollDown();
-
-    }, 1000)
+    }, 1000);
   };
 
   getPreviousMessages = async () => {
@@ -128,16 +127,19 @@ class ChatBoxMessagesComponent {
 
   isScrolledToBottom = () => {
     const offset = 40;
-    return this.domComponent.scrollHeight - this.domComponent.scrollTop <= this.domComponent.clientHeight + offset;
-  }
-  
+    return (
+      this.domComponent.scrollHeight - this.domComponent.scrollTop <=
+      this.domComponent.clientHeight + offset
+    );
+  };
 
   appendNewMessage = (data) => {
     this.chatBoxMessages.push(data);
-    this.domComponent.append(this.createMessage(data));
-  }
+    this.domComponent.append(this.createMessage(data, true));
+  };
 
-  createMessage = (data) => {
+  createMessage = (data, isNew = false) => {
+    // isNew is bool to render message with animation
     const parseMessageContent = (content) => {
       const urlRegexAll = /(https?:\/\/[^\s]+)/g;
       const urlRegex = /^https?:\/\/[^\s]+$/;
@@ -165,7 +167,7 @@ class ChatBoxMessagesComponent {
       });
     };
 
-    return createElement("div", { class: "chat-box-message-content" }, [
+    const elem = createElement("div", { class: "chat-box-message-content" }, [
       createElement(
         "small",
         { style: "margin-right: var(--main-distance)" },
@@ -180,6 +182,12 @@ class ChatBoxMessagesComponent {
       ),
       ...parseMessageContent(data.Content),
     ]);
+
+    if (isNew) {
+      elem.style.animation = "highlightFade 1s ease-out";
+    }
+
+    return elem;
   };
 
   renderMessages = () => {

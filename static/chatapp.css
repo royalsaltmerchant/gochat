@@ -48,3 +48,12 @@
 .chat-box-btn {
   padding: 5px 10px;
 }
+
+@keyframes highlightFade {
+  from {
+    background-color: var(--light-yellow);
+  }
+  to {
+    background-color: inherit; /* or your normal bg color */
+  }
+}
