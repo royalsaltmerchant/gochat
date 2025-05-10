@@ -85,15 +85,15 @@ class SpaceUserListComponent {
     return String(space.AuthorID) === String(user.ID); // the current user not space user
   };
 
-  createUserElement = (currentSpace, user, isAuthor) => {
+  renderUserElement = (currentSpace, user) => {
     return createElement(
       "div",
       { class: "space-user-item", id: "space-user-item" },
-      `${user.Username}`,
+      `${user.Username} ${this.isAuthor(currentSpace, user) ? "*" : ""}`,
       {
         type: "click",
         event: async () => {
-          if (isAuthor && this.data.user.ID != user.ID) {
+          if (this.isAuthor(currentSpace, this.data.user) && this.data.user.ID != user.ID) {
             if (
               !window.confirm(
                 "Are you sure you want to kick this user? This action cannot be undone."
@@ -133,12 +133,10 @@ class SpaceUserListComponent {
 
     const elementList = [];
 
-    const isAuthor = this.isAuthor(currentSpace, this.data.user);
-
     if (currentSpace.Users) {
       // space users "invited"
       currentSpace.Users.map((user) => {
-        elementList.push(this.createUserElement(currentSpace, user, isAuthor));
+        elementList.push(this.renderUserElement(currentSpace, user));
       });
     }
 
