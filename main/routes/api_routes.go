@@ -2,6 +2,7 @@ package routes
 
 import (
 	"gochat/db"
+	"gochat/invites"
 	"gochat/spaces"
 	auth "gochat/users"
 
@@ -25,11 +26,11 @@ func SetupAPIRoutes(r *gin.Engine) {
 		// Space User
 		api.POST("/new_space_user/:uuid", auth.AuthMiddleware(), spaces.SpaceAuthMiddleware(), spaces.HandleInsertSpaceUser)
 		api.DELETE("/space_user/:uuid", auth.AuthMiddleware(), spaces.SpaceAuthMiddleware(), spaces.HandleDeleteSpaceUser)
-		api.POST("/accept_invite", auth.AuthMiddleware(), spaces.HandleAcceptInvite)
-		api.POST("/decline_invite", auth.AuthMiddleware(), spaces.HandleDeclineInvite)
 		// Message
 		api.GET("/get_messages/:uuid", auth.AuthMiddleware(), spaces.ChannelAuthMiddleware(), spaces.HandleGetMessages)
 		// Invites
+		api.POST("/accept_invite", auth.AuthMiddleware(), invites.HandleAcceptInvite)
+		api.POST("/decline_invite", auth.AuthMiddleware(), invites.HandleDeclineInvite)
 		api.GET("/get_invites", auth.AuthMiddleware(), func(c *gin.Context) {
 			userID, _ := c.Get("userID")
 
@@ -68,37 +69,19 @@ func SetupAPIRoutes(r *gin.Engine) {
 			userID, _ := c.Get("userID")
 			username, _ := c.Get("userUsername")
 
-			// 1. Collect user spaces (as author OR accepted invite)
-			query := `
-				SELECT DISTINCT s.id, s.uuid, s.name, s.author_id
-				FROM spaces s
-				LEFT JOIN space_users su ON su.space_uuid = s.uuid
-				WHERE s.author_id = ?
-					 OR (su.user_id = ? AND su.joined = 1)
-			`
-
-			rows, err := db.DB.Query(query, userID, userID)
+			// 1. Use helper
+			userSpaces, err := spaces.GetUserSpaces(userID.(int))
 			if err != nil {
 				c.JSON(500, gin.H{"error": "Database error fetching user spaces"})
 				return
 			}
-			defer rows.Close()
 
-			var userSpaces []spaces.Space
-			for rows.Next() {
-				var space spaces.Space
-				err := rows.Scan(&space.ID, &space.UUID, &space.Name, &space.AuthorID)
-				if err != nil {
-					continue
-				}
-				userSpaces = append(userSpaces, space)
-			}
-
-			// Get channels and space users for each space
+			// 2. Enrich with channels/users
 			for i := range userSpaces {
 				spaces.AppendspaceChannelsAndUsers(&userSpaces[i])
 			}
 
+			// 3. Respond
 			c.JSON(200, gin.H{
 				"user":   gin.H{"ID": userID, "Username": username},
 				"spaces": userSpaces,

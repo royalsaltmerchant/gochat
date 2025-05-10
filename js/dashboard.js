@@ -28,6 +28,7 @@ class DashboardApp {
     // Start socket conn
     this.socketConn = new SocketConn({
       renderChatAppMessage: this.renderChatAppMessage,
+      handleAddNewUser: this.handleAddNewUser,
     });
     // Init other comonents
     this.dashModal = new DashModal(this);
@@ -106,6 +107,17 @@ class DashboardApp {
       }
     } catch (error) {
       console.log(error);
+    }
+  };
+
+  handleAddNewUser = (newUserData) => {
+    const spaceToUpdate = this.data.spaces.find(space => space.UUI === newUserData.data.spaceUUID)
+    if (spaceToUpdate) {
+      spaceToUpdate.Users.push({
+        ID: newUserData.data.ID,
+        Username: newUserData.data.Username,
+      });
+      this.sidebar.spaceUserListComponent.render();
     }
   };
 

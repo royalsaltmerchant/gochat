@@ -2,6 +2,7 @@ class SocketConn {
   constructor(props) {
     this.socket = null;
     this.renderChatAppMessage = props.renderChatAppMessage;
+    this.handleAddNewUser = props.handleAddNewUser;
 
     this.connect();
   }
@@ -37,6 +38,9 @@ class SocketConn {
           console.log('Chat message:', data);
           this.renderChatAppMessage(data);
           break;
+        case "new-user":
+          console.log('New User message', data)
+          this.handleAddNewUser(data);
         default:
           console.warn("Unknown message type", data);
       }
@@ -66,7 +70,7 @@ class SocketConn {
       console.log('Socket is open, sending message');
       // We need more than just text
       const wsMessage = {
-        type: "join",
+        type: "join-channel",
         data: channelUUID
       }
       this.socket.send(JSON.stringify(wsMessage));

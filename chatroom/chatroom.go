@@ -20,7 +20,12 @@ var upgrader = websocket.Upgrader{
 }
 
 // Types
-type ChatRoom struct {
+type Channel struct {
+	Users map[*websocket.Conn]int
+	mu    sync.Mutex
+}
+
+type Space struct {
 	Users map[*websocket.Conn]int
 	mu    sync.Mutex
 }
@@ -42,9 +47,18 @@ type ChatPayload struct {
 	Timestamp time.Time `json:"Timestamp"`
 }
 
+type NewUserPayload struct {
+	ID        int    `json:"ID"`
+	Username  string `json:"Username"`
+	SpaceUUID string `json:"SpaceUUID"`
+}
+
 // Global state
-var ChatRooms = map[string]*ChatRoom{}
-var ClientSubscriptions = map[*websocket.Conn]string{}
+var Channels = map[string]*Channel{}
+var Spaces = map[string]*Space{}
+
+var ChannelSubscriptions = map[*websocket.Conn]string{} // for channels
+var SpaceSubscriptions = map[*websocket.Conn][]string{} // for spaces
 var ClientsByConn = map[*websocket.Conn]*Client{}
 var ConnsByUserID = map[int]*websocket.Conn{}
 
@@ -83,6 +97,16 @@ func HandleSocket(c *gin.Context) {
 	ClientsByConn[conn] = client
 	ConnsByUserID[userID] = conn
 
+	// Join all user spaces on connect
+	userSpaces, err := spaces.GetUserSpaces(userID)
+	if err != nil {
+		log.Println("Failed to get user spaces:", err)
+	} else {
+		for _, space := range userSpaces {
+			joinSpace(conn, userID, space.UUID)
+		}
+	}
+
 	for {
 		_, msgBytes, err := conn.ReadMessage()
 		if err != nil {
@@ -96,17 +120,17 @@ func HandleSocket(c *gin.Context) {
 		}
 
 		switch wsMsg.Type {
-		case "join":
-			roomUUID, ok := wsMsg.Data.(string)
+		case "join-channel":
+			channelUUID, ok := wsMsg.Data.(string)
 			if !ok {
 				log.Println("Invalid join data")
 				continue
 			}
-			leaveRoom(conn)
-			joinRoom(conn, userID, roomUUID)
+			leaveChannel(conn)
+			joinChannel(conn, userID, channelUUID)
 
-		case "leave":
-			leaveRoom(conn)
+		case "leave-channel":
+			leaveChannel(conn)
 
 		case "chat":
 			msgContent, ok := wsMsg.Data.(string)
@@ -121,11 +145,11 @@ func HandleSocket(c *gin.Context) {
 				Valid: true,
 			}
 
-			roomUUID := ClientSubscriptions[conn]
-			if roomUUID != "" {
-				go spaces.InsertMessage(roomUUID, msgContent, username, msgUserID, msgTimestamp.Format(time.RFC3339))
+			channelUUID := ChannelSubscriptions[conn]
+			if channelUUID != "" {
+				go spaces.InsertMessage(channelUUID, msgContent, username, msgUserID, msgTimestamp.Format(time.RFC3339))
 
-				BroadcastToRoom(roomUUID, WSMessage{
+				BroadcastToChannel(channelUUID, WSMessage{
 					Type: "chat",
 					Data: ChatPayload{
 						Username:  username,
@@ -140,31 +164,34 @@ func HandleSocket(c *gin.Context) {
 		}
 	}
 
-	leaveRoom(conn)
+	leaveChannel(conn)
+	leaveAllSpaces(conn)
 }
 
-func joinRoom(conn *websocket.Conn, userID int, roomUUID string) {
-	if _, ok := ChatRooms[roomUUID]; !ok {
-		ChatRooms[roomUUID] = &ChatRoom{Users: make(map[*websocket.Conn]int)}
+// ======== Channel Functions ========
+
+func joinChannel(conn *websocket.Conn, userID int, channelUUID string) {
+	if _, ok := Channels[channelUUID]; !ok {
+		Channels[channelUUID] = &Channel{Users: make(map[*websocket.Conn]int)}
 	}
-	room := ChatRooms[roomUUID]
+	channel := Channels[channelUUID]
 
-	room.mu.Lock()
-	room.Users[conn] = userID
-	room.mu.Unlock()
+	channel.mu.Lock()
+	channel.Users[conn] = userID
+	channel.mu.Unlock()
 
-	ClientSubscriptions[conn] = roomUUID
+	ChannelSubscriptions[conn] = channelUUID
 }
 
-func leaveRoom(conn *websocket.Conn) {
-	roomUUID, ok := ClientSubscriptions[conn]
+func leaveChannel(conn *websocket.Conn) {
+	channelUUID, ok := ChannelSubscriptions[conn]
 	if ok {
-		if room, exists := ChatRooms[roomUUID]; exists {
-			room.mu.Lock()
-			delete(room.Users, conn)
-			room.mu.Unlock()
+		if channel, exists := Channels[channelUUID]; exists {
+			channel.mu.Lock()
+			delete(channel.Users, conn)
+			channel.mu.Unlock()
 		}
-		delete(ClientSubscriptions, conn)
+		delete(ChannelSubscriptions, conn)
 	}
 
 	client, exists := ClientsByConn[conn]
@@ -174,22 +201,70 @@ func leaveRoom(conn *websocket.Conn) {
 	}
 }
 
-func BroadcastToRoom(roomUUID string, msg WSMessage) {
-	room, exists := ChatRooms[roomUUID]
+func BroadcastToChannel(channelUUID string, msg WSMessage) {
+	channel, exists := Channels[channelUUID]
 	if !exists {
 		return
 	}
 
 	jsonBytes, _ := json.Marshal(msg)
 
-	room.mu.Lock()
-	defer room.mu.Unlock()
-	for conn := range room.Users {
+	channel.mu.Lock()
+	defer channel.mu.Unlock()
+	for conn := range channel.Users {
 		conn.WriteMessage(websocket.TextMessage, jsonBytes)
 	}
 }
 
-// SendToUser sends a message to a user by userID from outside WebSocket flow
+// ======== Space Functions ========
+
+func joinSpace(conn *websocket.Conn, userID int, spaceUUID string) {
+	if _, ok := Spaces[spaceUUID]; !ok {
+		Spaces[spaceUUID] = &Space{Users: make(map[*websocket.Conn]int)}
+	}
+	space := Spaces[spaceUUID]
+
+	space.mu.Lock()
+	space.Users[conn] = userID
+	space.mu.Unlock()
+
+	SpaceSubscriptions[conn] = append(SpaceSubscriptions[conn], spaceUUID)
+}
+
+func leaveAllSpaces(conn *websocket.Conn) {
+	spaceUUIDs, ok := SpaceSubscriptions[conn]
+	if !ok {
+		return
+	}
+
+	for _, spaceUUID := range spaceUUIDs {
+		if space, exists := Spaces[spaceUUID]; exists {
+			space.mu.Lock()
+			delete(space.Users, conn)
+			space.mu.Unlock()
+		}
+	}
+
+	delete(SpaceSubscriptions, conn)
+}
+
+func BroadcastToSpace(spaceUUID string, msg WSMessage) {
+	space, exists := Spaces[spaceUUID]
+	if !exists {
+		return
+	}
+
+	jsonBytes, _ := json.Marshal(msg)
+
+	space.mu.Lock()
+	defer space.mu.Unlock()
+	for conn := range space.Users {
+		conn.WriteMessage(websocket.TextMessage, jsonBytes)
+	}
+}
+
+// ======== SendToUser ========
+
 func SendToUser(userID int, msg WSMessage) {
 	conn, ok := ConnsByUserID[userID]
 	if !ok {
