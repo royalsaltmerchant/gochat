@@ -101,3 +101,26 @@ func HandleDeleteSpace(c *gin.Context) {
 
 	c.JSON(200, gin.H{"message": "Space deleted successfully"})
 }
+
+func HandleGetDashData(c *gin.Context) {
+	userID, _ := c.Get("userID")
+	username, _ := c.Get("userUsername")
+
+	// 1. Use helper
+	userSpaces, err := GetUserSpaces(userID.(int))
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Database error fetching user spaces"})
+		return
+	}
+
+	// 2. Enrich with channels/users
+	for i := range userSpaces {
+		AppendspaceChannelsAndUsers(&userSpaces[i])
+	}
+
+	// 3. Respond
+	c.JSON(200, gin.H{
+		"user":   gin.H{"ID": userID, "Username": username},
+		"spaces": userSpaces,
+	})
+}

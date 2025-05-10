@@ -98,15 +98,100 @@ export default class DashModal {
     }
   };
 
+  renderAuthorSettings = () => {
+    return [
+      // Space Management Section
+      createElement("div", { class: "settings-section" }, [
+        createElement("h3", {}, "Space Management"),
+        createElement("div", { class: "settings-actions" }, [
+          createElement("button", { class: "btn" }, "Invite User", {
+            type: "click",
+            event: this.app.inviteUser,
+          }),
+          createElement("button", { class: "btn btn-red" }, "Delete Space", {
+            type: "click",
+            event: this.app.deleteSpace,
+          }),
+        ]),
+      ]),
+      // Channel Management Section
+      createElement("div", { class: "settings-section" }, [
+        createElement("h3", {}, "Channel Management"),
+        createElement("div", { class: "settings-actions" }, [
+          createElement("button", { class: "btn" }, "+ Create Channel", {
+            type: "click",
+            event: this.createNewChannel,
+          }),
+        ]),
+        createElement(
+          "div",
+          { class: "channels-list" },
+          this.currentSpace.Channels.map((channel) =>
+            createElement("div", { class: "channel-item" }, [
+              createElement("span", {}, channel.Name),
+              createElement(
+                "button",
+                { class: "btn-small btn-red" },
+                "Delete",
+                {
+                  type: "click",
+                  event: () => this.deleteChannel(channel.UUID),
+                }
+              ),
+            ])
+          )
+        ),
+      ]),
+    ];
+  };
+
+  renderSpaceUserSettings = () => {
+    return [
+      createElement("div", { class: "settings-section" }, [
+        createElement("h3", {}, "Space Management"),
+        createElement("div", { class: "settings-actions" }, [
+          createElement("button", { class: "btn btn-red" }, "Leave Space", {
+            type: "click",
+            event: async () => {
+              try {
+                const response = await fetch(
+                  `/api/space_user_self/${this.currentSpace.UUID}`,
+                  {
+                    method: "DELETE",
+                    credentials: "include",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      spaceUUID: this.currentSpace.UUID,
+                    }),
+                  }
+                );
+                if (response.ok) {
+                  // Handled by socket remove-user with dashboard handleRemoveUser
+                  this.close();
+                } else {
+                  const result = await response.json();
+                  window.alert(`ERROR: ${result.error}`);
+                }
+              } catch (error) {
+                console.log(error);
+              }
+            },
+          }),
+        ]),
+      ]),
+    ];
+  };
+
   render = () => {
     if (!this.currentSpace) {
-      this.domComponent.innerHTML = "";
+      this.close();
       return;
     }
 
+    this.domComponent.innerHTML = "";
+
     const isAuthor = this.currentSpace.AuthorID === this.app.data.user.ID;
 
-    this.domComponent.innerHTML = "";
     this.domComponent.append(
       createElement("div", { class: "modal-content" }, [
         createElement("div", { class: "modal-header" }, [
@@ -116,53 +201,13 @@ export default class DashModal {
             event: this.close,
           }),
         ]),
-        createElement("div", { class: "modal-body" }, [
-          // Space Management Section
-          createElement("div", { class: "settings-section" }, [
-            createElement("h3", {}, "Space Management"),
-            createElement("div", { class: "settings-actions" }, [
-              createElement("button", { class: "btn" }, "Invite User", {
-                type: "click",
-                event: this.app.inviteUser,
-              }),
-              isAuthor ?
-                createElement(
-                  "button",
-                  { class: "btn btn-red" },
-                  "Delete Space",
-                  { type: "click", event: this.app.deleteSpace }
-                ) : "",
-            ]),
-          ]),
-          // Channel Management Section
-          createElement("div", { class: "settings-section" }, [
-            createElement("h3", {}, "Channel Management"),
-            createElement("div", { class: "settings-actions" }, [
-              createElement("button", { class: "btn" }, "+ Create Channel", {
-                type: "click",
-                event: this.createNewChannel,
-              }),
-            ]),
-            createElement(
-              "div",
-              { class: "channels-list" },
-              this.currentSpace.Channels.map((channel) =>
-                createElement("div", { class: "channel-item" }, [
-                  createElement("span", {}, channel.Name),
-                  createElement(
-                    "button",
-                    { class: "btn-small btn-red" },
-                    "Delete",
-                    {
-                      type: "click",
-                      event: () => this.deleteChannel(channel.UUID),
-                    }
-                  ),
-                ])
-              )
-            ),
-          ]),
-        ]),
+        createElement(
+          "div",
+          { class: "modal-body" },
+          isAuthor
+            ? this.renderAuthorSettings()
+            : this.renderSpaceUserSettings()
+        ),
       ])
     );
   };

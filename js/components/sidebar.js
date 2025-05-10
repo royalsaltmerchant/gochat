@@ -10,11 +10,6 @@ export default class SidebarComponent {
     this.openSpaceSettings = params.openSpaceSettings;
     this.loadChannel = params.loadChannel;
 
-    this.spaceUserListComponent = new SpaceUserListComponent(
-      this.data,
-      this.getCurrentSpaceUUID
-    );
-    this.initSpaceComponents();
     this.render();
   }
 
@@ -45,6 +40,14 @@ export default class SidebarComponent {
 
   render = () => {
     this.domComponent.innerHTML = "";
+
+    this.initSpaceComponents();
+
+    this.spaceUserListComponent = new SpaceUserListComponent(
+      this.data,
+      this.getCurrentSpaceUUID
+    );
+
     // Spaces
     this.domComponent.append(
       createElement("div", { class: "sidebar-spaces-container" }, [
@@ -86,7 +89,7 @@ class SpaceUserListComponent {
     return createElement(
       "div",
       { class: "space-user-item", id: "space-user-item" },
-      user.Username,
+      `${user.Username}`,
       {
         type: "click",
         event: async () => {
@@ -111,13 +114,7 @@ class SpaceUserListComponent {
                 }
               );
               if (response.ok) {
-                // Remove space user from list
-                const index = currentSpace.Users.indexOf(user);
-                if (index !== -1) {
-                  currentSpace.Users.splice(index, 1); // Removes the element cleanly
-                }
-                // re-render space users list
-                this.render();
+                // Handled by socket message remove-user with dashboard handleRemoveUser
               } else {
                 const result = await response.json();
                 window.alert(`ERROR: ${result.error}`);
@@ -137,18 +134,11 @@ class SpaceUserListComponent {
     const elementList = [];
 
     const isAuthor = this.isAuthor(currentSpace, this.data.user);
-    elementList.push(
-      this.createUserElement(currentSpace, this.data.user, isAuthor)
-    ); // current user
 
     if (currentSpace.Users) {
       // space users "invited"
       currentSpace.Users.map((user) => {
-        if (user.ID != this.data.user.ID) {
-          elementList.push(
-            this.createUserElement(currentSpace, user, isAuthor)
-          );
-        }
+        elementList.push(this.createUserElement(currentSpace, user, isAuthor));
       });
     }
 
@@ -161,8 +151,10 @@ class SpaceUserListComponent {
 
     if (currentSpaceUUID) {
       const currentSpace = this.data.spaces.find(
-        (space) => space.UUID === this.getCurrentSpaceUUID()
+        (space) => space.UUID === currentSpaceUUID
       );
+
+      if (!currentSpace) return;
 
       this.domComponent.append(
         createElement("h3", {}, "Users"),
@@ -188,8 +180,6 @@ class SpaceItemComponent {
   };
 
   renderActions = () => {
-    if (!this.isAuthor()) return [];
-
     return [
       createElement("button", { class: "btn-icon open-settings" }, "⚙️", {
         type: "click",

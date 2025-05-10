@@ -1,7 +1,8 @@
-package spaces
+package invites
 
 import (
 	"database/sql"
+	ch "gochat/chatroom"
 	"gochat/db"
 
 	"github.com/gin-gonic/gin"
@@ -76,6 +77,50 @@ func HandleDeleteSpaceUser(c *gin.Context) {
 		c.JSON(404, gin.H{"error": "Space user not found"})
 		return
 	}
+
+	// Broadcast to connected users in space
+	ch.BroadcastToSpace(json.SpaceUUID, ch.WSMessage{
+		Type: "remove-user",
+		Data: ch.NewUserPayload{
+			ID:        json.UserID,
+			SpaceUUID: json.SpaceUUID,
+		},
+	})
+
+	c.JSON(200, gin.H{"message": "Space user deleted successfully"})
+}
+
+func HandleDeleteSpaceUserSelf(c *gin.Context) {
+	userIDRaw, _ := c.Get("userID")
+	userID, _ := userIDRaw.(int)
+
+	var json struct {
+		SpaceUUID string `json:"spaceUUID" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&json); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	res, err := db.DB.Exec("DELETE FROM space_users WHERE space_uuid = ? AND user_id = ?", json.SpaceUUID, userID)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Database error deleting space user"})
+		return
+	}
+	if rows, _ := res.RowsAffected(); rows == 0 {
+		c.JSON(404, gin.H{"error": "Space user not found"})
+		return
+	}
+
+	// Broadcast to connected users in space
+	ch.BroadcastToSpace(json.SpaceUUID, ch.WSMessage{
+		Type: "remove-user",
+		Data: ch.NewUserPayload{
+			ID:        userID,
+			SpaceUUID: json.SpaceUUID,
+		},
+	})
 
 	c.JSON(200, gin.H{"message": "Space user deleted successfully"})
 }

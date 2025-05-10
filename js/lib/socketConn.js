@@ -2,7 +2,8 @@ class SocketConn {
   constructor(props) {
     this.socket = null;
     this.renderChatAppMessage = props.renderChatAppMessage;
-    this.handleAddNewUser = props.handleAddNewUser;
+    this.handleAddUser = props.handleAddUser;
+    this.handleRemoveUser = props.handleRemoveUser;
 
     this.connect();
   }
@@ -40,7 +41,11 @@ class SocketConn {
           break;
         case "new-user":
           console.log('New User message', data)
-          this.handleAddNewUser(data);
+          this.handleAddUser(data);
+          break;
+        case "remove-user":
+          this.handleRemoveUser(data);
+          break;
         default:
           console.warn("Unknown message type", data);
       }

@@ -76,3 +76,36 @@ func HandleDeclineInvite(c *gin.Context) {
 
 	c.JSON(200, gin.H{"message": "Invite declined"})
 }
+
+func HandleGetInvites(c *gin.Context) {
+	userID, _ := c.Get("userID")
+
+	// Collect invites (space_users.joined = 0) + space.name
+	query := `
+				SELECT su.id, su.space_uuid, su.user_id, su.joined, s.name
+				FROM space_users su
+				JOIN spaces s ON su.space_uuid = s.uuid
+				WHERE su.user_id = ? AND su.joined = 0
+			`
+
+	rows, err := db.DB.Query(query, userID)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Database error fetching invites"})
+		return
+	}
+	defer rows.Close()
+
+	var spaceInvites []SpaceUser
+	for rows.Next() {
+		var spaceInvite SpaceUser
+		err := rows.Scan(&spaceInvite.ID, &spaceInvite.SpaceUUID, &spaceInvite.UserID, &spaceInvite.Joined, &spaceInvite.Name)
+		if err != nil {
+			continue
+		}
+		spaceInvites = append(spaceInvites, spaceInvite)
+	}
+
+	c.JSON(200, gin.H{
+		"invites": spaceInvites,
+	})
+}

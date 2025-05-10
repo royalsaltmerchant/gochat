@@ -28,7 +28,8 @@ class DashboardApp {
     // Start socket conn
     this.socketConn = new SocketConn({
       renderChatAppMessage: this.renderChatAppMessage,
-      handleAddNewUser: this.handleAddNewUser,
+      handleAddUser: this.handleAddUser,
+      handleRemoveUser: this.handleRemoveUser,
     });
     // Init other comonents
     this.dashModal = new DashModal(this);
@@ -110,14 +111,36 @@ class DashboardApp {
     }
   };
 
-  handleAddNewUser = (newUserData) => {
-    const spaceToUpdate = this.data.spaces.find(space => space.UUI === newUserData.data.spaceUUID)
+  handleAddUser = (newUserData) => {
+    const spaceToUpdate = this.data.spaces.find(
+      (space) => space.UUID === newUserData.data.SpaceUUID
+    );
     if (spaceToUpdate) {
       spaceToUpdate.Users.push({
         ID: newUserData.data.ID,
         Username: newUserData.data.Username,
       });
       this.sidebar.spaceUserListComponent.render();
+    }
+  };
+
+  handleRemoveUser = (userData) => {
+    const spaceToUpdate = this.data.spaces.find(
+      (space) => space.UUID === userData.data.SpaceUUID
+    );
+    if (spaceToUpdate) {
+      const indexOfUser = spaceToUpdate.Users.findIndex(
+        (user) => user.ID === userData.data.ID
+      );
+      spaceToUpdate.Users.splice(indexOfUser, 1);
+      this.sidebar.spaceUserListComponent.render();
+
+      if (userData.data.ID == this.data.user.ID) { // If the current user is removed from the space
+        this.data.spaces.splice(this.data.spaces.indexOf(spaceToUpdate), 1);
+        this.sidebar.render();
+        this.mainContent.render();
+        this.dashModal.render();
+      }
     }
   };
 

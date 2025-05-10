@@ -23,23 +23,43 @@ func AppendspaceChannelsAndUsers(space *Space) {
 
 	// Fetch users in space
 	usersQuery := `
-						SELECT u.id, u.username
-						FROM space_users su
-						JOIN users u ON su.user_id = u.id
-						WHERE su.space_uuid = ? AND su.joined = 1
-					`
+		SELECT u.id, u.username
+		FROM space_users su
+		JOIN users u ON su.user_id = u.id
+		WHERE su.space_uuid = ? AND su.joined = 1
+	`
 	userRows, err := db.DB.Query(usersQuery, space.UUID)
+	var users []auth.UserData
 	if err == nil {
 		defer userRows.Close()
-		var users []auth.UserData
 		for userRows.Next() {
 			var user auth.UserData
 			if err := userRows.Scan(&user.ID, &user.Username); err == nil {
 				users = append(users, user)
 			}
 		}
-		space.Users = users
 	}
+
+	// Check if author is already in users
+	found := false
+	for _, user := range users {
+		if user.ID == space.AuthorID {
+			found = true
+			break
+		}
+	}
+
+	// Fetch and append author if not in list
+	if !found {
+		authorQuery := `SELECT id, username FROM users WHERE id = ?`
+		row := db.DB.QueryRow(authorQuery, space.AuthorID)
+		var author auth.UserData
+		if err := row.Scan(&author.ID, &author.Username); err == nil {
+			users = append(users, author)
+		}
+	}
+
+	space.Users = users
 }
 
 func GetUserSpaces(userID int) ([]Space, error) {
