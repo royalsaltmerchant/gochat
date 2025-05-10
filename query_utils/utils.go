@@ -1,19 +1,19 @@
-package spaces
+package query_utils
 
 import (
 	"gochat/db"
-	auth "gochat/users"
+	"gochat/types"
 )
 
-func AppendspaceChannelsAndUsers(space *Space) {
+func AppendspaceChannelsAndUsers(space *types.Space) {
 	// Fetch channels (existing code)
 	channelsQuery := `SELECT id, uuid, name, space_uuid FROM channels WHERE space_uuid = ?`
 	channelRows, err := db.DB.Query(channelsQuery, space.UUID)
 	if err == nil {
 		defer channelRows.Close()
-		var channels []Channel
+		var channels []types.Channel
 		for channelRows.Next() {
-			var channel Channel
+			var channel types.Channel
 			if err := channelRows.Scan(&channel.ID, &channel.UUID, &channel.Name, &channel.SpaceUUID); err == nil {
 				channels = append(channels, channel)
 			}
@@ -29,11 +29,11 @@ func AppendspaceChannelsAndUsers(space *Space) {
 		WHERE su.space_uuid = ? AND su.joined = 1
 	`
 	userRows, err := db.DB.Query(usersQuery, space.UUID)
-	var users []auth.UserData
+	var users []types.UserData
 	if err == nil {
 		defer userRows.Close()
 		for userRows.Next() {
-			var user auth.UserData
+			var user types.UserData
 			if err := userRows.Scan(&user.ID, &user.Username); err == nil {
 				users = append(users, user)
 			}
@@ -53,7 +53,7 @@ func AppendspaceChannelsAndUsers(space *Space) {
 	if !found {
 		authorQuery := `SELECT id, username FROM users WHERE id = ?`
 		row := db.DB.QueryRow(authorQuery, space.AuthorID)
-		var author auth.UserData
+		var author types.UserData
 		if err := row.Scan(&author.ID, &author.Username); err == nil {
 			users = append(users, author)
 		}
@@ -62,7 +62,7 @@ func AppendspaceChannelsAndUsers(space *Space) {
 	space.Users = users
 }
 
-func GetUserSpaces(userID int) ([]Space, error) {
+func GetUserSpaces(userID int) ([]types.Space, error) {
 	query := `
 		SELECT DISTINCT s.id, s.uuid, s.name, s.author_id
 		FROM spaces s
@@ -77,9 +77,9 @@ func GetUserSpaces(userID int) ([]Space, error) {
 	}
 	defer rows.Close()
 
-	var userSpaces []Space
+	var userSpaces []types.Space
 	for rows.Next() {
-		var space Space
+		var space types.Space
 		if err := rows.Scan(&space.ID, &space.UUID, &space.Name, &space.AuthorID); err != nil {
 			continue
 		}

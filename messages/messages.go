@@ -1,21 +1,13 @@
-package spaces
+package messages
 
 import (
 	"database/sql"
 	"fmt"
 	"gochat/db"
+	"gochat/types"
 
 	"github.com/gin-gonic/gin"
 )
-
-type Message struct {
-	ID          int
-	ChannelUUID string
-	Content     string
-	Username    string
-	UserID      int
-	Timestamp   string
-}
 
 func InsertMessage(channelUUID string, content string, username string, userID sql.NullInt64, timestamp string) {
 	query := `INSERT INTO messages (channel_uuid, content, username, user_id, timestamp) VALUES (?, ?, ?, ?, ?)`
@@ -36,9 +28,9 @@ func HandleGetMessages(c *gin.Context) {
 	}
 	defer rows.Close()
 
-	var messages []Message
+	var messages []types.Message
 	for rows.Next() {
-		var message Message
+		var message types.Message
 		err := rows.Scan(&message.ID, &message.ChannelUUID, &message.Content, &message.Username, &message.UserID, &message.Timestamp)
 		if err != nil {
 			fmt.Println("Error scanning message:", err)

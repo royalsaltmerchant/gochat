@@ -4,6 +4,8 @@ class SocketConn {
     this.renderChatAppMessage = props.renderChatAppMessage;
     this.handleAddUser = props.handleAddUser;
     this.handleRemoveUser = props.handleRemoveUser;
+    this.handleNewChannel = props.handleNewChannel;
+    this.handleDeleteChannel = props.handleDeleteChannel;
 
     this.connect();
   }
@@ -45,6 +47,12 @@ class SocketConn {
           break;
         case "remove-user":
           this.handleRemoveUser(data);
+          break;
+        case "new-channel":
+          this.handleNewChannel(data);
+          break;
+        case "delete-channel":
+          this.handleDeleteChannel(data);
           break;
         default:
           console.warn("Unknown message type", data);

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"gochat/db"
+	"gochat/types"
 	"log"
 	"net/smtp"
 	"os"
@@ -14,13 +15,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 )
-
-type UserData struct {
-	ID       int
-	Username string
-	Email    string
-	Password string
-}
 
 func ValidateCSRFMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -82,7 +76,7 @@ func AuthMiddleware() gin.HandlerFunc {
 	}
 }
 
-func generateJWT(userData UserData, expirationTime time.Duration) (string, error) {
+func generateJWT(userData types.UserData, expirationTime time.Duration) (string, error) {
 	jwtSecret := os.Getenv("JWT_SECRET")
 	claims := jwt.MapClaims{
 		"userID":       userData.ID,
@@ -124,7 +118,7 @@ func HandleLogin(c *gin.Context) {
 		return
 	}
 
-	var userData UserData
+	var userData types.UserData
 	query := `SELECT * FROM users WHERE email = ?`
 	err := db.DB.QueryRow(query, json.Email).Scan(&userData.ID, &userData.Username, &userData.Email, &userData.Password)
 	if err != nil {
@@ -231,7 +225,7 @@ func HandlePasswordResetRequest(c *gin.Context) {
 	}
 
 	// Check if the email exists in the database
-	var userData UserData
+	var userData types.UserData
 	query := `SELECT email FROM users WHERE email = ?`
 	err := db.DB.QueryRow(query, json.Email).Scan(&userData.Email)
 	if err != nil {
@@ -305,7 +299,7 @@ func HandleUpdateUsername(c *gin.Context) {
 		return
 	}
 
-	userData := UserData{
+	userData := types.UserData{
 		ID:       userID.(int),
 		Username: json.Username,
 		Email:    userEmail.(string),

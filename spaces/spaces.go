@@ -2,20 +2,12 @@ package spaces
 
 import (
 	"gochat/db"
-	auth "gochat/users"
+	qu "gochat/query_utils"
+	"gochat/types"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
-
-type Space struct {
-	ID       int
-	UUID     string
-	Name     string
-	AuthorID int
-	Channels []Channel
-	Users    []auth.UserData
-}
 
 func HandleInsertSpace(c *gin.Context) {
 	var json struct {
@@ -40,7 +32,7 @@ func HandleInsertSpace(c *gin.Context) {
 		c.JSON(500, gin.H{"error": "Failed to convert author ID to int"})
 	}
 
-	var space Space
+	var space types.Space
 
 	query := `INSERT INTO spaces (uuid, name, author_id) VALUES (?, ?, ?) RETURNING *`
 	err := db.DB.QueryRow(query, spaceUUID, json.Name, authorID).Scan(&space.ID, &space.UUID, &space.Name, &space.AuthorID)
@@ -60,7 +52,7 @@ func HandleInsertSpace(c *gin.Context) {
 	channelUUID := uuid.New()
 	initalChannelName := "Initial Channel"
 
-	var channel Channel
+	var channel types.Channel
 
 	query = `INSERT INTO channels (uuid, name, space_uuid) VALUES (?, ?, ?) RETURNING *`
 	err = db.DB.QueryRow(query, channelUUID, initalChannelName, space.UUID).Scan(&channel.ID, &channel.UUID, &channel.Name, &channel.SpaceUUID)
@@ -78,7 +70,7 @@ func HandleInsertSpace(c *gin.Context) {
 	}
 
 	space.Channels = append(space.Channels, channel)
-	space.Users = append(space.Users, auth.UserData{})
+	space.Users = append(space.Users, types.UserData{})
 
 	c.JSON(201, gin.H{
 		"Space": space,
@@ -107,7 +99,7 @@ func HandleGetDashData(c *gin.Context) {
 	username, _ := c.Get("userUsername")
 
 	// 1. Use helper
-	userSpaces, err := GetUserSpaces(userID.(int))
+	userSpaces, err := qu.GetUserSpaces(userID.(int))
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Database error fetching user spaces"})
 		return
@@ -115,7 +107,7 @@ func HandleGetDashData(c *gin.Context) {
 
 	// 2. Enrich with channels/users
 	for i := range userSpaces {
-		AppendspaceChannelsAndUsers(&userSpaces[i])
+		qu.AppendspaceChannelsAndUsers(&userSpaces[i])
 	}
 
 	// 3. Respond

@@ -2,6 +2,7 @@ package routes
 
 import (
 	"gochat/invites"
+	"gochat/messages"
 	"gochat/spaces"
 	auth "gochat/users"
 
@@ -27,7 +28,7 @@ func SetupAPIRoutes(r *gin.Engine) {
 		api.DELETE("/space_user/:uuid", auth.AuthMiddleware(), spaces.SpaceAuthMiddleware(), invites.HandleDeleteSpaceUser)
 		api.DELETE("/space_user_self/:uuid", auth.AuthMiddleware(), invites.HandleDeleteSpaceUserSelf)
 		// Message
-		api.GET("/get_messages/:uuid", auth.AuthMiddleware(), spaces.ChannelAuthMiddleware(), spaces.HandleGetMessages)
+		api.GET("/get_messages/:uuid", auth.AuthMiddleware(), spaces.ChannelAuthMiddleware(), messages.HandleGetMessages)
 		// Invites
 		api.POST("/accept_invite", auth.AuthMiddleware(), invites.HandleAcceptInvite)
 		api.POST("/decline_invite", auth.AuthMiddleware(), invites.HandleDeclineInvite)

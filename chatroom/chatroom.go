@@ -3,7 +3,8 @@ package chatroom
 import (
 	"database/sql"
 	"encoding/json"
-	"gochat/spaces"
+	m "gochat/messages"
+	qu "gochat/query_utils"
 	"log"
 	"net/http"
 	"sync"
@@ -53,6 +54,13 @@ type NewUserPayload struct {
 	SpaceUUID string `json:"SpaceUUID"`
 }
 
+type NewChannelPayload struct { // Model based on Channel from spaces channels.go
+	ID        int    `json:"ID"`
+	UUID      string `json:"UUID"`
+	Name      string `json:"Name"`
+	SpaceUUID string `json:"SpaceUUID"`
+}
+
 // Global state
 var Channels = map[string]*Channel{}
 var Spaces = map[string]*Space{}
@@ -98,7 +106,7 @@ func HandleSocket(c *gin.Context) {
 	ConnsByUserID[userID] = conn
 
 	// Join all user spaces on connect
-	userSpaces, err := spaces.GetUserSpaces(userID)
+	userSpaces, err := qu.GetUserSpaces(userID)
 	if err != nil {
 		log.Println("Failed to get user spaces:", err)
 	} else {
@@ -147,7 +155,7 @@ func HandleSocket(c *gin.Context) {
 
 			channelUUID := ChannelSubscriptions[conn]
 			if channelUUID != "" {
-				go spaces.InsertMessage(channelUUID, msgContent, username, msgUserID, msgTimestamp.Format(time.RFC3339))
+				go m.InsertMessage(channelUUID, msgContent, username, msgUserID, msgTimestamp.Format(time.RFC3339))
 
 				BroadcastToChannel(channelUUID, WSMessage{
 					Type: "chat",

@@ -30,6 +30,8 @@ class DashboardApp {
       renderChatAppMessage: this.renderChatAppMessage,
       handleAddUser: this.handleAddUser,
       handleRemoveUser: this.handleRemoveUser,
+      handleNewChannel: this.handleNewChannel,
+      handleDeleteChannel: this.handleDeleteChannel,
     });
     // Init other comonents
     this.dashModal = new DashModal(this);
@@ -205,9 +207,6 @@ class DashboardApp {
 
   createNewChannel = async () => {
     const currentSpaceUUID = this.getCurrentSpaceUUID();
-    const currentSpace = this.data.spaces.find(
-      (space) => space.UUID === currentSpaceUUID
-    );
 
     if (!currentSpaceUUID) return;
     const channelName = window.prompt("Please enter Channel 'Name'");
@@ -224,9 +223,8 @@ class DashboardApp {
       });
       const result = await response.json();
       if (result.Channel) {
-        currentSpace.Channels.push(result.Channel);
-        this.app.sidebar.render();
-        this.render();
+        // Handled by socket 
+
       }
     } catch (error) {
       console.log(error);
@@ -278,6 +276,45 @@ class DashboardApp {
       console.log(error);
     }
   };
+
+  handleNewChannel = (data) => {
+    const spaceToUpdate = this.data.spaces.find(
+      (space) => space.UUID === data.data.SpaceUUID
+    );
+
+    if (spaceToUpdate) {
+      // Update local data
+      spaceToUpdate.Channels.push(data.data);
+      // render
+      const spaceElemToUpdate = this.sidebar.spaceComponents.find(
+        (elem) => elem.space.UUID == data.data.SpaceUUID
+      );
+      // Update the channel data on the elem 
+      spaceElemToUpdate.render();
+      // Update modal
+      this.dashModal.render();
+    }
+  }
+
+  handleDeleteChannel = (data) => {
+    const spaceToUpdate = this.data.spaces.find(
+      (space) => space.UUID === data.data.SpaceUUID
+    );
+
+    if (spaceToUpdate) {
+      // Update local data
+      const index = spaceToUpdate.Channels.findIndex(channel => channel.ID === data.data.ID);
+      spaceToUpdate.Channels.splice(index, 1);
+      // render
+      const spaceElemToUpdate = this.sidebar.spaceComponents.find(
+        (elem) => elem.space.UUID == data.data.SpaceUUID
+      );
+      // Update the channel data on the elem 
+      spaceElemToUpdate.render();
+      // Update modal
+      this.dashModal.render();
+    }
+  }
 
   renderChatAppMessage = (data) => {
     if (this.mainContent.chatApp) {
