@@ -284,9 +284,13 @@ class DashboardApp {
       this.mainContent.chatApp.chatBoxComponent.chatBoxMessagesComponent.appendNewMessage(
         data.data
       );
-
+      // Handle scrolling
       if (data.data.Username === this.data.user.Username) {
         this.mainContent.chatApp.chatBoxComponent.chatBoxMessagesComponent.scrollDown();
+      } else {
+        if(this.mainContent.chatApp.chatBoxComponent.chatBoxMessagesComponent.isScrolledToBottom()) {
+          this.mainContent.chatApp.chatBoxComponent.chatBoxMessagesComponent.scrollDown();
+        }
       }
     }
   };

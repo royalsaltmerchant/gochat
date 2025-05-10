@@ -126,6 +126,12 @@ class ChatBoxMessagesComponent {
     this.domComponent.scrollTop = this.domComponent.scrollHeight;
   };
 
+  isScrolledToBottom = () => {
+    const offset = 40;
+    return this.domComponent.scrollHeight - this.domComponent.scrollTop <= this.domComponent.clientHeight + offset;
+  }
+  
+
   appendNewMessage = (data) => {
     this.chatBoxMessages.push(data);
     this.domComponent.append(this.createMessage(data));
