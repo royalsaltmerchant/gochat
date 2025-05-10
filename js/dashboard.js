@@ -248,26 +248,7 @@ class DashboardApp {
         credentials: "include",
       });
       if (response.ok) {
-        // Update the channels array - this will automatically update the app's data structure
-        currentSpace.Channels = currentSpace.Channels.filter(
-          (c) => c.UUID !== channelUUID
-        );
-
-        // Check if the current channel still exists in any space
-        const channelStillExists = this.app.data.spaces.some((space) =>
-          space.Channels.some(
-            (channel) =>
-              channel.UUID === this.app.mainContent.currentChannelUUID
-          )
-        );
-
-        if (!channelStillExists) {
-          this.app.mainContent.render();
-        }
-
-        // Re-render both the sidebar and the modal
-        this.app.sidebar.render();
-        this.render();
+        // Handled by socket
       } else {
         const result = await response.json();
         window.alert(`ERROR: ${result.error}`);
@@ -313,6 +294,8 @@ class DashboardApp {
       spaceElemToUpdate.render();
       // Update modal
       this.dashModal.render();
+      // update main view 
+      this.mainContent.render();
     }
   }
 
