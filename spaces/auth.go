@@ -13,7 +13,7 @@ func SpaceAuthMiddleware() gin.HandlerFunc {
 		userID, _ := c.Get("userID")
 
 		var authorID int
-		err := db.DB.QueryRow("SELECT author_id FROM spaces WHERE uuid = ?", uuid).Scan(&authorID)
+		err := db.ChatDB.QueryRow("SELECT author_id FROM spaces WHERE uuid = ?", uuid).Scan(&authorID)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				c.JSON(404, gin.H{"error": "Space not found"})
@@ -52,7 +52,7 @@ func ChannelAuthMiddleware() gin.HandlerFunc {
 
 		var spaceUUID string
 		var isAuthor int
-		err := db.DB.QueryRow(query, userID, channelUUID, userID, userID).Scan(&spaceUUID, &isAuthor)
+		err := db.ChatDB.QueryRow(query, userID, channelUUID, userID, userID).Scan(&spaceUUID, &isAuthor)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				c.JSON(403, gin.H{"error": "You don't have permission to access this channel"})

@@ -18,8 +18,7 @@ CREATE TABLE messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     channel_uuid TEXT NOT NULL,
     content TEXT NOT NULL,
-    username TEXT NOT NULL,
-    user_id INTEGER,
+    user_id INTEGER NOT NULL,
     timestamp TEXT,
     FOREIGN KEY (channel_uuid) REFERENCES channels(uuid) ON DELETE CASCADE
     FOREIGN KEY (user_id) REFERENCES users(id)

@@ -31,3 +31,10 @@ type Message struct {
 	UserID      int
 	Timestamp   string
 }
+
+type Host struct {
+	ID       int
+	UUID     string
+	Name     string
+	AuthorID string
+}

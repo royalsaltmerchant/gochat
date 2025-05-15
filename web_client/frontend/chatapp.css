@@ -1,0 +1,59 @@
+.channel-content,
+.chatapp-container,
+.chat-box-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.chat-box-messages {
+  flex: 1;
+  flex-direction: column;
+  overflow-y: auto;
+  background-color: var(--main-dark);
+  word-wrap: break-word;
+}
+
+.chat-box-messages * {
+  padding: 3px;
+  user-select: text;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+.chat-box-messages br {
+  margin-left: 2.5px;
+  margin-right: 2.5px;
+}
+
+.chat-box-message-content {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.chat-box-form {
+  display: flex;
+  align-items: center;
+}
+
+.chat-box-form input {
+  flex: 1;
+  padding: 5px 10px;
+  background-color: var(--dark-blue);
+}
+
+.chat-box-btn {
+  padding: 5px 10px;
+}
+
+@keyframes highlightFade {
+  from {
+    background-color: var(--light-yellow);
+  }
+  to {
+    background-color: inherit; /* or your normal bg color */
+  }
+}

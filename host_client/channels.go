@@ -1,0 +1,115 @@
+package main
+
+import (
+	"gochat/db"
+	"log"
+
+	"github.com/google/uuid"
+	"github.com/gorilla/websocket"
+)
+
+func handleCreateChannel(conn *websocket.Conn, wsMsg *WSMessage) {
+	data, err := decodeData[CreateChannelRequest](wsMsg.Data)
+	if err != nil {
+		log.Println("error decoding create_channel_request:", err)
+		return
+	}
+
+	// Get UUID and Author ID
+	channelUUID := uuid.New()
+
+	var channel DashDataChannel
+
+	query := `INSERT INTO channels (uuid, name, space_uuid) VALUES (?, ?, ?) RETURNING *`
+	err = db.ChatDB.QueryRow(query, channelUUID, data.Name, data.SpaceUUID).Scan(&channel.ID, &channel.UUID, &channel.Name, &channel.SpaceUUID)
+
+	if err != nil {
+		// Check if the error message contains "UNIQUE constraint failed"
+		if err.Error() == "UNIQUE constraint failed: channels.uuid" {
+			sendToConn(conn, WSMessage{
+				Type: "error",
+				Data: ChatError{
+					Content:    "UUID for new channel is already taken",
+					ClientUUID: data.ClientUUID,
+				},
+			})
+			return
+		}
+
+		// For other database errors
+		sendToConn(conn, WSMessage{
+			Type: "error",
+			Data: ChatError{
+				Content:    "Database error inserting new channel",
+				ClientUUID: data.ClientUUID,
+			},
+		})
+		return
+	}
+
+	sendToConn(conn, WSMessage{
+		Type: "create_channel_response",
+		Data: CreateChannelResponse{
+			Channel:    channel,
+			SpaceUUID:  data.SpaceUUID,
+			ClientUUID: data.ClientUUID,
+		},
+	})
+}
+
+func handleDeleteChannel(conn *websocket.Conn, wsMsg *WSMessage) {
+	data, err := decodeData[DeleteChannelRequest](wsMsg.Data)
+	if err != nil {
+		log.Println("error decoding delete_channel_request:", err)
+		return
+	}
+
+	// Get channel info before deleting
+	var channelID int
+	var spaceUUID string
+	err = db.ChatDB.QueryRow(`SELECT id, space_uuid FROM channels WHERE uuid = ?`, data.UUID).Scan(&channelID, &spaceUUID)
+	if err != nil {
+		sendToConn(conn, WSMessage{
+			Type: "error",
+			Data: ChatError{
+				Content:    "Channel not found in database by UUID",
+				ClientUUID: data.ClientUUID,
+			},
+		})
+		return
+	}
+
+	// Delete the channel
+	res, err := db.ChatDB.Exec(`DELETE FROM channels WHERE uuid = ?`, data.UUID)
+	if err != nil {
+		sendToConn(conn, WSMessage{
+			Type: "error",
+			Data: ChatError{
+				Content:    "Database error deleting channel",
+				ClientUUID: data.ClientUUID,
+			},
+		})
+		return
+	}
+
+	if rows, _ := res.RowsAffected(); rows == 0 {
+		sendToConn(conn, WSMessage{
+			Type: "error",
+			Data: ChatError{
+				Content:    "Channel not found",
+				ClientUUID: data.ClientUUID,
+			},
+		})
+		return
+	}
+
+	sendToConn(conn, WSMessage{
+		Type: "delete_channel_response",
+		Data: DeleteChannelResponse{
+			ID:         channelID,
+			UUID:       data.UUID,
+			SpaceUUID:  spaceUUID,
+			ClientUUID: data.ClientUUID,
+		},
+	})
+}

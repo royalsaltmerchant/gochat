@@ -1,0 +1,14 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "web_client",
+  "outputfilename": "web_client",
+  "frontend:dir": "frontend",
+  "frontend:install": "",
+  "frontend:build": "",
+  "frontend:dev:watcher": "",
+  "frontend:dev:serverUrl": "",
+  "author": {
+    "name": "Julian Ranieri",
+    "email": "68655515+royalsaltmerchant@users.noreply.github.com"
+  }
+}
