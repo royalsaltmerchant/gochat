@@ -5,35 +5,35 @@ import (
 	"fmt"
 )
 
-var DB *sql.DB
+var ChatDB *sql.DB
+var HostDB *sql.DB
 
-func InitDB(database string) error {
-	var err error
-	DB, err = sql.Open("sqlite3", database+"?_foreign_keys=1")
+func InitDB(databaseName string) (*sql.DB, error) {
+	db, err := sql.Open("sqlite3", databaseName+"?_foreign_keys=1")
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	var enabled int
-	err = DB.QueryRow("PRAGMA foreign_keys").Scan(&enabled)
+	err = db.QueryRow("PRAGMA foreign_keys").Scan(&enabled)
 	if err != nil {
-		return fmt.Errorf("error checking foreign keys: %v", err)
+		return nil, fmt.Errorf("error checking foreign keys: %v", err)
 	}
 	if enabled != 1 {
-		return fmt.Errorf("foreign keys are not enabled")
+		return nil, fmt.Errorf("foreign keys are not enabled")
 	}
 
-	_, err = DB.Exec("PRAGMA foreign_keys = ON")
+	_, err = db.Exec("PRAGMA foreign_keys = ON")
 	if err != nil {
-		return fmt.Errorf("error enabling foreign keys: %v", err)
+		return nil, fmt.Errorf("error enabling foreign keys: %v", err)
 	}
 
-	return nil
+	return db, nil
 }
 
-func CloseDB() {
-	if DB != nil {
-		DB.Close()
+func CloseDB(databaseInstance *sql.DB) {
+	if databaseInstance != nil {
+		databaseInstance.Close()
 		fmt.Println("Database connection closed")
 	}
 }

@@ -1,0 +1,214 @@
+:root {
+  --main-white: rgb(235, 235, 235);
+  --bright-white: rgb(245, 245, 245);
+  --main-dark: rgb(25, 29, 37);
+  --second-dark: rgb(21, 24, 31);
+  --black: rgb(19, 20, 24);
+  --light-blue: rgb(66, 85, 119);
+  --second-blue: rgb(55, 71, 99);
+  --dark-blue: rgb(38, 44, 57);
+  --a-blue: rgb(157, 179, 211);
+  --main-gray: rgb(89, 96, 117);
+  --light-red: rgb(209, 102, 124);
+  --dark-red: rgb(152, 74, 90);
+  --light-yellow: rgb(255, 250, 155);
+  --main-distance: 10px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.4;
+  font-family: serif;
+  font-size: 18px;
+  background-color: var(--main-dark);
+  color: var(--main-white);
+  letter-spacing: 0.8px;
+}
+
+p {
+  display: inline-block;
+}
+
+a {
+  display: inline-block;
+  color: var(--a-blue);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+br {
+  display: block;
+  content: "";
+  margin-top: var(--main-distance);
+}
+
+main {
+  padding: 15px 30px;
+}
+
+header {
+  color: var(--bright-white);
+  padding: calc(var(--main-distance) / 2) var(--main-distance);
+  background-color: var(--dark-blue);
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+nav {
+  display: inline-block;
+}
+
+nav a {
+  margin-left: var(--main-distance);
+}
+
+legend {
+  color: var(--bright-white);
+}
+
+fieldset {
+  width: fit-content;
+  padding: 12px 15px;
+  border-color: var(--main-gray);
+}
+
+label {
+  font-size: small;
+  font-weight: bold;
+  position: absolute;
+  top: -10;
+  left: 10px;
+  transform: translateY(-50%);
+  background: linear-gradient(var(--main-dark) 10%, var(--second-dark) 90%);
+}
+
+.input-container {
+  position: relative;
+  padding-top: 5px;
+  display: inline-block;
+}
+
+input {
+  float: right;
+  color: inherit;
+  font: inherit;
+  padding: 5px;
+  background-color: var(--second-dark);
+  border-left: 1px solid var(--main-gray);
+  border-top: 1px solid var(--main-gray);
+  border-right: 1px solid var(--black);
+  border-bottom: 1px solid var(--black);
+}
+
+input:focus {
+  outline: 1px solid var(--light-blue);
+}
+
+button {
+  color: var(--bright-white);
+  font: inherit;
+  padding: 2px 4px;
+  cursor: pointer;
+  background-color: var(--light-blue);
+  border-left: 1px solid var(--main-gray);
+  border-top: 1px solid var(--main-gray);
+  border-right: 1px solid var(--black);
+  border-bottom: 1px solid var(--black);
+}
+
+button:hover {
+  background: linear-gradient(var(--light-blue) 25%, var(--second-blue) 75%);
+  /* border-left: 1px solid var(--black);
+  border-top: 1px solid var(--black);
+  border-right: 1px solid var(--main-gray);
+  border-bottom: 1px solid var(--main-gray); */
+}
+
+button:focus {
+  outline: 1px solid var(--light-blue);
+}
+
+.btn-red {
+  background-color: var(--light-red);
+}
+
+.btn-red:hover {
+  background: linear-gradient(var(--light-red) 25%, var(--dark-red) 75%);
+}
+
+.plus-btn {
+  color: var(--a-blue);
+  cursor: pointer;
+  outline: dotted;
+  padding: var(--main-distance)
+}
+
+.plus-btn:Hover {
+  color: var(--light-blue);
+}
+
+.plus-btn-red {
+  color: var(--light-red);
+  cursor: pointer;
+  outline: dotted;
+  padding: var(--main-distance);
+}
+
+.plus-btn-red:hover {
+  color: var(--dark-red);
+}
+
+.a-list {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: calc(var(--main-distance) * 3);
+}
+
+.a-list a {
+  padding-top: var(--main-distance);
+  margin-left: var(--main-distance);
+}
+
+.toast-warning {
+  color: var(--light-red);
+}
+
+.invites-section {
+  margin-bottom: 20px;
+  padding: 10px;
+  background-color: var(--dark-blue);
+  border-radius: 4px;
+}
+
+.pending-invites-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-left: var(--main-distance);
+}
+
+.pending-invites-item button {
+  margin-right: var(--main-distance);
+}
+
+footer {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}

@@ -1,0 +1,299 @@
+.dashboard-container {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  overflow: hidden;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 300px;
+  padding: var(--main-distance);
+  background-color: var(--second-dark);
+  color: var(--main-white);
+  overflow-y: auto;
+  border-right: 1px solid var(--main-gray);
+}
+
+.sidebar-spaces-container {
+  display: flex;
+  flex-direction: column;
+  height: 50%;
+  overflow: auto;
+}
+
+.space-users-list {
+  height: 40%;
+  border-top: 1px solid var(--main-gray);
+  overflow: auto;
+}
+
+.space-user-item {
+  color: var(--light-yellow);
+  padding: 5px;
+  cursor: pointer;
+}
+
+.space-user-item:hover {
+  background-color: var(--dark-blue);
+}
+
+.space-item {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 5px;
+  width: 100%;
+  border: 1px solid var(--main-gray);
+  transition: border-color 0.2s, background 0.2s;
+  min-height: 30px;
+}
+
+.space-item:hover {
+  border-color: var(--light-blue);
+  background: rgba(60, 80, 120, 0.04);
+}
+
+.space-header {
+  display: flex;
+  flex: 1;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 8px;
+  cursor: pointer;
+  background: none;
+  border-radius: 2px 2px 0 0;
+  min-height: 28px;
+}
+
+.space-header span {
+  font-weight: 300;
+  color: var(--main-white);
+}
+
+.space-actions {
+  display: flex;
+  flex-direction: row;
+  gap: 2px;
+  align-items: center;
+}
+
+.btn-icon {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 1px 2px;
+  font-size: 14px;
+  border-radius: 2px;
+  transition: background 0.2s, color 0.2s;
+  vertical-align: middle;
+  line-height: 1;
+}
+
+.btn-icon:hover {
+  background: var(--main-gray);
+}
+
+.channel-list {
+  padding-left: var(--main-distance);
+  margin-top: 5px;
+  width: 100%;
+}
+
+.channel-item {
+  padding: 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  display: block;
+  width: 100%;
+  color: var(--a-blue);
+}
+
+.channel-item:hover {
+  background-color: var(--dark-blue);
+}
+
+.active-channel {
+  background-color: var(--dark-blue);
+}
+
+.create-space-btn {
+  width: 100%;
+  padding: 7px;
+  background-color: var(--light-blue);
+  color: var(--bright-white);
+  border-radius: 2px;
+  cursor: pointer;
+  margin-top: 8px;
+  font-size: 0.95rem;
+}
+
+.create-space-btn:hover {
+  background: linear-gradient(var(--light-blue) 25%, var(--second-blue) 75%);
+}
+
+.no-channel-selected {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  color: var(--main-gray);
+}
+
+.user-component {
+  display: flex;
+  flex-direction: column;
+  height: 10%;
+}
+
+/* Modal Styles */
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+}
+
+.modal-content {
+  position: relative;
+  background-color: var(--main-dark);
+  margin: 15% auto;
+  padding: 20px;
+  width: 80%;
+  max-width: 500px;
+  border-radius: 4px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.close-modal {
+  width: 40px;
+  background: none;
+  border: none;
+  font-size: 30px;
+  cursor: pointer;
+}
+
+.close-modal:hover {
+  color: var(--main-white);
+}
+
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.space-info {
+  text-align: center;
+}
+
+.space-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.btn-primary {
+  padding: 10px;
+  background-color: var(--light-blue);
+  color: var(--bright-white);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-primary:hover {
+  background: linear-gradient(var(--light-blue) 25%, var(--second-blue) 75%);
+}
+
+.btn-danger {
+  padding: 10px;
+  background-color: var(--error-color);
+  color: var(--bright-white);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.modal .btn-danger {
+  background-color: var(--light-red);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-top: 10px;
+  display: block;
+  width: 100%;
+}
+
+.modal .btn-danger:hover {
+  background-color: var(--dark-red);
+}
+
+.modal .space-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.settings-section {
+  margin-bottom: 20px;
+  padding: 15px;
+  background: var(--main-dark);
+  border-radius: 8px;
+}
+
+
+.settings-actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.channels-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.channel-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  /* background: white; */
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+
+.btn-small {
+  padding: 4px 8px;
+  font-size: 12px;
+  border-radius: 4px;
+}
+
+.btn-red {
+  background-color: var(--light-red);
+  border: none;
+}
+
+.btn-red:hover {
+  background-color: var(--dark-red);
+} 
