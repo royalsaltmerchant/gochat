@@ -83,27 +83,22 @@ class SocketConn {
             break;
           case "join_ack":
             console.log("Joining Result", data);
-            // try to login user with JWT from local storage
-            const token = localStorage.getItem("authToken");
-            if (token) {
-              // token login
-              this.loginUserByToken({
-                token: token,
-              });
-            } else {
-              // prompt user login
-              this.openDashModal({
-                type: "login",
-                data: {},
-              });
-            }
+            // try to login user with JWT
+            window.go.main.App.LoadAuthToken(this.hostUUID).then((token) => {
+              if (token) {
+                this.loginUserByToken({ token });
+              } else {
+                this.openDashModal({ type: "login" });
+              }
+            });
+
             break;
           case "join_error":
             console.log("Joining Result", data);
             window.alert(data.data.error);
           case "login_user_success":
             console.log("Login user success", data);
-            localStorage.setItem("authToken", data.data.token);
+            window.go.main.App.SaveAuthToken(this.hostUUID, data.data.token);
             this.closeDashModal();
             // TODO: Get dashboard data
             this.getDashboardData();
@@ -111,22 +106,22 @@ class SocketConn {
           case "dash_data_payload":
             console.log("Dash data payload", data);
             this.dashboardInitialRender(data.data);
-            this.joinAllSpaces(data)
+            this.joinAllSpaces(data);
             break;
           case "update_username_success":
             console.log("Update username success", data);
-            this.updateAccountUsername(data);
+            this.updateAccountUsername(data, this.hostUUID);
             break;
           case "create_space_success":
-            console.log("Create space success", data)
-            this.handleCreateSpace(data)
+            console.log("Create space success", data);
+            this.handleCreateSpace(data);
             break;
           case "delete_space_success":
-            console.log("Delete space success", data)
-            this.handleDeleteSpace()
+            console.log("Delete space success", data);
+            this.handleDeleteSpace();
             break;
           case "create_channel_success":
-            console.log("Create channel success", data)
+            console.log("Create channel success", data);
             this.handleCreateChannel(data);
             break;
           case "delete_channel_success":
@@ -309,11 +304,13 @@ class SocketConn {
   joinAllSpaces = (data) => {
     console.log("Attempting to join all spaces");
     if (this.socket?.readyState === WebSocket.OPEN) {
-      const uuids = data.data.spaces.map(space => {return space.uuid})
+      const uuids = data.data.spaces.map((space) => {
+        return space.uuid;
+      });
       const wsMessage = {
         type: "join_all_spaces",
         data: {
-          space_uuids: uuids
+          space_uuids: uuids,
         },
       };
       this.socket.send(JSON.stringify(wsMessage));
@@ -450,14 +447,14 @@ class SocketConn {
     } else {
       console.error("Socket is not open. State:", this.socket?.readyState);
     }
-  }
+  };
 
   joinChannel = (channelUUID) => {
     console.log("Attempting to join channel:", channelUUID);
     if (this.socket?.readyState === WebSocket.OPEN) {
       const wsMessage = {
         type: "join_channel",
-        data: {uuid: channelUUID},
+        data: { uuid: channelUUID },
       };
       this.socket.send(JSON.stringify(wsMessage));
     } else {
@@ -471,7 +468,7 @@ class SocketConn {
       console.log("Socket is open, sending message");
       const wsMessage = {
         type: "chat",
-        data: {content: text},
+        data: { content: text },
       };
       this.socket.send(JSON.stringify(wsMessage));
     } else {
@@ -496,7 +493,7 @@ class SocketConn {
   hardClose = () => {
     this.manualClose = true;
     this.close();
-  }
+  };
 
   close = () => {
     if (this.socket) {

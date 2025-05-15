@@ -324,7 +324,9 @@ export default class DashModal {
           createElement("button", { class: "btn-red" }, "Logout", {
             type: "click",
             event: (e) => {
-              localStorage.removeItem("authToken");
+              window.go.main.App.RemoveAuthToken(this.socketConn.hostUUID).then(() => {
+                console.log("Token removed for", this.socketConn.hostUUID);
+              });
               this.open({
                 type: "login",
                 data: {},
@@ -349,41 +351,43 @@ export default class DashModal {
         createElement(
           "div",
           { class: "modal-body" },
-          invites && invites.length && user ? createElement("div", { class: "invites-section" }, [
-            ...invites.map((invite) =>
-              createElement("div", { class: "pending-invites-item" }, [
-                createElement("span", {}, invite.name),
-                createElement("div", {}, [
-                  createElement(
-                    "button",
-                    { class: "btn-small accept-invite" },
-                    "Accept",
-                    {
-                      type: "click",
-                      event: () =>
-                        this.socketConn.acceptInvite({
-                          space_user_id: invite.id,
-                          user_id: user.id,
-                        }),
-                    }
-                  ),
-                  createElement(
-                    "button",
-                    { class: "btn-small btn-red decline-invite" },
-                    "Decline",
-                    {
-                      type: "click",
-                      event: () =>
-                        this.socketConn.declineInvite({
-                          space_user_id: invite.id,
-                          user_id: user.id,
-                        }),
-                    }
-                  ),
-                ]),
+          invites && invites.length && user
+            ? createElement("div", { class: "invites-section" }, [
+                ...invites.map((invite) =>
+                  createElement("div", { class: "pending-invites-item" }, [
+                    createElement("span", {}, invite.name),
+                    createElement("div", {}, [
+                      createElement(
+                        "button",
+                        { class: "btn-small accept-invite" },
+                        "Accept",
+                        {
+                          type: "click",
+                          event: () =>
+                            this.socketConn.acceptInvite({
+                              space_user_id: invite.id,
+                              user_id: user.id,
+                            }),
+                        }
+                      ),
+                      createElement(
+                        "button",
+                        { class: "btn-small btn-red decline-invite" },
+                        "Decline",
+                        {
+                          type: "click",
+                          event: () =>
+                            this.socketConn.declineInvite({
+                              space_user_id: invite.id,
+                              user_id: user.id,
+                            }),
+                        }
+                      ),
+                    ]),
+                  ])
+                ),
               ])
-            ),
-          ]) : "...No Invite Yet"
+            : "...No Invite Yet"
         ),
       ])
     );

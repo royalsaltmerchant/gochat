@@ -73,9 +73,9 @@ export default class DashboardApp {
     this.render();
   };
 
-  updateAccountUsername = (data) => {
+  updateAccountUsername = (data, hostUUID) => {
     this.data.user.username = data.data.username;
-    localStorage.setItem("authToken", data.data.token);
+    window.go.main.App.SaveAuthToken(hostUUID, data.data.token);
     this.sidebar.userAccountComponent.render();
     this.openDashModal({ type: "account", data: { user: this.data.user } });
   };

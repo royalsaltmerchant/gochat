@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"gochat/db"
 	"log"
-	"os"
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
@@ -13,8 +12,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-func generateJWT(userData UserData, expirationTime time.Duration) (string, error) {
-	jwtSecret := os.Getenv("JWT_SECRET")
+func generateJWT(userData UserData, jwtSecret string, expirationTime time.Duration) (string, error) {
 	claims := jwt.MapClaims{
 		"userID":       userData.ID,
 		"userEmail":    userData.Email,
@@ -29,7 +27,7 @@ func generateJWT(userData UserData, expirationTime time.Duration) (string, error
 	return tokenString, nil
 }
 
-func handleLoginUser(conn *websocket.Conn, wsMsg *WSMessage) {
+func handleLoginUser(conn *websocket.Conn, wsMsg *WSMessage, jwtSecret string) {
 	data, err := decodeData[ApproveLoginUser](wsMsg.Data)
 	if err != nil {
 		log.Println("error decoding login_user_request:", err)
@@ -73,7 +71,7 @@ func handleLoginUser(conn *websocket.Conn, wsMsg *WSMessage) {
 		return
 	}
 
-	token, err := generateJWT(userData, time.Hour*672) // 28 days
+	token, err := generateJWT(userData, jwtSecret, time.Hour*672) // 28 days
 	if err != nil {
 		sendToConn(conn, WSMessage{
 			Type: "error",
@@ -97,14 +95,12 @@ func handleLoginUser(conn *websocket.Conn, wsMsg *WSMessage) {
 
 }
 
-func handleLoginUserByToken(conn *websocket.Conn, wsMsg *WSMessage) {
+func handleLoginUserByToken(conn *websocket.Conn, wsMsg *WSMessage, jwtSecret string) {
 	data, err := decodeData[ApproveLoginUserByToken](wsMsg.Data)
 	if err != nil {
 		log.Println("error decoding login_user_request:", err)
 		return
 	}
-
-	jwtSecret := os.Getenv("JWT_SECRET")
 
 	// Parse the JWT token
 	token, err := jwt.Parse(data.Token, func(token *jwt.Token) (interface{}, error) {
@@ -154,7 +150,7 @@ func handleLoginUserByToken(conn *websocket.Conn, wsMsg *WSMessage) {
 	}
 }
 
-func handleRegisterUser(conn *websocket.Conn, wsMsg *WSMessage) {
+func handleRegisterUser(conn *websocket.Conn, wsMsg *WSMessage, jwtSecret string) {
 	data, err := decodeData[ApproveRegisterUser](wsMsg.Data)
 	if err != nil {
 		log.Println("error decoding login_user_request:", err)
@@ -196,7 +192,7 @@ func handleRegisterUser(conn *websocket.Conn, wsMsg *WSMessage) {
 		return
 	}
 
-	token, err := generateJWT(userData, time.Hour*672) // 28 days
+	token, err := generateJWT(userData, jwtSecret, time.Hour*672) // 28 days
 	if err != nil {
 		sendToConn(conn, WSMessage{
 			Type: "error",
@@ -219,7 +215,7 @@ func handleRegisterUser(conn *websocket.Conn, wsMsg *WSMessage) {
 	})
 }
 
-func handleUpdateUsername(conn *websocket.Conn, wsMsg *WSMessage) {
+func handleUpdateUsername(conn *websocket.Conn, wsMsg *WSMessage, jwtSecret string) {
 	data, err := decodeData[UpdateUsernameRequest](wsMsg.Data)
 	if err != nil {
 		log.Println("error decoding update_username_request:", err)
@@ -244,7 +240,7 @@ func handleUpdateUsername(conn *websocket.Conn, wsMsg *WSMessage) {
 		return
 	}
 
-	token, err := generateJWT(userData, time.Hour*672) // 28 days
+	token, err := generateJWT(userData, jwtSecret, time.Hour*672) // 28 days
 	if err != nil {
 		sendToConn(conn, WSMessage{
 			Type: "error",

@@ -22,13 +22,13 @@ func decodeData[T any](raw interface{}) (T, error) {
 }
 
 // Entry point for the client
-func SocketClient(ctx context.Context, hostUUID string, authorID string) error {
-	runClientLoop(ctx, hostUUID, authorID)
+func SocketClient(ctx context.Context, hostUUID string, authorID string, jwtSecret string) error {
+	runClientLoop(ctx, hostUUID, authorID, jwtSecret)
 	return nil
 }
 
 // Reconnect loop
-func runClientLoop(ctx context.Context, hostUUID string, authorID string) {
+func runClientLoop(ctx context.Context, hostUUID string, authorID string, jwtSecret string) {
 	u := url.URL{Scheme: "ws", Host: "localhost:8000", Path: "/ws"}
 
 	for {
@@ -53,7 +53,7 @@ func runClientLoop(ctx context.Context, hostUUID string, authorID string) {
 				continue
 			}
 
-			if err := handleSocketMessages(ctx, conn); err != nil {
+			if err := handleSocketMessages(ctx, conn, jwtSecret); err != nil {
 				log.Printf("Socket closed: %v", err)
 			}
 			conn.Close()
@@ -65,7 +65,7 @@ func runClientLoop(ctx context.Context, hostUUID string, authorID string) {
 }
 
 // Read loop
-func handleSocketMessages(ctx context.Context, conn *websocket.Conn) error {
+func handleSocketMessages(ctx context.Context, conn *websocket.Conn, jwtSecret string) error {
 	for {
 		select {
 		case <-ctx.Done():
@@ -92,15 +92,15 @@ func handleSocketMessages(ctx context.Context, conn *websocket.Conn) error {
 				}
 				log.Println("join_ack:", data)
 			case "login_user_request":
-				handleLoginUser(conn, &wsMsg)
+				handleLoginUser(conn, &wsMsg, jwtSecret)
 			case "login_user_by_token_request":
-				handleLoginUserByToken(conn, &wsMsg)
+				handleLoginUserByToken(conn, &wsMsg, jwtSecret)
 			case "register_user_request":
-				handleRegisterUser(conn, &wsMsg)
+				handleRegisterUser(conn, &wsMsg, jwtSecret)
 			case "get_dash_data_request":
 				handleGetDashData(conn, &wsMsg)
 			case "update_username_request":
-				handleUpdateUsername(conn, &wsMsg)
+				handleUpdateUsername(conn, &wsMsg, jwtSecret)
 			case "create_space_request":
 				handleCreateSpace(conn, &wsMsg)
 			case "delete_space_request":

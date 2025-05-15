@@ -15,6 +15,7 @@ class App {
   }
 
   returnToHostList = () => {
+    localStorage.removeItem("hostUUID");
     this.dashboard.currentSpaceUUID = null;
     this.dashboard.sidebar.render();
     this.dashboard.mainContent.render();

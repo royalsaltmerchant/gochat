@@ -5,7 +5,15 @@ import (
 	"gochat/db"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
+
+type ClientHost struct {
+	ID       int    `json:"id"`
+	UUID     string `json:"uuid"`
+	Name     string `json:"name"`
+	AuthorID string `json:"author_id"`
+}
 
 func HandleGetHost(c *gin.Context) {
 	uuid := c.Param("uuid")
@@ -26,4 +34,34 @@ func HandleGetHost(c *gin.Context) {
 		"name": name,
 	})
 
+}
+
+func HandleRegisterHost(c *gin.Context) {
+	var req struct {
+		Name string `json:"name" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	hostUUID := uuid.New().String()
+	authorID := uuid.New().String()
+
+	var host ClientHost
+	query := `
+		INSERT INTO hosts (uuid, name, author_id)
+		VALUES (?, ?, ?)
+		RETURNING id, uuid, name, author_id
+	`
+	err := db.HostDB.QueryRow(query, hostUUID, req.Name, authorID).
+		Scan(&host.ID, &host.UUID, &host.Name, &host.AuthorID)
+
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to register host"})
+		return
+	}
+
+	c.JSON(201, host)
 }

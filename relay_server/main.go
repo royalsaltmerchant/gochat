@@ -62,6 +62,7 @@ func main() {
 	// WebSocket route
 	r.GET("/ws", HandleSocket)
 	r.GET("/api/host/:uuid", HandleGetHost)
+	r.POST("/api/register_host", HandleRegisterHost)
 
 	// Create HTTP server manually so we can shut it down
 	server := &http.Server{

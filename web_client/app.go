@@ -6,13 +6,19 @@ import (
 )
 
 type App struct {
-	ctx         context.Context
-	HostManager *HostManager
+	ctx          context.Context
+	HostManager  *HostManager
+	TokenManager *AuthTokenManager
 }
 
 func NewApp() *App {
+	tokenMgr, err := NewAuthTokenManager()
+	if err != nil {
+		panic("Failed to create token manager: " + err.Error())
+	}
 	return &App{
-		HostManager: NewHostManager("hosts.json"),
+		HostManager:  NewHostManager("hosts.json"),
+		TokenManager: tokenMgr,
 	}
 }
 
@@ -32,4 +38,15 @@ func (a *App) GetHosts() ([]Host, error) {
 
 func (a *App) VerifyHostKey(hostUUID string) (string, error) {
 	return a.HostManager.VerifyHostKey(hostUUID)
+}
+
+func (a *App) SaveAuthToken(hostUUID, token string) error {
+	return a.TokenManager.SaveAuthToken(hostUUID, token)
+}
+
+func (a *App) LoadAuthToken(hostUUID string) (string, error) {
+	return a.TokenManager.LoadAuthToken(hostUUID)
+}
+func (a *App) RemoveAuthToken(hostUUID string) error {
+	return a.TokenManager.RemoveAuthToken(hostUUID)
 }
