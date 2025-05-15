@@ -4,18 +4,16 @@ import SidebarComponent from "./components/sidebar.js";
 import MainContentComponent from "./components/mainContent.js";
 import SocketConn from "./lib/socketConn.js";
 
-class DashboardApp {
-  constructor(domComponent) {
-    this.domComponent = domComponent;
-    this.domComponent.classList.add("dashboard-container");
+export default class DashboardApp {
+  constructor(props) {
+    this.domComponent = createElement("div", {class: "dashboard-container"});
+    this.returnToHostList = props.returnToHostList;
     this.data = null;
     this.sidebar = null;
     this.dashModal = null;
     this.mainContent = null;
     this.currentSpaceUUID = null;
     this.socketConn = null;
-
-    this.initialize();
   }
 
   initialize = () => {
@@ -56,6 +54,7 @@ class DashboardApp {
     this.sidebar = new SidebarComponent({
       data: this.data,
       socketConn: this.socketConn,
+      returnToHostList: this.returnToHostList,
       domComponent: createElement("div", { class: "sidebar" }),
       openDashModal: this.openDashModal,
       closeDashModal: this.closeDashModal,
@@ -295,10 +294,3 @@ class DashboardApp {
     );
   }
 }
-
-// Initialize the dashboard app
-
-document.addEventListener("DOMContentLoaded", () => {
-  const dashboardRoot = document.getElementById("dashboard-app");
-  new DashboardApp(dashboardRoot);
-});

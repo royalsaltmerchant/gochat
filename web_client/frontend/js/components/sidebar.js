@@ -4,6 +4,7 @@ export default class SidebarComponent {
   constructor(props) {
     this.data = props.data;
     this.socketConn = props.socketConn;
+    this.returnToHostList = props.returnToHostList;
     this.openDashModal = props.openDashModal;
     this.closeDashModal = props.closeDashModal;
     this.getCurrentSpaceUUID = props.getCurrentSpaceUUID;
@@ -49,6 +50,7 @@ export default class SidebarComponent {
 
     this.userComponent = new UserAccountComponent({
       data: this.data,
+      returnToHostList: this.returnToHostList,
       openDashModal: this.openDashModal,
       domComponent: createElement("div", { class: "user-component" }),
     });
@@ -100,6 +102,7 @@ export default class SidebarComponent {
 class UserAccountComponent {
   constructor(props) {
     this.data = props.data;
+    this.returnToHostList = props.returnToHostList;
     this.openDashModal = props.openDashModal;
     this.domComponent = props.domComponent;
 
@@ -122,12 +125,16 @@ class UserAccountComponent {
       createElement("a", { href: "#" }, "Invites", {
         type: "click",
         event: (e) => {
-          if (this.data.invites) {
-            this.openDashModal({
-              type: "invites",
-              data: { invites: this.data.invites, user: this.data.user },
-            });
-          }
+          this.openDashModal({
+            type: "invites",
+            data: { invites: this.data.invites, user: this.data.user },
+          });
+        },
+      }),
+      createElement("a", { href: "#" }, "<- Host List", {
+        type: "click",
+        event: (e) => {
+          this.returnToHostList();
         },
       })
     );
@@ -168,7 +175,7 @@ class SpaceUserListComponent {
               return;
             this.socketConn.removeSpaceUser({
               space_uuid: currentSpace.uuid,
-              user_id: user.id
+              user_id: user.id,
             });
           }
         },

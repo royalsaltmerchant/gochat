@@ -21,6 +21,7 @@ class SocketConn {
     this.handleIncomingMessages = props.handleIncomingMessages;
 
     this.socket = null;
+    this.manualClose = false;
     this.hostStatus = false;
     this.retryCount = 0;
     this.maxRetries = 20;
@@ -54,6 +55,7 @@ class SocketConn {
     this.socket.onclose = (event) => {
       console.warn("WebSocket connection closed:", event.reason || "No reason");
       this.hostStatus = false;
+      if (this.manualClose) return;
       this.retryConnection();
     };
 
@@ -490,6 +492,11 @@ class SocketConn {
       console.error("Socket is not open. State:", this.socket?.readyState);
     }
   };
+
+  hardClose = () => {
+    this.manualClose = true;
+    this.close();
+  }
 
   close = () => {
     if (this.socket) {

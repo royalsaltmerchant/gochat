@@ -349,7 +349,7 @@ export default class DashModal {
         createElement(
           "div",
           { class: "modal-body" },
-          createElement("div", { class: "invites-section" }, [
+          invites && invites.length && user ? createElement("div", { class: "invites-section" }, [
             ...invites.map((invite) =>
               createElement("div", { class: "pending-invites-item" }, [
                 createElement("span", {}, invite.name),
@@ -383,7 +383,7 @@ export default class DashModal {
                 ]),
               ])
             ),
-          ])
+          ]) : "...No Invite Yet"
         ),
       ])
     );
@@ -405,9 +405,7 @@ export default class DashModal {
         }
         break;
       case "invites":
-        if (props.data.invites && props.data.user) {
-          this.renderInvites(props.data.invites, props.data.user);
-        }
+        this.renderInvites(props.data.invites, props.data.user);
         break;
       case "space-settings":
         if (props.data.space && props.data.user) {

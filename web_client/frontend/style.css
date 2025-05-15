@@ -205,6 +205,41 @@ button:focus {
   margin-right: var(--main-distance);
 }
 
+.app {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.host-form-container {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 200px;
+  /* justify-content: center; */
+
+}
+
+.host-list-index {
+  height:  300px;
+  width: 200px;;
+  padding: 10px;
+  border-width: 2px;
+  border-style: solid;
+  border-color: var(--main-gray);
+}
+
+.host-item {
+  cursor: pointer;
+  font-size: 20px;
+}
+
+.host-item:hover {
+  text-decoration: underline;
+}
+
 footer {
   margin-top: auto;
   display: flex;
