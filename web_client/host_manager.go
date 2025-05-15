@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 )
 
 type Host struct {
@@ -16,8 +17,21 @@ type HostManager struct {
 	File string
 }
 
-func NewHostManager(file string) *HostManager {
-	return &HostManager{File: file}
+func NewHostManager() (*HostManager, error) {
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		return nil, err
+	}
+
+	path := filepath.Join(configDir, "gochat", "hosts.json")
+
+	// Ensure directory exists
+	err = os.MkdirAll(filepath.Dir(path), 0755)
+	if err != nil {
+		return nil, err
+	}
+
+	return &HostManager{File: path}, nil
 }
 
 func (h *HostManager) GetHosts() ([]Host, error) {

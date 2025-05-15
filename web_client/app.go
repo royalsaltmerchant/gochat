@@ -12,12 +12,18 @@ type App struct {
 }
 
 func NewApp() *App {
+	hostMgr, err := NewHostManager()
+	if err != nil {
+		panic("Failed to create host manager: " + err.Error())
+	}
+
 	tokenMgr, err := NewAuthTokenManager()
 	if err != nil {
 		panic("Failed to create token manager: " + err.Error())
 	}
+
 	return &App{
-		HostManager:  NewHostManager("hosts.json"),
+		HostManager:  hostMgr,
 		TokenManager: tokenMgr,
 	}
 }
