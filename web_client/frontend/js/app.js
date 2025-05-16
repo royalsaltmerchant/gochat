@@ -17,8 +17,15 @@ class App {
   returnToHostList = () => {
     localStorage.removeItem("hostUUID");
     this.dashboard.currentSpaceUUID = null;
-    this.dashboard.sidebar.render();
-    this.dashboard.mainContent.render();
+    if (this.dashboard.sidebar) {
+      this.dashboard.sidebar.render();
+    }
+    if (this.dashboard.mainContent) {
+      this.dashboard.mainContent.render();
+    }
+    if (this.dashboard.dashModal) {
+      this.dashboard.closeDashModal()
+    }
     this.dashboard.socketConn.hardClose();
 
     this.render({ type: "host_form" });
@@ -122,7 +129,8 @@ export default class HostForm {
                 this.render({ type: "known" });
               })
               .catch((err) => {
-                alert("Invalid host key");
+                window.go.main.App.Alert("Invalid host key");
+
                 console.error(err);
               });
           },

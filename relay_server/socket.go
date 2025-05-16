@@ -176,7 +176,7 @@ func SendToAuthor(client *Client, msg WSMessage) {
 		host.mu.Unlock()
 		log.Printf("SendToAuthor: author not connected to host")
 		SendToClient(client.HostUUID, client.ClientUUID, WSMessage{
-			Type: "error",
+			Type: "author_error",
 			Data: ChatError{Content: "Author is not currently connected to the host"},
 		})
 		return

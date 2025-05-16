@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 type App struct {
@@ -30,6 +32,28 @@ func NewApp() *App {
 
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+}
+
+func (a *App) Alert(message string) {
+	runtime.MessageDialog(a.ctx, runtime.MessageDialogOptions{
+		Type:    runtime.InfoDialog,
+		Title:   "GoChat",
+		Message: message,
+	})
+}
+
+func (a *App) Confirm(message string) (bool, error) {
+	result, err := runtime.MessageDialog(a.ctx, runtime.MessageDialogOptions{
+		Type:          runtime.QuestionDialog,
+		Title:         "Confirm",
+		Message:       message,
+		Buttons:       []string{"Yes", "No"},
+		DefaultButton: "Yes",
+	})
+	if err != nil {
+		return false, err
+	}
+	return result == "Yes", nil
 }
 
 func (a *App) Greet(name string) string {

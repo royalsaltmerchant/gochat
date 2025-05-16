@@ -5,15 +5,60 @@ export default class DashModal {
     this.app = app;
     this.socketConn = socketConn;
     this.domComponent = createElement("div", { class: "modal" });
+    this.promptResolver = null;
   }
 
   open = (props) => {
     this.domComponent.style.display = "block";
-    this.render(props);
+    return this.render(props);
   };
 
   close = () => {
     this.domComponent.style.display = "none";
+  };
+
+  renderPrompt = (message) => {
+    return new Promise((resolve) => {
+      this.promptResolver = resolve;
+
+      this.domComponent.append(
+        createElement("div", { class: "modal-content" }, [
+          createElement("div", { class: "modal-header" }, [
+            createElement("h2", {}, message || "Enter a value"),
+          ]),
+          createElement("div", { class: "modal-body" }, [
+            createElement("input", {
+              id: "prompt-input",
+              type: "text",
+              style: "width: 100%; margin-bottom: 10px;",
+            }),
+            createElement("div", { style: "text-align: right;" }, [
+              createElement("button", { class: "btn" }, "OK", {
+                type: "click",
+                event: () => {
+                  const val =
+                    this.domComponent.querySelector("#prompt-input").value;
+                  this.close();
+                  this.promptResolver(val);
+                },
+              }),
+              createElement(
+                "button",
+                { class: "btn btn-red", style: "margin-left: 10px;" },
+                "Cancel",
+                {
+                  type: "click",
+                  event: () => {
+                    this.close();
+                    this.promptResolver(null);
+                  },
+                }
+              ),
+            ]),
+          ]),
+        ])
+      );
+    });
   };
 
   renderAuthorSettings = (space) => {
@@ -25,20 +70,30 @@ export default class DashModal {
           createElement("button", { class: "btn" }, "Invite User", {
             type: "click",
             event: () => {
-              const invitedUserEmail = window
-                .prompt("Please enter email address of user")
-                .trim();
-              if (!invitedUserEmail) return;
-              this.socketConn.inviteUser({
-                email: invitedUserEmail,
-                space_uuid: space.uuid,
+              this.render({
+                type: "prompt",
+                data: { message: "Enter email address of user" },
+              }).then((value) => {
+                if (value) {
+                  value.trim();
+                  this.socketConn.inviteUser({
+                    email: value,
+                    space_uuid: space.uuid,
+                  });
+                }
               });
             },
           }),
           createElement("button", { class: "btn btn-red" }, "Delete Space", {
             type: "click",
             event: () => {
-              this.socketConn.deleteSpace({ uuid: space.uuid });
+              window.go.main.App.Confirm(
+                "Are you sure you want to delete this space?"
+              ).then((confirmed) => {
+                if (confirmed) {
+                  this.socketConn.deleteSpace({ uuid: space.uuid });
+                }
+              });
             },
           }),
         ]),
@@ -50,14 +105,17 @@ export default class DashModal {
           createElement("button", { class: "btn" }, "+ Create Channel", {
             type: "click",
             event: () => {
-              const channelName = window
-                .prompt("Please enter Channel 'Name'")
-                .trim();
-              if (!channelName) return;
-              //
-              this.socketConn.createChannel({
-                name: channelName,
-                space_uuid: space.uuid,
+              this.render({
+                type: "prompt",
+                data: { message: "Please enter Channel 'Name'" },
+              }).then((value) => {
+                if (value) {
+                  value.trim();
+                  this.socketConn.createChannel({
+                    name: value,
+                    space_uuid: space.uuid,
+                  });
+                }
               });
             },
           }),
@@ -75,14 +133,13 @@ export default class DashModal {
                 {
                   type: "click",
                   event: () => {
-                    if (
-                      !window.confirm(
-                        "Are you sure you want to delete this channel? This action cannot be undone."
-                      )
-                    ) {
-                      return;
-                    }
-                    this.socketConn.deleteChannel({ uuid: channel.uuid });
+                    window.go.main.App.Confirm(
+                      "Are you sure you want to delete this channel?"
+                    ).then((confirmed) => {
+                      if (confirmed) {
+                        this.socketConn.deleteChannel({ uuid: channel.uuid });
+                      }
+                    });
                   },
                 }
               ),
@@ -101,9 +158,15 @@ export default class DashModal {
           createElement("button", { class: "btn btn-red" }, "Leave Space", {
             type: "click",
             event: () => {
-              this.socketConn.leaveSpace({
-                space_uuid: space.uuid,
-                user_id: user.id,
+              window.go.main.App.Confirm(
+                "Are you sure you want to leave this space?"
+              ).then((confirmed) => {
+                if (confirmed) {
+                  this.socketConn.leaveSpace({
+                    space_uuid: space.uuid,
+                    user_id: user.id,
+                  });
+                }
               });
             },
           }),
@@ -324,9 +387,11 @@ export default class DashModal {
           createElement("button", { class: "btn-red" }, "Logout", {
             type: "click",
             event: (e) => {
-              window.go.main.App.RemoveAuthToken(this.socketConn.hostUUID).then(() => {
-                console.log("Token removed for", this.socketConn.hostUUID);
-              });
+              window.go.main.App.RemoveAuthToken(this.socketConn.hostUUID).then(
+                () => {
+                  console.log("Token removed for", this.socketConn.hostUUID);
+                }
+              );
               this.open({
                 type: "login",
                 data: {},
@@ -397,6 +462,11 @@ export default class DashModal {
     this.domComponent.innerHTML = "";
 
     switch (props.type) {
+      case "prompt":
+        if (props.data?.message) {
+          return this.renderPrompt(props.data.message);
+        }
+        break;
       case "login":
         this.renderLoginForm();
         break;

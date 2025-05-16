@@ -48,7 +48,7 @@ export default class SidebarComponent {
 
     this.initSpaceComponents();
 
-    this.userComponent = new UserAccountComponent({
+    this.userAccountComponent = new UserAccountComponent({
       data: this.data,
       returnToHostList: this.returnToHostList,
       openDashModal: this.openDashModal,
@@ -80,12 +80,16 @@ export default class SidebarComponent {
           {
             type: "click",
             event: () => {
-              const spaceName = window
-                .prompt("Please enter Space 'Name'")
-                .trim();
-              if (!spaceName) return;
-              this.socketConn.createSpace({
-                name: spaceName,
+              this.openDashModal({
+                type: "prompt",
+                data: { message: "Please enter Space 'Name'" },
+              }).then((value) => {
+                if (value) {
+                  value.trim();
+                  this.socketConn.createSpace({
+                    name: value,
+                  });
+                }
               });
             },
           }
@@ -94,7 +98,7 @@ export default class SidebarComponent {
       createElement("br"),
       this.spaceUserListComponent.domComponent,
       createElement("hr"),
-      this.userComponent.domComponent
+      this.userAccountComponent.domComponent
     );
   };
 }
@@ -167,15 +171,15 @@ class SpaceUserListComponent {
             this.isAuthor(currentSpace, this.data.user) &&
             this.data.user.id != user.id
           ) {
-            if (
-              !window.confirm(
-                "Are you sure you want to kick this user? This action cannot be undone."
-              )
-            )
-              return;
-            this.socketConn.removeSpaceUser({
-              space_uuid: currentSpace.uuid,
-              user_id: user.id,
+            window.go.main.App.Confirm(
+              "Are you sure you want to remove this user?"
+            ).then((confirmed) => {
+              if (confirmed) {
+                this.socketConn.removeSpaceUser({
+                  space_uuid: currentSpace.uuid,
+                  user_id: user.id,
+                });
+              }
             });
           }
         },

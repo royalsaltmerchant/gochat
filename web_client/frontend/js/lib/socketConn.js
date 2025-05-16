@@ -1,5 +1,6 @@
 class SocketConn {
   constructor(props) {
+    this.returnToHostList = props.returnToHostList;
     this.updateAccountUsername = props.updateAccountUsername;
     this.dashboardInitialRender = props.dashboardInitialRender;
     this.openDashModal = props.openDashModal;
@@ -24,7 +25,7 @@ class SocketConn {
     this.manualClose = false;
     this.hostStatus = false;
     this.retryCount = 0;
-    this.maxRetries = 20;
+    this.maxRetries = 1; // try to reconnect ten times before returning to index
 
     this.hostUUID = localStorage.getItem("hostUUID");
 
@@ -33,10 +34,39 @@ class SocketConn {
       this.connect();
     } else {
       console.log("Missing host key");
-      window.alert("App failed to start because of missing HOST KEY");
-      window.location.href = "/";
+      window.go.main.App.Alert(
+        "App failed to start because of missing HOST KEY"
+      );
+
+      this.returnToHostList();
     }
   }
+
+  retryConnection = () => {
+    const retryDelay = 2000; // 2 seconds
+
+    this.retryCount += 1;
+    if (this.retryCount > this.maxRetries) {
+      console.log("Max WebSocket reconnection attempts exceeded.");
+      window.go.main.App.Alert(
+        "Unable to reconnect to host. Returning to home."
+      );
+      this.returnToHostList(); // or your fallback route
+      return;
+    }
+
+    console.log(
+      `Retrying WebSocket connection (#${this.retryCount}) in ${
+        retryDelay / 1000
+      } seconds...`
+    );
+
+    setTimeout(() => {
+      if (this.socket?.readyState !== WebSocket.OPEN) {
+        this.connect();
+      }
+    }, retryDelay);
+  };
 
   connect = () => {
     const url = `ws://localhost:8000/ws`; // Relay socket server remote
@@ -95,7 +125,7 @@ class SocketConn {
             break;
           case "join_error":
             console.log("Joining Result", data);
-            window.alert(data.data.error);
+            window.go.main.App.Alert(data.data.error);
           case "login_user_success":
             console.log("Login user success", data);
             window.go.main.App.SaveAuthToken(this.hostUUID, data.data.token);
@@ -173,7 +203,12 @@ class SocketConn {
           case "error":
             // TODO: handle certain types of errors for login and registration
             console.log("An error message from socket:", data);
-            window.alert(data.data.error);
+            window.go.main.App.Alert(data.data.error);
+            break;
+          case "author_error":
+            console.log("An error message from socket:", data);
+            window.go.main.App.Alert("Failed to connect to Host. Host is not currently connected to the relay server.");
+            this.returnToHostList();
             break;
           default:
             console.log("Unhandled message type", data);
@@ -182,30 +217,6 @@ class SocketConn {
         console.error("JSON parsing error:", err);
       }
     };
-  };
-
-  retryConnection = () => {
-    const retryDelay = 2000; // 2 seconds
-
-    this.retryCount += 1;
-    if (this.retryCount > this.maxRetries) {
-      console.error("Max WebSocket reconnection attempts exceeded.");
-      alert("Unable to reconnect to host. Returning to home.");
-      window.location.href = "/"; // or your fallback route
-      return;
-    }
-
-    console.log(
-      `Retrying WebSocket connection (#${this.retryCount}) in ${
-        retryDelay / 1000
-      } seconds...`
-    );
-
-    setTimeout(() => {
-      if (this.socket?.readyState !== WebSocket.OPEN) {
-        this.connect();
-      }
-    }, retryDelay);
   };
 
   // ************************ TO REMOTE RELAY *****************************

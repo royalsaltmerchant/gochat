@@ -162,7 +162,7 @@ class ChatBoxMessagesComponent {
   };
 
   renderMessages = () => {
-    if (this.chatBoxMessages.length) {
+    if (this.chatBoxMessages) {
       return this.chatBoxMessages.map((data) => this.createMessage(data));
     } else {
       return [];

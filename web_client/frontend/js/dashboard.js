@@ -6,7 +6,7 @@ import SocketConn from "./lib/socketConn.js";
 
 export default class DashboardApp {
   constructor(props) {
-    this.domComponent = createElement("div", {class: "dashboard-container"});
+    this.domComponent = createElement("div", { class: "dashboard-container" });
     this.returnToHostList = props.returnToHostList;
     this.data = null;
     this.sidebar = null;
@@ -17,8 +17,18 @@ export default class DashboardApp {
   }
 
   initialize = () => {
+    // Render the spinner until socket calls render full page
+    this.domComponent.append(
+      createElement("div", { class: "initial-spinner" }, [
+        createElement("div", {}, "Connecting To Host..."),
+        createElement("br"),
+        createElement("div", { class: "lds-dual-ring" }),
+      ])
+    );
+
     // Start socket conn
     this.socketConn = new SocketConn({
+      returnToHostList: this.returnToHostList,
       updateAccountUsername: this.updateAccountUsername,
       dashboardInitialRender: this.initialRender,
       openDashModal: this.openDashModal,
@@ -49,7 +59,6 @@ export default class DashboardApp {
     if (!this.data.spaces) {
       this.data.spaces = []; // init spaces
     }
-
 
     this.sidebar = new SidebarComponent({
       data: this.data,
@@ -93,7 +102,7 @@ export default class DashboardApp {
   };
 
   openDashModal = (props) => {
-    this.dashModal.open(props);
+    return this.dashModal.open(props);
   };
 
   closeDashModal = () => {
@@ -138,7 +147,7 @@ export default class DashboardApp {
   };
 
   handleInviteUser = (data) => {
-    window.alert(`Successfully invited user by email: ${data.data.email}`);
+    window.go.main.App.Alert(`Successfully invited user by email: ${data.data.email}`);
   };
 
   handleAddInvite = (data) => {
@@ -273,16 +282,20 @@ export default class DashboardApp {
 
   handleIncomingMessages = (data) => {
     if (this.mainContent.chatApp) {
-      if (this.mainContent.chatApp.chatBoxComponent.channelUUID === data.data.channel_uuid) {
-        this.mainContent.chatApp.chatBoxComponent.chatBoxMessagesComponent.chatBoxMessages = data.data.messages;
+      if (
+        this.mainContent.chatApp.chatBoxComponent.channelUUID ===
+        data.data.channel_uuid
+      ) {
+        this.mainContent.chatApp.chatBoxComponent.chatBoxMessagesComponent.chatBoxMessages =
+          data.data.messages;
         this.mainContent.chatApp.chatBoxComponent.chatBoxMessagesComponent.render();
 
         setTimeout(() => {
           this.mainContent.chatApp.chatBoxComponent.chatBoxMessagesComponent.scrollDown();
-        }, 1000)
+        }, 1000);
       }
     }
-  }
+  };
 
   render() {
     this.domComponent.innerHTML = "";
