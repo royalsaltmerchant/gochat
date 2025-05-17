@@ -1,10 +1,12 @@
 import createElement from "./components/createElement.js";
 import isoDateFormat from "./lib/isoDateFormat.js";
 import { isImageUrl, createValidatedImage } from "./lib/imageValidation.js";
+import VoiceManager from "./lib/voiceManager.js";
 
 class ChatApp {
   constructor(props) {
     this.domComponent = props.domComponent;
+    this.data = props.data;
     this.socketConn = props.socketConn;
     this.chatBoxComponent = null;
   }
@@ -12,6 +14,7 @@ class ChatApp {
   initialize = (channelUUID) => {
     this.chatBoxComponent = new ChatBoxComponent({
       domComponent: createElement("div"),
+      data: this.data,
       socketConn: this.socketConn,
       channelUUID: channelUUID,
     });
@@ -32,9 +35,13 @@ class ChatApp {
 class ChatBoxComponent {
   constructor(props) {
     this.domComponent = props.domComponent;
+    this.data = props.data;
     this.domComponent.className = "chat-box-container";
     this.socketConn = props.socketConn;
     this.channelUUID = props.channelUUID;
+
+    this.voiceChannelActive = false;
+    this.voiceManager = null;
 
     this.chatBoxMessagesComponent = new ChatBoxMessagesComponent({
       domComponent: createElement("div", {
@@ -53,33 +60,53 @@ class ChatBoxComponent {
     // render
     this.domComponent.append(
       this.chatBoxMessagesComponent.domComponent,
-      createElement(
-        "form",
-        { class: "chat-box-form" },
-        [
-          createElement("input", {
-            id: "chat-box-form-input",
-            autofocus: true,
-            type: "text",
-            required: true,
-            autocomplete: "off",
-            placeholder: "Type message here...",
-          }),
-          createElement("button", { class: "chat-box-btn" }, "Send"),
-        ],
-        {
-          type: "submit",
-          event: (e) => {
-            e.preventDefault();
-            const content = e.target.elements["chat-box-form-input"].value;
-            this.socketConn.sendMessage(content);
-
-            // clear input
-            e.target.elements["chat-box-form-input"].value = "";
-            e.target.elements["chat-box-form-input"].focus();
+      createElement("div", {}, [
+        createElement("button", { class: "chat-box-btn" }, "🔊", {
+          type: "click",
+          event: () => {
+            if (!this.voiceChannelActive) {
+              console.log("Starting Voice channel...");
+              this.voiceManager = new VoiceManager();
+              this.voiceManager.joinVoice({
+                room: this.channelUUID,
+                userID: this.data.user.id,
+              });
+              this.voiceChannelActive = true;
+            } else {
+              if (this.voiceManager) {
+                this.voiceManager.leaveVoice();
+              }
+            }
           },
-        }
-      )
+        }),
+        createElement(
+          "form",
+          { class: "chat-box-form" },
+          [
+            createElement("input", {
+              id: "chat-box-form-input",
+              autofocus: true,
+              type: "text",
+              required: true,
+              autocomplete: "off",
+              placeholder: "Type message here...",
+            }),
+            createElement("button", { class: "chat-box-btn" }, "Send"),
+          ],
+          {
+            type: "submit",
+            event: (e) => {
+              e.preventDefault();
+              const content = e.target.elements["chat-box-form-input"].value;
+              this.socketConn.sendMessage(content);
+
+              // clear input
+              e.target.elements["chat-box-form-input"].value = "";
+              e.target.elements["chat-box-form-input"].focus();
+            },
+          }
+        ),
+      ])
     );
   };
 }
@@ -109,7 +136,6 @@ class ChatBoxMessagesComponent {
   };
 
   createMessage = (data, isNew = false) => {
-    console.log(data)
     // isNew is bool to render message with animation
     const parseMessageContent = (content) => {
       const urlRegexAll = /(https?:\/\/[^\s]+)/g;

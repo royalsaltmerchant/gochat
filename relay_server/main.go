@@ -16,6 +16,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/pion/webrtc/v3"
 )
 
 func keyFunc(c *gin.Context) string {
@@ -59,8 +60,14 @@ func main() {
 		KeyFunc:      keyFunc,
 	}))
 
+	m := &webrtc.MediaEngine{}
+	_ = m.RegisterDefaultCodecs()
+	rtcapi := webrtc.NewAPI(webrtc.WithMediaEngine(m))
+
 	// WebSocket route
-	r.GET("/ws", HandleSocket)
+	r.GET("/ws", func(c *gin.Context) {
+		HandleSocket(c, rtcapi)
+	})
 	r.GET("/api/host/:uuid", HandleGetHost)
 	r.POST("/api/register_host", HandleRegisterHost)
 

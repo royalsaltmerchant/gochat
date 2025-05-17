@@ -142,9 +142,9 @@ func handleLoginApproved(client *Client, conn *websocket.Conn, wsMsg *WSMessage)
 
 	host, exists := GetHost(client.HostUUID)
 	if !exists {
-		log.Printf("SendToAuthor: host %s not found\n", client.HostUUID)
+		log.Printf("host %s not found\n", client.HostUUID)
 		SendToClient(client.HostUUID, client.ClientUUID, WSMessage{
-			Type: "error",
+			Type: "author_error",
 			Data: ChatError{Content: "Failed to connect to the host"},
 		})
 		return
@@ -175,9 +175,9 @@ func handleLoginApproved(client *Client, conn *websocket.Conn, wsMsg *WSMessage)
 func handleGetDashData(client *Client, conn *websocket.Conn) {
 	host, exists := GetHost(client.HostUUID)
 	if !exists {
-		log.Printf("SendToAuthor: host %s not found\n", client.HostUUID)
+		log.Printf("host %s not found\n", client.HostUUID)
 		SendToClient(client.HostUUID, client.ClientUUID, WSMessage{
-			Type: "error",
+			Type: "author_error",
 			Data: ChatError{Content: "Failed to connect to the host"},
 		})
 		return
@@ -241,9 +241,9 @@ func handleUpdateUsernameApproved(client *Client, conn *websocket.Conn, wsMsg *W
 
 	host, exists := GetHost(client.HostUUID)
 	if !exists {
-		log.Printf("SendToAuthor: host %s not found\n", client.HostUUID)
+		log.Printf("host %s not found\n", client.HostUUID)
 		SendToClient(client.HostUUID, client.ClientUUID, WSMessage{
-			Type: "error",
+			Type: "author_error",
 			Data: ChatError{Content: "Failed to connect to the host"},
 		})
 		return
@@ -433,9 +433,9 @@ func handleInviteUserRes(client *Client, conn *websocket.Conn, wsMsg *WSMessage)
 	// send to invitee
 	host, exists := GetHost(client.HostUUID)
 	if !exists {
-		log.Printf("SendToAuthor: host %s not found\n", client.HostUUID)
+		log.Printf("host %s not found\n", client.HostUUID)
 		SendToClient(client.HostUUID, client.ClientUUID, WSMessage{
-			Type: "error",
+			Type: "author_error",
 			Data: ChatError{Content: "Failed to connect to the host"},
 		})
 		return
@@ -589,9 +589,9 @@ func handleLeaveSpaceRes(client *Client, conn *websocket.Conn, wsMsg *WSMessage)
 
 	host, exists := GetHost(client.HostUUID)
 	if !exists {
-		log.Printf("SendToAuthor: host %s not found\n", client.HostUUID)
+		log.Printf("host %s not found\n", client.HostUUID)
 		SendToClient(client.HostUUID, client.ClientUUID, WSMessage{
-			Type: "error",
+			Type: "author_error",
 			Data: ChatError{Content: "Failed to connect to the host"},
 		})
 		return
@@ -603,9 +603,9 @@ func handleLeaveSpaceRes(client *Client, conn *websocket.Conn, wsMsg *WSMessage)
 func joinChannel(client *Client, channelUUID string) {
 	host, exists := GetHost(client.HostUUID)
 	if !exists {
-		log.Printf("SendToAuthor: host %s not found\n", client.HostUUID)
+		log.Printf("host %s not found\n", client.HostUUID)
 		SendToClient(client.HostUUID, client.ClientUUID, WSMessage{
-			Type: "error",
+			Type: "author_error",
 			Data: ChatError{Content: "Failed to connect to the host"},
 		})
 		return
@@ -632,9 +632,9 @@ func joinChannel(client *Client, channelUUID string) {
 func leaveChannel(client *Client) {
 	host, exists := GetHost(client.HostUUID)
 	if !exists {
-		log.Printf("SendToAuthor: host %s not found\n", client.HostUUID)
+		log.Printf("host %s not found\n", client.HostUUID)
 		SendToClient(client.HostUUID, client.ClientUUID, WSMessage{
-			Type: "error",
+			Type: "author_error",
 			Data: ChatError{Content: "Failed to connect to the host"},
 		})
 		return
@@ -726,9 +726,9 @@ func handleRemoveSpaceUserRes(client *Client, conn *websocket.Conn, wsMsg *WSMes
 
 	host, exists := GetHost(client.HostUUID)
 	if !exists {
-		log.Printf("SendToAuthor: host %s not found\n", client.HostUUID)
+		log.Printf("host %s not found\n", client.HostUUID)
 		SendToClient(client.HostUUID, client.ClientUUID, WSMessage{
-			Type: "error",
+			Type: "author_error",
 			Data: ChatError{Content: "Failed to connect to the host"},
 		})
 		return
@@ -763,9 +763,9 @@ func handleChatMessage(client *Client, conn *websocket.Conn, wsMsg *WSMessage) {
 
 	host, exists := GetHost(client.HostUUID)
 	if !exists {
-		log.Printf("SendToAuthor: host %s not found\n", client.HostUUID)
+		log.Printf("host %s not found\n", client.HostUUID)
 		SendToClient(client.HostUUID, client.ClientUUID, WSMessage{
-			Type: "error",
+			Type: "author_error",
 			Data: ChatError{Content: "Failed to connect to the host"},
 		})
 		return
@@ -773,6 +773,7 @@ func handleChatMessage(client *Client, conn *websocket.Conn, wsMsg *WSMessage) {
 
 	host.mu.Lock()
 	channelUUID, ok := host.ChannelSubscriptions[conn]
+	host.mu.Unlock()
 	if !ok {
 		SendToClient(client.HostUUID, client.ClientUUID, WSMessage{
 			Type: "error",
@@ -780,7 +781,6 @@ func handleChatMessage(client *Client, conn *websocket.Conn, wsMsg *WSMessage) {
 		})
 		return
 	}
-	host.mu.Unlock()
 
 	if channelUUID != "" {
 		BroadcastToChannel(client.HostUUID, channelUUID, WSMessage{
@@ -806,9 +806,9 @@ func handleChatMessage(client *Client, conn *websocket.Conn, wsMsg *WSMessage) {
 func handleGetMessages(client *Client, conn *websocket.Conn) {
 	host, exists := GetHost(client.HostUUID)
 	if !exists {
-		log.Printf("SendToAuthor: host %s not found\n", client.HostUUID)
+		log.Printf("host %s not found\n", client.HostUUID)
 		SendToClient(client.HostUUID, client.ClientUUID, WSMessage{
-			Type: "error",
+			Type: "author_error",
 			Data: ChatError{Content: "Failed to connect to the host"},
 		})
 		return
@@ -833,6 +833,26 @@ func handleGetMessages(client *Client, conn *websocket.Conn) {
 		},
 	})
 }
+
+// func handleGetTurnCredentials(client *Client) {
+// 	secret := os.Getenv("TURN_SECRET")
+
+// 	unixTime := time.Now().Add(1 * time.Hour).Unix()
+// 	username := fmt.Sprintf("%d", unixTime)
+
+// 	h := hmac.New(sha1.New, []byte(secret))
+// 	h.Write([]byte(username))
+// 	password := base64.StdEncoding.EncodeToString(h.Sum(nil))
+
+// 	SendToClient(client.HostUUID, client.ClientUUID, WSMessage{
+// 		Type: "get_turn_credentials_response",
+// 		Data: TurnCredentialsResponse{
+// 			Username: username,
+// 			Password: password,
+// 		},
+// 	})
+
+// }
 
 func handleGetMessagesRes(client *Client, conn *websocket.Conn, wsMsg *WSMessage) {
 	data, err := decodeData[GetMessagesResponse](wsMsg.Data)

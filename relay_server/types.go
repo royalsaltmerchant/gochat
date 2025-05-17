@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/pion/webrtc/v3"
 )
 
 type Host struct {
@@ -41,6 +42,13 @@ type Client struct {
 	ClientUUID string
 	SendQueue  chan WSMessage // queue for outbound messages
 	Done       chan struct{}  // to signal shutdown
+}
+
+type VoiceClient struct {
+	Conn       *websocket.Conn
+	Peer       *webrtc.PeerConnection
+	ChannelID  string
+	ClientUUID string
 }
 
 func (c *Client) WritePump() {
@@ -447,4 +455,13 @@ type GetMessagesResponse struct {
 type GetMessagesSuccess struct {
 	Messages    []GetMessagesMessage `json:"messages"`
 	ChannelUUID string               `json:"channel_uuid"`
+}
+
+type TurnCredentialsResponse struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+type SDPOfferClient struct {
+	Offer webrtc.SessionDescription `json:"offer"`
 }

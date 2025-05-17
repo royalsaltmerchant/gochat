@@ -1,4 +1,4 @@
-class SocketConn {
+export default class SocketConn {
   constructor(props) {
     this.returnToHostList = props.returnToHostList;
     this.updateAccountUsername = props.updateAccountUsername;
@@ -130,7 +130,6 @@ class SocketConn {
             console.log("Login user success", data);
             window.go.main.App.SaveAuthToken(this.hostUUID, data.data.token);
             this.closeDashModal();
-            // TODO: Get dashboard data
             this.getDashboardData();
             break;
           case "dash_data_payload":
@@ -188,6 +187,7 @@ class SocketConn {
             break;
           case "joined_channel":
             console.log("Join message:", data);
+
             break;
           case "left_channel":
             console.log("Leave message:", data);
@@ -202,12 +202,14 @@ class SocketConn {
             break;
           case "error":
             // TODO: handle certain types of errors for login and registration
-            console.log("An error message from socket:", data);
+            console.error("An error message from socket:", data);
             window.go.main.App.Alert(data.data.error);
             break;
           case "author_error":
-            console.log("An error message from socket:", data);
-            window.go.main.App.Alert("Failed to connect to Host. Host is not currently connected to the relay server.");
+            console.error("An error message from socket:", data);
+            window.go.main.App.Alert(
+              "Failed to connect to Host. Host is not currently connected to the relay server."
+            );
             this.returnToHostList();
             break;
           default:
@@ -513,5 +515,3 @@ class SocketConn {
     }
   };
 }
-
-export default SocketConn;

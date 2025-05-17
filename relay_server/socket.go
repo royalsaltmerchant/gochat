@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	"github.com/pion/webrtc/v3"
 )
 
 var upgrader = websocket.Upgrader{
@@ -18,6 +19,9 @@ var upgrader = websocket.Upgrader{
 
 var Hosts = map[string]*Host{}
 var hostsMu sync.Mutex
+
+var voiceClients = map[string]*VoiceClient{}
+var voiceClientsMu sync.Mutex
 
 // Helper to decode WSMessage.Data into a typed struct
 func decodeData[T any](raw interface{}) (T, error) {
@@ -30,7 +34,7 @@ func decodeData[T any](raw interface{}) (T, error) {
 	return data, err
 }
 
-func HandleSocket(c *gin.Context) {
+func HandleSocket(c *gin.Context, rtcapi *webrtc.API) {
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		log.Println("WebSocket upgrade failed:", err)
@@ -84,7 +88,7 @@ func HandleSocket(c *gin.Context) {
 			continue
 		}
 
-		dispatchMessage(client, conn, wsMsg)
+		dispatchMessage(client, conn, wsMsg, rtcapi)
 	}
 
 	if client != nil {
@@ -96,6 +100,16 @@ func cleanupClient(client *Client) {
 	leaveChannel(client)
 	leaveAllSpaces(client)
 
+	// Clean up voice client
+	voiceClientsMu.Lock()
+	if vc, ok := voiceClients[client.ClientUUID]; ok {
+		if vc.Peer != nil {
+			_ = vc.Peer.Close() // Graceful shutdown of Pion WebRTC connection
+		}
+		delete(voiceClients, client.ClientUUID)
+	}
+	voiceClientsMu.Unlock()
+
 	host, exists := GetHost(client.HostUUID)
 	if !exists {
 		return
@@ -105,18 +119,10 @@ func cleanupClient(client *Client) {
 	delete(host.ClientsByConn, client.Conn)
 	delete(host.ClientConnsByUUID, client.ClientUUID)
 	delete(host.ClientsByUserID, client.UserID)
-	shouldCleanup := len(host.ClientsByConn) == 0
 	host.mu.Unlock()
 
 	close(client.SendQueue)
 	close(client.Done)
-
-	if shouldCleanup {
-		hostsMu.Lock()
-		delete(Hosts, client.HostUUID)
-		hostsMu.Unlock()
-		log.Printf("Host %s cleaned up (no remaining connections)", client.HostUUID)
-	}
 }
 
 func GetHost(uuid string) (*Host, bool) {
@@ -164,7 +170,7 @@ func SendToAuthor(client *Client, msg WSMessage) {
 	if !exists {
 		log.Printf("SendToAuthor: host %s not found\n", client.HostUUID)
 		safeSend(client, client.Conn, WSMessage{
-			Type: "error",
+			Type: "author_error",
 			Data: ChatError{Content: "Failed to connect to the host"},
 		})
 		return
@@ -177,7 +183,7 @@ func SendToAuthor(client *Client, msg WSMessage) {
 		log.Printf("SendToAuthor: author not connected to host")
 		SendToClient(client.HostUUID, client.ClientUUID, WSMessage{
 			Type: "author_error",
-			Data: ChatError{Content: "Author is not currently connected to the host"},
+			Data: ChatError{Content: "Failed to connect to the host"},
 		})
 		return
 	}
@@ -251,7 +257,7 @@ func leaveAllSpaces(client *Client) {
 	if !exists {
 		log.Printf("SendToAuthor: host %s not found\n", client.HostUUID)
 		SendToClient(client.HostUUID, client.ClientUUID, WSMessage{
-			Type: "error",
+			Type: "author_error",
 			Data: ChatError{Content: "Failed to connect to the host"},
 		})
 		return

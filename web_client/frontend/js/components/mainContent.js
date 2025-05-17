@@ -4,6 +4,7 @@ import ChatApp from "../chatapp.js"
 export default class MainContentComponent {
   constructor(props) {
     this.domComponent = props.domComponent;
+    this.data = props.data;
     this.socketConn = props.socketConn;
     this.chatApp = null;
     this.currentChannelUUID = null;
@@ -16,7 +17,7 @@ export default class MainContentComponent {
     const chatAppDiv = createElement("div", { class: "chatapp-container" });
     this.domComponent.append(chatAppDiv);
     if (!this.chatApp) {
-      this.chatApp = new ChatApp({ domComponent: chatAppDiv, socketConn: this.socketConn });
+      this.chatApp = new ChatApp({ domComponent: chatAppDiv, data: this.data, socketConn: this.socketConn });
     } else {
       this.chatApp.domComponent = chatAppDiv;
     }

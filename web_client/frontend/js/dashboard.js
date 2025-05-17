@@ -73,6 +73,7 @@ export default class DashboardApp {
     });
     this.mainContent = new MainContentComponent({
       socketConn: this.socketConn,
+      data: this.data,
       domComponent: createElement("div", {
         id: "channel-content",
         class: "channel-content",

@@ -4,9 +4,10 @@ import (
 	"log"
 
 	"github.com/gorilla/websocket"
+	"github.com/pion/webrtc/v3"
 )
 
-func dispatchMessage(client *Client, conn *websocket.Conn, wsMsg WSMessage) {
+func dispatchMessage(client *Client, conn *websocket.Conn, wsMsg WSMessage, rtcapi *webrtc.API) {
 	switch wsMsg.Type {
 	case "register_user":
 		handleRegisterUser(client, conn, &wsMsg)
@@ -80,6 +81,8 @@ func dispatchMessage(client *Client, conn *websocket.Conn, wsMsg WSMessage) {
 		handleGetMessages(client, conn)
 	case "get_messages_response":
 		handleGetMessagesRes(client, conn, &wsMsg)
+	// case "get_turn_credentials":
+	// 	handleGetTurnCredentials(client)
 	case "error":
 		data, err := decodeData[ChatError](wsMsg.Data)
 		if err != nil {
