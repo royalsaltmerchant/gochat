@@ -8,7 +8,6 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/gorilla/websocket"
-	"golang.org/x/crypto/bcrypt"
 )
 
 func registerOrCreateHost(hostUUID, potentialAuthorID string, conn *websocket.Conn) (*Host, error) {
@@ -71,107 +70,6 @@ func registerClient(host *Host, conn *websocket.Conn) *Client {
 	return client
 }
 
-func handleRegisterUser(client *Client, conn *websocket.Conn, wsMsg *WSMessage) {
-	data, err := decodeData[RegisterUser](wsMsg.Data)
-	if err != nil {
-		safeSend(client, conn, WSMessage{Type: "error", Data: ChatError{Content: "Invalid registration data"}})
-		return
-	}
-
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(data.Password), bcrypt.DefaultCost)
-	if err != nil {
-		safeSend(client, conn, WSMessage{Type: "error", Data: ChatError{Content: "Password hashing failed"}})
-		return
-	}
-
-	// Notify the host author
-	SendToAuthor(client, WSMessage{
-		Type: "register_user_request",
-		Data: ApproveRegisterUser{
-			Username:   data.Username,
-			Email:      data.Email,
-			Password:   string(hashedPassword),
-			ClientUUID: client.ClientUUID,
-		},
-	})
-}
-
-func handleLogin(client *Client, conn *websocket.Conn, wsMsg *WSMessage) {
-	data, err := decodeData[LoginUser](wsMsg.Data)
-	if err != nil {
-		safeSend(client, conn, WSMessage{Type: "error", Data: ChatError{Content: "Invalid login data"}})
-		return
-	}
-
-	SendToAuthor(client, WSMessage{ // Regular client assuming host is already logged in
-		Type: "login_user_request",
-		Data: ApproveLoginUser{
-			Email:      data.Email,
-			Password:   data.Password,
-			ClientUUID: client.ClientUUID,
-		},
-	})
-
-	safeSend(client, conn, WSMessage{Type: "login_user_pending"})
-}
-
-func handleLoginByToken(client *Client, conn *websocket.Conn, wsMsg *WSMessage) {
-	data, err := decodeData[LoginUserByToken](wsMsg.Data)
-	if err != nil {
-		safeSend(client, conn, WSMessage{Type: "error", Data: ChatError{Content: "Invalid login data"}})
-		return
-	}
-
-	SendToAuthor(client, WSMessage{ // Regular client assuming host is already logged in
-		Type: "login_user_by_token_request",
-		Data: ApproveLoginUserByToken{
-			Token:      data.Token,
-			ClientUUID: client.ClientUUID,
-		},
-	})
-
-	safeSend(client, conn, WSMessage{Type: "login_user_pending"})
-}
-
-func handleLoginApproved(client *Client, conn *websocket.Conn, wsMsg *WSMessage) {
-	data, err := decodeData[ApprovedLoginUser](wsMsg.Data)
-	if err != nil {
-		safeSend(client, conn, WSMessage{Type: "error", Data: ChatError{Content: "Invalid login approved data"}})
-		return
-	}
-
-	host, exists := GetHost(client.HostUUID)
-	if !exists {
-		log.Printf("host %s not found\n", client.HostUUID)
-		SendToClient(client.HostUUID, client.ClientUUID, WSMessage{
-			Type: "author_error",
-			Data: ChatError{Content: "Failed to connect to the host"},
-		})
-		return
-	}
-
-	host.mu.Lock()
-	clientConn, ok := host.ClientConnsByUUID[data.ClientUUID]
-	if !ok {
-		log.Printf("SendToClient: client not connected to host %s\n", client.HostUUID)
-		host.mu.Unlock()
-		return
-	}
-	host.mu.Unlock()
-
-	// login user
-	host.ClientsByConn[clientConn].UserID = data.UserID
-	host.ClientsByConn[clientConn].Username = data.Username
-	host.ClientsByUserID[data.UserID] = host.ClientsByConn[clientConn]
-
-	SendToClient(client.HostUUID, data.ClientUUID, WSMessage{
-		Type: "login_user_success",
-		Data: LoginUserToken{
-			Token: data.Token,
-		},
-	})
-}
-
 func handleGetDashData(client *Client, conn *websocket.Conn) {
 	host, exists := GetHost(client.HostUUID)
 	if !exists {
@@ -211,62 +109,6 @@ func handleGetDashDatRes(client *Client, conn *websocket.Conn, wsMsg *WSMessage)
 			User:    data.User,
 			Spaces:  data.Spaces,
 			Invites: data.Invites,
-		},
-	})
-}
-
-func handleUpdateUsername(client *Client, conn *websocket.Conn, wsMsg *WSMessage) {
-	data, err := decodeData[UpdateUsernameRequest](wsMsg.Data)
-	if err != nil {
-		safeSend(client, conn, WSMessage{Type: "error", Data: ChatError{Content: "Invalid update username data"}})
-		return
-	}
-
-	SendToAuthor(client, WSMessage{ // Regular client assuming host is already logged in
-		Type: "update_username_request",
-		Data: UpdateUsernameClient{
-			UserID:     data.UserID,
-			Username:   data.Username,
-			ClientUUID: client.ClientUUID,
-		},
-	})
-}
-
-func handleUpdateUsernameApproved(client *Client, conn *websocket.Conn, wsMsg *WSMessage) {
-	data, err := decodeData[UpdateUsernameResponse](wsMsg.Data)
-	if err != nil {
-		safeSend(client, conn, WSMessage{Type: "error", Data: ChatError{Content: "Invalid update username approved data"}})
-		return
-	}
-
-	host, exists := GetHost(client.HostUUID)
-	if !exists {
-		log.Printf("host %s not found\n", client.HostUUID)
-		SendToClient(client.HostUUID, client.ClientUUID, WSMessage{
-			Type: "author_error",
-			Data: ChatError{Content: "Failed to connect to the host"},
-		})
-		return
-	}
-
-	host.mu.Lock()
-	clientConn, ok := host.ClientConnsByUUID[data.ClientUUID]
-	if !ok {
-		host.mu.Unlock()
-		log.Printf("SendToClient: client not connected to host %s\n", client.HostUUID)
-		return
-	}
-	host.mu.Unlock()
-
-	// update user
-	host.ClientsByConn[clientConn].Username = data.Username
-
-	SendToClient(client.HostUUID, data.ClientUUID, WSMessage{
-		Type: "update_username_success",
-		Data: UpdateUsername{
-			UserID:   data.UserID,
-			Username: data.Username,
-			Token:    data.Token,
 		},
 	})
 }

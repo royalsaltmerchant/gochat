@@ -3,8 +3,6 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -15,18 +13,17 @@ import (
 )
 
 type HostConfig struct {
-	UUID      string `json:"uuid"`
-	AuthorID  string `json:"author_id"`
-	Name      string `json:"name"`
-	JWTSecret string `json:"jwt_secret"`
-	DBFile    string `json:"db_file"`
+	UUID     string `json:"uuid"`
+	AuthorID string `json:"author_id"`
+	Name     string `json:"name"`
+	DBFile   string `json:"db_file"`
 }
 
-func generateSecret(n int) string {
-	b := make([]byte, n)
-	_, _ = rand.Read(b)
-	return hex.EncodeToString(b)
-}
+// func generateSecret(n int) string {
+// 	b := make([]byte, n)
+// 	_, _ = rand.Read(b)
+// 	return hex.EncodeToString(b)
+// }
 
 func getConfigPath() (string, error) {
 	execPath, err := os.Executable()
@@ -46,7 +43,7 @@ func LoadOrInitHostConfig() (*HostConfig, error) {
 
 	if data, err := os.ReadFile(configPath); err == nil {
 		var cfg HostConfig
-		if json.Unmarshal(data, &cfg) == nil && cfg.UUID != "" && cfg.JWTSecret != "" {
+		if json.Unmarshal(data, &cfg) == nil && cfg.UUID != "" {
 			return &cfg, nil
 		}
 	}
@@ -62,11 +59,10 @@ func LoadOrInitHostConfig() (*HostConfig, error) {
 	}
 
 	cfg := &HostConfig{
-		UUID:      uuid,
-		AuthorID:  authorID,
-		Name:      name,
-		JWTSecret: generateSecret(32),
-		DBFile:    "chat.db",
+		UUID:     uuid,
+		AuthorID: authorID,
+		Name:     name,
+		DBFile:   "chat.db",
 	}
 
 	data, _ := json.MarshalIndent(cfg, "", "  ")

@@ -2,13 +2,13 @@ package main
 
 import (
 	"context"
+	"embed"
+	"gochat/db"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
-
-	"gochat/db"
 
 	"net/http"
 
@@ -18,6 +18,9 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/pion/webrtc/v3"
 )
+
+//go:embed relay-migrations
+var MigrationFiles embed.FS
 
 func keyFunc(c *gin.Context) string {
 	return c.ClientIP()
@@ -41,7 +44,7 @@ func main() {
 
 	// Init DB
 	var err error
-	db.HostDB, err = db.InitDB(dbName)
+	db.HostDB, err = db.InitDB(dbName, MigrationFiles, "relay-migrations")
 	if err != nil {
 		log.Fatal("Error opening database:", err)
 	}
@@ -70,6 +73,9 @@ func main() {
 	})
 	r.GET("/api/host/:uuid", HandleGetHost)
 	r.POST("/api/register_host", HandleRegisterHost)
+	r.POST("/api/user_by_id", HandleGetUserByID)
+	r.POST("/api/user_by_email", HandleGetUserByEmail)
+	r.POST("/api/users_by_ids", HandleGetUsersByIDs)
 
 	// Create HTTP server manually so we can shut it down
 	server := &http.Server{

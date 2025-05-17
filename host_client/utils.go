@@ -1,11 +1,13 @@
 package main
 
 import (
+	"encoding/json"
 	"gochat/db"
+	"log"
 )
 
 func AppendspaceChannelsAndUsers(space *DashDataSpace) {
-	// Fetch channels (existing code)
+	// Fetch channels
 	channelsQuery := `SELECT id, uuid, name, space_uuid FROM channels WHERE space_uuid = ?`
 	channelRows, err := db.ChatDB.Query(channelsQuery, space.UUID)
 	if err == nil {
@@ -20,42 +22,51 @@ func AppendspaceChannelsAndUsers(space *DashDataSpace) {
 		space.Channels = channels
 	}
 
-	// Fetch users in space
-	usersQuery := `
-		SELECT u.id, u.username
-		FROM space_users su
-		JOIN users u ON su.user_id = u.id
-		WHERE su.space_uuid = ? AND su.joined = 1
-	`
+	// Fetch user IDs in space
+	usersQuery := `SELECT user_id FROM space_users WHERE space_uuid = ? AND joined = 1`
 	userRows, err := db.ChatDB.Query(usersQuery, space.UUID)
+	if err != nil {
+		log.Println("Error fetching space_users:", err)
+		return
+	}
+	defer userRows.Close()
+
+	userIDSet := make(map[int]struct{})
+	for userRows.Next() {
+		var uid int
+		if err := userRows.Scan(&uid); err == nil {
+			userIDSet[uid] = struct{}{}
+		}
+	}
+
+	// Add author if not already included
+	if _, exists := userIDSet[space.AuthorID]; !exists {
+		userIDSet[space.AuthorID] = struct{}{}
+	}
+
+	// Build user ID slice
+	var userIDs []int
+	for id := range userIDSet {
+		userIDs = append(userIDs, id)
+	}
+
+	// Batch request to /api/users_by_ids
+	payload := map[string][]int{"user_ids": userIDs}
+	resp, err := PostJSON(relayBaseURL.String()+"/api/users_by_ids", payload, nil)
+	if err != nil {
+		log.Println("Error fetching users:", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == 400 {
+		log.Println("Failed to find users by IDs")
+	}
+
 	var users []DashDataUser
-	if err == nil {
-		defer userRows.Close()
-		for userRows.Next() {
-			var user DashDataUser
-			if err := userRows.Scan(&user.ID, &user.Username); err == nil {
-				users = append(users, user)
-			}
-		}
-	}
-
-	// Check if author is already in users
-	found := false
-	for _, user := range users {
-		if user.ID == space.AuthorID {
-			found = true
-			break
-		}
-	}
-
-	// Fetch and append author if not in list
-	if !found {
-		authorQuery := `SELECT id, username FROM users WHERE id = ?`
-		row := db.ChatDB.QueryRow(authorQuery, space.AuthorID)
-		var author DashDataUser
-		if err := row.Scan(&author.ID, &author.Username); err == nil {
-			users = append(users, author)
-		}
+	if err := json.NewDecoder(resp.Body).Decode(&users); err != nil {
+		log.Println("Error decoding users_by_ids response:", err)
+		return
 	}
 
 	space.Users = users

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"embed"
 	"gochat/db"
 	"log"
 	"os"
@@ -12,6 +13,9 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+//go:embed migrations/*.sql
+var MigrationFiles embed.FS
+
 func main() {
 	cfg, err := LoadOrInitHostConfig()
 	if err != nil {
@@ -19,7 +23,7 @@ func main() {
 	}
 
 	// Init DB
-	db.ChatDB, err = db.InitDB(cfg.DBFile)
+	db.ChatDB, err = db.InitDB(cfg.DBFile, MigrationFiles, "migrations")
 	if err != nil {
 		log.Fatal("Error opening database:", err)
 	}
@@ -31,7 +35,7 @@ func main() {
 
 	// Start WebSocket client
 	go func() {
-		err := SocketClient(ctx, cfg.UUID, cfg.AuthorID, cfg.JWTSecret)
+		err := SocketClient(ctx, cfg.UUID, cfg.AuthorID)
 		if err != nil {
 			log.Println("SocketClient error:", err)
 		}

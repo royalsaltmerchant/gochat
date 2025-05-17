@@ -387,7 +387,7 @@ export default class DashModal {
           createElement("button", { class: "btn-red" }, "Logout", {
             type: "click",
             event: (e) => {
-              window.go.main.App.RemoveAuthToken(this.socketConn.hostUUID).then(
+              window.go.main.App.RemoveAuthToken().then(
                 () => {
                   console.log("Token removed for", this.socketConn.hostUUID);
                 }

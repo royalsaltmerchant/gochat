@@ -1,7 +1,6 @@
 {
-  "uuid": "dffc9464-0119-4c98-a57a-da26a7f80a0d",
-  "author_id": "1964b0dc-a156-4302-9b9f-3b790487e3a3",
-  "name": "julian",
-  "jwt_secret": "808dc2a7d61c7db07f1a320b7367eb8f91a4dd4c7697c5d1cec0af175d4c0a99",
+  "uuid": "bafb0997-93cd-45a5-8206-185a544d4baf",
+  "author_id": "9ee31af2-bbbf-4f73-86b8-0b9ace7e2341",
+  "name": "Jules",
   "db_file": "chat.db"
 }

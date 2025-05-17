@@ -10,10 +10,10 @@ export function GetHosts():Promise<Array<main.Host>>;
 
 export function Greet(arg1:string):Promise<string>;
 
-export function LoadAuthToken(arg1:string):Promise<string>;
+export function LoadAuthToken():Promise<string>;
 
-export function RemoveAuthToken(arg1:string):Promise<void>;
+export function RemoveAuthToken():Promise<void>;
 
-export function SaveAuthToken(arg1:string,arg2:string):Promise<void>;
+export function SaveAuthToken(arg1:string):Promise<void>;
 
 export function VerifyHostKey(arg1:string):Promise<string>;

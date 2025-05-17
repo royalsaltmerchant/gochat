@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"gochat/db"
 	"log"
 
@@ -64,28 +65,21 @@ func handleAcceptInvite(conn *websocket.Conn, wsMsg *WSMessage) {
 		}
 	}
 
-	var user DashDataUser
-	query = `SELECT id, username FROM users WHERE id = ?`
-	err = db.ChatDB.QueryRow(query, data.UserID).Scan(&user.ID, &user.Username)
+	payload := map[string]int{
+		"user_id": data.UserID,
+	}
+
+	resp, err := PostJSON(relayBaseURL.String()+"/api/user_by_id", payload, nil)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			sendToConn(conn, WSMessage{
-				Type: "error",
-				Data: ChatError{
-					Content:    "User not found by user id",
-					ClientUUID: data.ClientUUID,
-				},
-			})
-			return
-		} else {
-			sendToConn(conn, WSMessage{
-				Type: "error",
-				Data: ChatError{
-					Content:    "Database failed to query user",
-					ClientUUID: data.ClientUUID,
-				},
-			})
-		}
+		log.Println("Error:", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	var user DashDataUser
+	if err := json.NewDecoder(resp.Body).Decode(&user); err != nil {
+		log.Println("Error decoding user list:", err)
+		return
 	}
 
 	AppendspaceChannelsAndUsers(&space)

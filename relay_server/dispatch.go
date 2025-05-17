@@ -15,16 +15,12 @@ func dispatchMessage(client *Client, conn *websocket.Conn, wsMsg WSMessage, rtca
 		handleLogin(client, conn, &wsMsg)
 	case "login_user_by_token":
 		handleLoginByToken(client, conn, &wsMsg)
-	case "login_approved":
-		handleLoginApproved(client, conn, &wsMsg)
 	case "get_dash_data":
 		handleGetDashData(client, conn)
 	case "get_dash_data_response":
 		handleGetDashDatRes(client, conn, &wsMsg)
 	case "update_username":
 		handleUpdateUsername(client, conn, &wsMsg)
-	case "update_username_approved":
-		handleUpdateUsernameApproved(client, conn, &wsMsg)
 	case "create_space":
 		handleCreateSpace(client, conn, &wsMsg)
 	case "create_space_response":

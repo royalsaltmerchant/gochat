@@ -7,17 +7,19 @@ import (
 )
 
 type AuthTokenManager struct {
-	File string // e.g. "auth_tokens.json"
+	File string // e.g. "auth_token.json"
 }
 
-type AuthTokenConfig map[string]string // map[hostUUID]token
+type AuthToken struct {
+	Token string `json:"token"`
+}
 
 func NewAuthTokenManager() (*AuthTokenManager, error) {
 	configDir, err := os.UserConfigDir()
 	if err != nil {
 		return nil, err
 	}
-	path := filepath.Join(configDir, "gochat", "auth_tokens.json")
+	path := filepath.Join(configDir, "gochat", "auth_token.json")
 
 	// Ensure directory exists
 	err = os.MkdirAll(filepath.Dir(path), 0755)
@@ -28,66 +30,30 @@ func NewAuthTokenManager() (*AuthTokenManager, error) {
 	return &AuthTokenManager{File: path}, nil
 }
 
-func (a *AuthTokenManager) SaveAuthToken(hostUUID, token string) error {
-	config := AuthTokenConfig{}
-
-	// Load existing file if it exists
-	if data, err := os.ReadFile(a.File); err == nil {
-		_ = json.Unmarshal(data, &config)
-	}
-
-	// Overwrite or add
-	config[hostUUID] = token
-
-	data, err := json.MarshalIndent(config, "", "  ")
+func (a *AuthTokenManager) SaveToken(token string) error {
+	data, err := json.MarshalIndent(AuthToken{Token: token}, "", "  ")
 	if err != nil {
 		return err
 	}
-
 	return os.WriteFile(a.File, data, 0600)
 }
-func (a *AuthTokenManager) LoadAuthToken(hostUUID string) (string, error) {
+
+func (a *AuthTokenManager) LoadToken() (string, error) {
 	data, err := os.ReadFile(a.File)
 	if err != nil {
 		return "", nil // no file yet
 	}
 
-	var config AuthTokenConfig
-	if err := json.Unmarshal(data, &config); err != nil {
+	var authToken AuthToken
+	if err := json.Unmarshal(data, &authToken); err != nil {
 		return "", err
 	}
-
-	return config[hostUUID], nil
+	return authToken.Token, nil
 }
 
-func (a *AuthTokenManager) RemoveAuthToken(hostUUID string) error {
-	data, err := os.ReadFile(a.File)
-	if err != nil {
-		// If the file doesn't exist, there's nothing to remove
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return err
+func (a *AuthTokenManager) RemoveToken() error {
+	if _, err := os.Stat(a.File); os.IsNotExist(err) {
+		return nil
 	}
-
-	var config AuthTokenConfig
-	if err := json.Unmarshal(data, &config); err != nil {
-		return err
-	}
-
-	// Remove the token for the given hostUUID
-	delete(config, hostUUID)
-
-	// If the map is now empty, delete the file
-	if len(config) == 0 {
-		return os.Remove(a.File)
-	}
-
-	// Otherwise, write updated map back to file
-	newData, err := json.MarshalIndent(config, "", "  ")
-	if err != nil {
-		return err
-	}
-
-	return os.WriteFile(a.File, newData, 0600)
+	return os.Remove(a.File)
 }

@@ -24,6 +24,13 @@ type Host struct {
 	mu                   sync.Mutex
 }
 
+type UserData struct {
+	ID       int
+	Username string
+	Email    string
+	Password string
+}
+
 type Channel struct {
 	Users map[*websocket.Conn]int
 	mu    sync.Mutex
@@ -124,10 +131,9 @@ type ApproveLoginUserByToken struct {
 }
 
 type ApprovedLoginUser struct {
-	UserID     int    `json:"user_id"`
-	Username   string `json:"username"`
-	ClientUUID string `json:"client_uuid"`
-	Token      string `json:"token"`
+	UserID   int    `json:"user_id"`
+	Username string `json:"username"`
+	Token    string `json:"token"`
 }
 
 type GetDashDataRequest struct {

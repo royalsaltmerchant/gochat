@@ -1,7 +1,7 @@
 package main
 
 import (
-	"database/sql"
+	"encoding/json"
 	"gochat/db"
 	"log"
 
@@ -15,27 +15,34 @@ func handleInviteUser(conn *websocket.Conn, wsMsg *WSMessage) {
 		return
 	}
 
-	var userID int
-	err = db.ChatDB.QueryRow(`SELECT id FROM users WHERE email = ?`, data.Email).Scan(&userID)
+	payload := map[string]string{"email": data.Email}
+	resp, err := PostJSON(relayBaseURL.String()+"/api/user_by_email", payload, nil)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			sendToConn(conn, WSMessage{
-				Type: "error",
-				Data: ChatError{
-					Content:    "User not found by email in database",
-					ClientUUID: data.ClientUUID,
-				},
-			})
-			return
-		} else {
-			sendToConn(conn, WSMessage{
-				Type: "error",
-				Data: ChatError{
-					Content:    "Database error finding user by email",
-					ClientUUID: data.ClientUUID,
-				},
-			})
-		}
+		sendToConn(conn, WSMessage{
+			Type: "error",
+			Data: ChatError{
+				Content:    "Failed to reach user lookup API",
+				ClientUUID: data.ClientUUID,
+			},
+		})
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == 400 {
+		sendToConn(conn, WSMessage{
+			Type: "error",
+			Data: ChatError{
+				Content:    "User not found by email",
+				ClientUUID: data.ClientUUID,
+			},
+		})
+		return
+	}
+
+	var user DashDataUser
+	if err := json.NewDecoder(resp.Body).Decode(&user); err != nil {
+		log.Println("Error decoding user_by_id response:", err)
 		return
 	}
 
@@ -47,7 +54,7 @@ INSERT INTO space_users (space_uuid, user_id)
 VALUES (?, ?)
 RETURNING id, space_uuid, user_id, joined
 `
-	err = db.ChatDB.QueryRow(query, data.SpaceUUID, userID).Scan(
+	err = db.ChatDB.QueryRow(query, data.SpaceUUID, user.ID).Scan(
 		&spaceUser.ID,
 		&spaceUser.SpaceUUID,
 		&spaceUser.UserID,
@@ -84,7 +91,7 @@ RETURNING id, space_uuid, user_id, joined
 		Type: "invite_user_success",
 		Data: InviteUserResponse{
 			Email:      data.Email,
-			UserID:     userID,
+			UserID:     user.ID,
 			SpaceUUID:  data.SpaceUUID,
 			Invite:     spaceUser,
 			ClientUUID: data.ClientUUID,

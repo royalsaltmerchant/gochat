@@ -18,16 +18,16 @@ export function Greet(arg1) {
   return window['go']['main']['App']['Greet'](arg1);
 }
 
-export function LoadAuthToken(arg1) {
-  return window['go']['main']['App']['LoadAuthToken'](arg1);
+export function LoadAuthToken() {
+  return window['go']['main']['App']['LoadAuthToken']();
 }
 
-export function RemoveAuthToken(arg1) {
-  return window['go']['main']['App']['RemoveAuthToken'](arg1);
+export function RemoveAuthToken() {
+  return window['go']['main']['App']['RemoveAuthToken']();
 }
 
-export function SaveAuthToken(arg1, arg2) {
-  return window['go']['main']['App']['SaveAuthToken'](arg1, arg2);
+export function SaveAuthToken(arg1) {
+  return window['go']['main']['App']['SaveAuthToken'](arg1);
 }
 
 export function VerifyHostKey(arg1) {

@@ -70,13 +70,16 @@ func (a *App) VerifyHostKey(hostUUID string) (string, error) {
 	return a.HostManager.VerifyHostKey(hostUUID)
 }
 
-func (a *App) SaveAuthToken(hostUUID, token string) error {
-	return a.TokenManager.SaveAuthToken(hostUUID, token)
+// Updated TokenManager methods for single-token storage
+
+func (a *App) SaveAuthToken(token string) error {
+	return a.TokenManager.SaveToken(token)
 }
 
-func (a *App) LoadAuthToken(hostUUID string) (string, error) {
-	return a.TokenManager.LoadAuthToken(hostUUID)
+func (a *App) LoadAuthToken() (string, error) {
+	return a.TokenManager.LoadToken()
 }
-func (a *App) RemoveAuthToken(hostUUID string) error {
-	return a.TokenManager.RemoveAuthToken(hostUUID)
+
+func (a *App) RemoveAuthToken() error {
+	return a.TokenManager.RemoveToken()
 }

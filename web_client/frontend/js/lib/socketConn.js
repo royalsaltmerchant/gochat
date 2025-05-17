@@ -114,7 +114,7 @@ export default class SocketConn {
           case "join_ack":
             console.log("Joining Result", data);
             // try to login user with JWT
-            window.go.main.App.LoadAuthToken(this.hostUUID).then((token) => {
+            window.go.main.App.LoadAuthToken().then((token) => {
               if (token) {
                 this.loginUserByToken({ token });
               } else {
@@ -128,7 +128,7 @@ export default class SocketConn {
             window.go.main.App.Alert(data.data.error);
           case "login_user_success":
             console.log("Login user success", data);
-            window.go.main.App.SaveAuthToken(this.hostUUID, data.data.token);
+            window.go.main.App.SaveAuthToken(data.data.token);
             this.closeDashModal();
             this.getDashboardData();
             break;
