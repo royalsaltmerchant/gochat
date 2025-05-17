@@ -72,7 +72,7 @@ func LoadOrInitHostConfig() (*HostConfig, error) {
 }
 
 func registerHostWithRelay(name string) (uuid string, authorID string, err error) {
-	url := "http://localhost:8000/api/register_host"
+	url := relayBaseURL.String() + "/api/register_host"
 	payload := map[string]string{"name": name}
 	jsonData, _ := json.Marshal(payload)
 

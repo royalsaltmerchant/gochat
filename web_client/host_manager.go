@@ -45,7 +45,7 @@ func (h *HostManager) GetHosts() ([]Host, error) {
 }
 
 func (h *HostManager) VerifyHostKey(hostUUID string) (string, error) {
-	url := fmt.Sprintf("http://localhost:8000/api/host/%s", hostUUID)
+	url := fmt.Sprintf("http://99.36.161.96:8000/api/host/%s", hostUUID)
 
 	resp, err := http.Get(url)
 	if err != nil || resp.StatusCode != 200 {

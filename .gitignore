@@ -3,3 +3,6 @@ notes
 .DS_Store
 testing
 credgen.go
+web_client/build
+host_client_dist
+relay_server_dist

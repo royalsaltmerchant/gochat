@@ -10,18 +10,19 @@ export default class VoiceManager {
       this.currentRTCConn.close();
     }
 
-    const peer1 = new RTCConn({
+    this.currentRTCConn = new RTCConn({
       room,
       userID: "first",
     });
     
-    const peer2 = new RTCConn({
-      room,
-      userID: "second",
-    });
-    peer1.start()
-    peer2.start()
-    // this.currentRTCConn.start(); // Connects to SFU and joins room
+    // const peer2 = new RTCConn({
+    //   room,
+    //   userID: "second",
+    // });
+    
+    // peer1.start()
+    // peer2.start()
+    this.currentRTCConn.start(); // Connects to SFU and joins room
   }
 
   leaveVoice() {

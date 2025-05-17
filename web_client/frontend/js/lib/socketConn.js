@@ -69,7 +69,7 @@ export default class SocketConn {
   };
 
   connect = () => {
-    const url = `ws://localhost:8000/ws`; // Relay socket server remote
+    const url = `ws://99.36.161.96:8000/ws`; // Relay socket server remote
     console.log("Connecting to WebSocket:", url);
     this.socket = new WebSocket(url);
 

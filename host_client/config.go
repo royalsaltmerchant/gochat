@@ -4,7 +4,7 @@ import (
 	"net/url"
 )
 
-var relayHost = "localhost:8000"
+var relayHost = "99.36.161.96:8000"
 
 var relayBaseURL = url.URL{Scheme: "http", Host: relayHost, Path: ""}
 

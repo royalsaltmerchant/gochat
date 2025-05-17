@@ -3,8 +3,8 @@ export default class RTCConn {
     this.room = props.room;
     this.userID = props.userID;
 
-    this.sfuUrl = "ws://localhost:7000/ws";
-    this.turnUrl = "turn:standard.relay.metered.ca:80"; // replace with your actual TURN
+    this.sfuUrl = "ws://99.36.161.96:7000/ws";
+    this.turnUrl = "turn:99.36.161.96:3478?transport=udp"; // replace with your actual TURN
 
     this.socketConn = null;
     this.pc = null;
@@ -22,23 +22,23 @@ export default class RTCConn {
       iceServers: [
         {
           urls: this.turnUrl,
-          username: "83cdc45b4f9bac40c6b42cd5",
-          credential: "rOztR0o0s/lUkuC6",
+          username: "1747510821",
+          credential: "9U9t8QqEdHbKF71Fv4sU9GmN0vw",
         },
         { urls: "stun:stun.l.google.com:19302" },
       ],
-      iceTransportPolicy: "relay", // use "relay" to test TURN-only mode
+      iceTransportPolicy: "all", // use "relay" to test TURN-only mode
     });
 
-    const localAudio = document.createElement("audio");
-    localAudio.srcObject = stream;
-    localAudio.autoplay = true;
-    localAudio.controls = true;
-    localAudio.muted = true;
-    document.body.appendChild(localAudio);
+    // const localAudio = document.createElement("audio");
+    // localAudio.srcObject = stream;
+    // localAudio.autoplay = true;
+    // localAudio.controls = true;
+    // localAudio.muted = true;
+    // document.body.appendChild(localAudio);
 
     // 🎤 Add local tracks before offer
-    stream.getTracks().forEach(track => {
+    stream.getTracks().forEach((track) => {
       console.log("🎙️ Adding track:", track.kind);
       this.pc.addTrack(track, stream);
     });
@@ -70,6 +70,14 @@ export default class RTCConn {
       audio.onerror = (e) => console.error("❌ Audio error:", e);
       document.body.appendChild(audio);
     };
+
+    // setInterval(() => {
+    //   this.pc.getStats(null).then((stats) => {
+    //     stats.forEach((report) => {
+    //       console.log(report)
+    //     });
+    //   });
+    // }, 1000);
 
     // 📡 WebSocket signaling
     this.socketConn = new WebSocket(this.sfuUrl);
@@ -170,7 +178,7 @@ export default class RTCConn {
     });
 
     if (this.pc) {
-      this.pc.getSenders().forEach(sender => this.pc.removeTrack(sender));
+      this.pc.getSenders().forEach((sender) => this.pc.removeTrack(sender));
       this.pc.close();
       this.pc = null;
     }
