@@ -12,7 +12,7 @@ export default class VoiceManager {
 
     this.currentRTCConn = new RTCConn({
       room,
-      userID: "first",
+      userID: userID,
     });
     
     // const peer2 = new RTCConn({
