@@ -2,7 +2,7 @@
   "$schema": "https://wails.io/schemas/config.v2.json",
   "name": "web_client",
   "outputfilename": "web_client",
-  "frontend:dir": "frontend",
+  "frontend:dir": "frontend/dist",
   "frontend:install": "",
   "frontend:build": "",
   "frontend:dev:watcher": "",

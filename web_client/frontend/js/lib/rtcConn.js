@@ -1,211 +1,102 @@
-export default class RTCConn {
+import { Client, LocalStream, RemoteStream } from 'ion-sdk-js';
+import { IonSFUJSONRPCSignal } from 'ion-sdk-js/lib/signal/json-rpc-impl';
+
+export default class RTCConnUsingIon {
   constructor(props) {
     this.audioCtx = props.audioCtx;
     this.room = props.room;
     this.userID = props.userID;
 
-    this.sfuUrl = "ws://99.36.161.96:7000/ws";
-    this.turnUrl = "turn:99.36.161.96:3478?transport=udp";
+    this.sfuUrl = "ws://99.36.161.96:7000/ws"; // Update this as needed
 
-    this.socketConn = null;
-    this.pc = null;
-    this.messageID = 1;
+    this.signal = null;
+    this.client = null;
+    this.audioElement = null;
 
-    this.pendingCandidates = [];
-    this.remoteDescriptionSet = false;
-  }
-
-  async start() {
-    this.pc = new RTCPeerConnection({
+    this.peerConfig = {
       iceServers: [
         {
-          urls: this.turnUrl,
+          urls: "turn:99.36.161.96:3478?transport=udp",
           username: "1747510821",
           credential: "9U9t8QqEdHbKF71Fv4sU9GmN0vw",
         },
-        { urls: "stun:stun.l.google.com:19302" },
+        {
+          urls: "stun:stun.l.google.com:19302",
+        },
       ],
       iceTransportPolicy: "all",
-    });
-
-    this.pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        this.sendJSONRPC("trickle", { candidate: event.candidate });
-      } else {
-        console.log("📶 ICE gathering complete");
-      }
     };
+  }
 
-    this.pc.oniceconnectionstatechange = () => {
-      console.log("🌐 ICE state:", this.pc.iceConnectionState);
-      if (this.pc.iceConnectionState === "failed") {
-        console.warn("❌ ICE connection failed");
+  async start() {
+    // Initialize the signaling connection
+    this.signal = new IonSFUJSONRPCSignal(this.sfuUrl);
+    this.client = new Client(this.signal, this.peerConfig); // Pass ICE config here
+
+    // Handle remote track reception
+    this.client.ontrack = (track, stream) => {
+      console.log("🎧 Remote track received:", track.kind);
+
+      if (!this.audioElement) {
+        this.audioElement = document.createElement("audio");
+        this.audioElement.autoplay = true;
+        this.audioElement.controls = true;
+        this.audioElement.muted = false;
+        document.body.appendChild(this.audioElement);
       }
-    };
-
-    this.pc.ontrack = async (event) => {
-      console.log("👥 ontrack triggered");
-
-      const remoteStream = event.streams?.[0] instanceof MediaStream
-        ? event.streams[0]
-        : new MediaStream([event.track]);
-
-      const track = remoteStream.getAudioTracks()[0];
-      if (!track) {
-        console.warn("⚠️ No audio track in remote stream");
-        return;
+      // Using RemoteStream for handling remote media
+      if (stream instanceof RemoteStream) {
+        this.audioElement.srcObject = stream;
       }
-
-      console.log("🎧 Received audio track:", {
-        id: track.id,
-        enabled: track.enabled,
-        muted: track.muted,
-        readyState: track.readyState,
-      });
 
       if (!this.audioCtx || this.audioCtx.state === "closed") {
         this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        await this.audioCtx.resume();
-        console.log("🔊 AudioContext resumed");
+        this.audioCtx.resume();
       }
 
-      try {
-        const source = this.audioCtx.createMediaStreamSource(remoteStream);
-        const gainNode = this.audioCtx.createGain();
-        gainNode.gain.value = 1.0;
-        source.connect(gainNode).connect(this.audioCtx.destination);
-        console.log("🔈 Audio routed to speakers");
-      } catch (err) {
-        console.error("❌ Failed to route audio through AudioContext", err);
-      }
-
-      const testAudio = document.createElement("audio");
-      testAudio.srcObject = remoteStream;
-      testAudio.autoplay = true;
-      testAudio.controls = true;
-      testAudio.muted = false;
-      document.body.appendChild(testAudio);
+      const source = this.audioCtx.createMediaStreamSource(stream);
+      const gainNode = this.audioCtx.createGain();
+      gainNode.gain.value = 1.0;
+      source.connect(gainNode).connect(this.audioCtx.destination);
     };
 
-    this.socketConn = new WebSocket(this.sfuUrl);
-    this.socketConn.onmessage = this.onmessage;
+    this.signal.onopen = async () => {
+      console.log("🔗 Signal connection open, joining room:", this.room);
+      await this.client.join(this.room, String(this.userID));
 
-    this.socketConn.onopen = async () => {
-      console.log("🔌 WebSocket connected");
+      // Using LocalStream to get the local media
+      const localStream = await LocalStream.getUserMedia({ audio: true, video: true }); // Request audio/video
+      this.client.publish(localStream); // Publish local stream using ion-sdk-js's client
+      console.log("📤 Local stream published");
 
-      const offer = await this.pc.createOffer();
-      await this.pc.setLocalDescription(offer);
-      console.log("📤 Sending offer SDP");
-
-      this.sendJSONRPC("join", {
-        sid: this.room,
-        uid: String(this.userID),
-        offer: {
-          type: offer.type,
-          sdp: offer.sdp,
-        },
-      });
+      // Optional: Simulcast setup if required for video
+      // await this.client.publish(localStream, { simulcast: true }); 
     };
 
-    this.socketConn.onclose = (e) => {
-      console.log("🔌 WebSocket closed:", e.reason);
-    };
-
-    this.socketConn.onerror = (err) => {
-      console.error("🚩 WebSocket error:", err);
-    };
   }
 
-  onmessage = async (msgEvent) => {
-    const msg = JSON.parse(msgEvent.data);
-    console.log("📩 Got message:", msg);
-
-    if (msg.method === "offer" && msg.params) {
-      console.log("📡 Got renegotiation offer");
-
-      await this.pc.setRemoteDescription(new RTCSessionDescription(msg.params));
-      const answer = await this.pc.createAnswer();
-      await this.pc.setLocalDescription(answer);
-
-      this.sendJSONRPC("answer", {
-        desc: {
-          type: answer.type,
-          sdp: answer.sdp,
-        },
-      });
+  async close() {
+    if (this.client) {
+      await this.client.close();
+      this.client = null;
     }
 
-    if (msg.id && msg.result?.type === "answer") {
-      console.log("✅ Setting initial remote description");
-      await this.pc.setRemoteDescription(new RTCSessionDescription(msg.result));
-      this.remoteDescriptionSet = true;
-
-      for (const candidate of this.pendingCandidates) {
-        await this.pc.addIceCandidate(candidate);
-      }
-      this.pendingCandidates = [];
-
-      // ✅ Now add audio tracks and send offer
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach((track) => {
-        console.log("🎙️ Adding track after join:", track.kind);
-        this.pc.addTrack(track, stream);
-      });
-
-      const newOffer = await this.pc.createOffer();
-      await this.pc.setLocalDescription(newOffer);
-
-      this.sendJSONRPC("offer", {
-        desc: {
-          type: newOffer.type,
-          sdp: newOffer.sdp,
-        },
-      });
+    if (this.signal) {
+      this.signal.close();
+      this.signal = null;
     }
 
-    if (msg.method === "trickle" && msg.params?.candidate) {
-      if (this.remoteDescriptionSet) {
-        await this.pc.addIceCandidate(msg.params.candidate);
-      } else {
-        console.log("⏳ Queuing ICE candidate until remoteDescription is set");
-        this.pendingCandidates.push(msg.params.candidate);
-      }
+    if (this.audioElement) {
+      this.audioElement.srcObject = null;
+      this.audioElement.remove();
+      this.audioElement = null;
     }
 
-    if (msg.method === "peer-leave" && msg.params?.uid) {
-      console.log(`👋 Peer ${msg.params.uid} left the room`);
-    }
-  };
-
-  sendJSONRPC(method, params) {
-    const payload = {
-      jsonrpc: "2.0",
-      id: String(this.messageID++),
-      method,
-      params,
-    };
-    console.log("➡️ Sending JSON-RPC:", payload);
-
-    if (this.socketConn?.readyState === WebSocket.OPEN) {
-      this.socketConn.send(JSON.stringify(payload));
-    }
-  }
-
-  close() {
-    this.sendJSONRPC("leave", {
-      sid: this.room,
-      uid: String(this.userID),
-    });
-
-    if (this.pc) {
-      this.pc.getSenders().forEach((sender) => this.pc.removeTrack(sender));
-      this.pc.close();
-      this.pc = null;
+    if (this.audioCtx) {
+      this.audioCtx.close();
+      this.audioCtx = null;
     }
 
-    if (this.socketConn && this.socketConn.readyState <= WebSocket.OPEN) {
-      this.socketConn.close();
-      this.socketConn = null;
-    }
+    console.log("🔌 RTC connection closed");
   }
 }
