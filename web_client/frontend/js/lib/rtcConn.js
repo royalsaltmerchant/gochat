@@ -31,13 +31,13 @@ export default class RTCConn {
       iceTransportPolicy: "all", // use "relay" to test TURN-only mode
     });
 
-    // const localAudio = document.createElement("audio");
-    // localAudio.srcObject = stream;
-    // localAudio.autoplay = true;
-    // localAudio.controls = true;
-    // localAudio.muted = true;
-    // document.body.appendChild(localAudio);
-
+    const audio = document.createElement("audio");
+    audio.srcObject = stream;
+    audio.autoplay = true;
+    audio.controls = true;
+    audio.muted = false;
+    document.body.appendChild(audio);
+    
     // 🎤 Add local tracks before offer
     stream.getTracks().forEach((track) => {
       console.log("🎙️ Adding track:", track.kind);
@@ -61,32 +61,65 @@ export default class RTCConn {
     };
 
     this.pc.ontrack = async (event) => {
-      // Inside ontrack:
-      const remoteStream = event.streams[0];
+      console.log("📥 ontrack triggered");
 
-      // Ensure AudioContext is resumed and available
+      // Prefer event.streams[0], but fallback to event.track
+      const remoteStream =
+        event.streams?.[0] instanceof MediaStream
+          ? event.streams[0]
+          : new MediaStream([event.track]);
+
+      const track = remoteStream.getAudioTracks()[0];
+      if (!track) {
+        console.warn("⚠️ No audio track in remote stream");
+        return;
+      }
+
+      console.log("🎧 Received audio track:", {
+        id: track.id,
+        enabled: track.enabled,
+        muted: track.muted,
+        readyState: track.readyState,
+      });
+
+      // Ensure AudioContext is ready
       if (!this.audioCtx || this.audioCtx.state === "closed") {
         this.audioCtx = new (window.AudioContext ||
           window.webkitAudioContext)();
         await this.audioCtx.resume();
+        console.log("🔊 AudioContext resumed");
       }
 
-      // Route audio to speakers
-      const source = this.audioCtx.createMediaStreamSource(remoteStream);
-      const gainNode = this.audioCtx.createGain(); // optional for volume control
-      source.connect(gainNode).connect(this.audioCtx.destination);
+      try {
+        const source = this.audioCtx.createMediaStreamSource(remoteStream);
+        const gainNode = this.audioCtx.createGain();
+        gainNode.gain.value = 1.0; // Set volume to 100%
+
+        source.connect(gainNode).connect(this.audioCtx.destination);
+        console.log("🔈 Audio routed to speakers");
+      } catch (err) {
+        console.error("❌ Failed to route audio through AudioContext", err);
+      }
+
+      // Optional: add a visible <audio> element for manual verification
+      const testAudio = document.createElement("audio");
+      testAudio.srcObject = remoteStream;
+      testAudio.autoplay = true;
+      testAudio.controls = true;
+      testAudio.muted = false;
+      document.body.appendChild(testAudio);
     };
 
-    setInterval(() => {
-      this.pc.getStats().then((stats) => {
-        console.log(stats);
-        stats.forEach((report) => {
-          console.log(report);
-          if (report.kind === "audio") {
-          }
-        });
-      });
-    }, 1000);
+    // setInterval(() => {
+    //   this.pc.getStats().then((stats) => {
+    //     console.log(stats);
+    //     stats.forEach((report) => {
+    //       console.log(report);
+    //       if (report.kind === "audio") {
+    //       }
+    //     });
+    //   });
+    // }, 1000);
 
     // 📡 WebSocket signaling
     this.socketConn = new WebSocket(this.sfuUrl);
