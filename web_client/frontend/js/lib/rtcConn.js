@@ -93,7 +93,6 @@ export default class RTCConn {
     this.socketConn.onopen = async () => {
       console.log("🔌 WebSocket connected");
 
-      // Send empty offer for initial join
       const offer = await this.pc.createOffer();
       await this.pc.setLocalDescription(offer);
       console.log("📤 Sending offer SDP");
@@ -104,25 +103,6 @@ export default class RTCConn {
         offer: {
           type: offer.type,
           sdp: offer.sdp,
-        },
-      });
-
-      // Add tracks after join
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      console.log("🎙️ Got local stream");
-
-      stream.getTracks().forEach((track) => {
-        console.log("🎙️ Adding track:", track.kind);
-        this.pc.addTrack(track, stream);
-      });
-
-      const renegotiationOffer = await this.pc.createOffer();
-      await this.pc.setLocalDescription(renegotiationOffer);
-
-      this.sendJSONRPC("offer", {
-        desc: {
-          type: renegotiationOffer.type,
-          sdp: renegotiationOffer.sdp,
         },
       });
     };
@@ -164,6 +144,23 @@ export default class RTCConn {
         await this.pc.addIceCandidate(candidate);
       }
       this.pendingCandidates = [];
+
+      // ✅ Now add audio tracks and send offer
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach((track) => {
+        console.log("🎙️ Adding track after join:", track.kind);
+        this.pc.addTrack(track, stream);
+      });
+
+      const newOffer = await this.pc.createOffer();
+      await this.pc.setLocalDescription(newOffer);
+
+      this.sendJSONRPC("offer", {
+        desc: {
+          type: newOffer.type,
+          sdp: newOffer.sdp,
+        },
+      });
     }
 
     if (msg.method === "trickle" && msg.params?.candidate) {
