@@ -1,5 +1,5 @@
-import { Client, LocalStream, RemoteStream } from 'ion-sdk-js';
-import { IonSFUJSONRPCSignal } from 'ion-sdk-js/lib/signal/json-rpc-impl';
+import { Client, LocalStream, RemoteStream } from "ion-sdk-js";
+import { IonSFUJSONRPCSignal } from "ion-sdk-js/lib/signal/json-rpc-impl";
 
 export default class RTCConnUsingIon {
   constructor(props) {
@@ -45,12 +45,11 @@ export default class RTCConnUsingIon {
         document.body.appendChild(this.audioElement);
       }
       // Using RemoteStream for handling remote media
-      if (stream instanceof RemoteStream) {
-        this.audioElement.srcObject = stream;
-      }
+      this.audioElement.srcObject = stream;
 
       if (!this.audioCtx || this.audioCtx.state === "closed") {
-        this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        this.audioCtx = new (window.AudioContext ||
+          window.webkitAudioContext)();
         this.audioCtx.resume();
       }
 
@@ -65,14 +64,16 @@ export default class RTCConnUsingIon {
       await this.client.join(this.room, String(this.userID));
 
       // Using LocalStream to get the local media
-      const localStream = await LocalStream.getUserMedia({ audio: true, video: true }); // Request audio/video
+      const localStream = await LocalStream.getUserMedia({
+        audio: true,
+        video: true,
+      }); // Request audio/video
       this.client.publish(localStream); // Publish local stream using ion-sdk-js's client
       console.log("📤 Local stream published");
 
       // Optional: Simulcast setup if required for video
-      // await this.client.publish(localStream, { simulcast: true }); 
+      // await this.client.publish(localStream, { simulcast: true });
     };
-
   }
 
   async close() {
