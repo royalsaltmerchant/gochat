@@ -64,7 +64,7 @@ class ChatBoxComponent {
       createElement("div", {}, [
         createElement("button", { class: "chat-box-btn" }, "🔊", {
           type: "click",
-          event:async () => {
+          event: async () => {
             if (!this.voiceChannelActive) {
               console.log("Starting Voice channel...");
               this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -79,6 +79,9 @@ class ChatBoxComponent {
             } else {
               if (this.voiceManager) {
                 this.voiceManager.leaveVoice();
+                this.audioCtx = null;
+                this.voiceManager = null;
+                this.voiceChannelActive = false;
               }
             }
           },
