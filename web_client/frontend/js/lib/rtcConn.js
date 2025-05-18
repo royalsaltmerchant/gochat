@@ -1,5 +1,6 @@
 export default class RTCConn {
   constructor(props) {
+    this.audioCtx = props.audioCtx;
     this.room = props.room;
     this.userID = props.userID;
 
@@ -59,25 +60,33 @@ export default class RTCConn {
       }
     };
 
-    this.pc.ontrack = (event) => {
-      console.log("📥 Received remote track:", event.track.kind);
-      const audio = document.createElement("audio");
-      audio.srcObject = event.streams[0];
-      audio.autoplay = true;
-      audio.controls = true;
-      audio.muted = false;
-      audio.onplay = () => console.log("🔊 Audio is playing");
-      audio.onerror = (e) => console.error("❌ Audio error:", e);
-      document.body.appendChild(audio);
+    this.pc.ontrack = async (event) => {
+      // Inside ontrack:
+      const remoteStream = event.streams[0];
+
+      // Ensure AudioContext is resumed and available
+      if (!this.audioCtx || this.audioCtx.state === "closed") {
+        this.audioCtx = new (window.AudioContext ||
+          window.webkitAudioContext)();
+        await this.audioCtx.resume();
+      }
+
+      // Route audio to speakers
+      const source = this.audioCtx.createMediaStreamSource(remoteStream);
+      const gainNode = this.audioCtx.createGain(); // optional for volume control
+      source.connect(gainNode).connect(this.audioCtx.destination);
     };
 
-    // setInterval(() => {
-    //   this.pc.getStats(null).then((stats) => {
-    //     stats.forEach((report) => {
-    //       console.log(report)
-    //     });
-    //   });
-    // }, 1000);
+    setInterval(() => {
+      this.pc.getStats().then((stats) => {
+        console.log(stats);
+        stats.forEach((report) => {
+          console.log(report);
+          if (report.kind === "audio") {
+          }
+        });
+      });
+    }, 1000);
 
     // 📡 WebSocket signaling
     this.socketConn = new WebSocket(this.sfuUrl);

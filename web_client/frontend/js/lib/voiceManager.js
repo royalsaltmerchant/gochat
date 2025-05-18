@@ -1,8 +1,9 @@
 import RTCConn from "./rtcConn.js";
 
 export default class VoiceManager {
-  constructor() {
+  constructor(audioCtx) {
     this.currentRTCConn = null;
+    this.audioCtx = audioCtx;
   }
 
   joinVoice({ room, userID }) {
@@ -11,6 +12,7 @@ export default class VoiceManager {
     }
 
     this.currentRTCConn = new RTCConn({
+      audioCtx: this.audioCtx,
       room,
       userID: userID,
     });

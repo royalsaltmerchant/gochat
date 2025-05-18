@@ -42,6 +42,7 @@ class ChatBoxComponent {
 
     this.voiceChannelActive = false;
     this.voiceManager = null;
+    this.audioCtx = null;
 
     this.chatBoxMessagesComponent = new ChatBoxMessagesComponent({
       domComponent: createElement("div", {
@@ -63,10 +64,13 @@ class ChatBoxComponent {
       createElement("div", {}, [
         createElement("button", { class: "chat-box-btn" }, "🔊", {
           type: "click",
-          event: () => {
+          event:async () => {
             if (!this.voiceChannelActive) {
               console.log("Starting Voice channel...");
-              this.voiceManager = new VoiceManager();
+              this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+              await this.audioCtx.resume(); // <- this unlocks autoplay
+
+              this.voiceManager = new VoiceManager(this.audioCtx);
               this.voiceManager.joinVoice({
                 room: this.channelUUID,
                 userID: this.data.user.id,
