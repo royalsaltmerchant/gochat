@@ -31,13 +31,13 @@ export default class RTCConn {
       iceTransportPolicy: "all", // use "relay" to test TURN-only mode
     });
 
-    const audio = document.createElement("audio");
-    audio.srcObject = stream;
-    audio.autoplay = true;
-    audio.controls = true;
-    audio.muted = false;
-    document.body.appendChild(audio);
-    
+    // const audio = document.createElement("audio");
+    // audio.srcObject = stream;
+    // audio.autoplay = true;
+    // audio.controls = true;
+    // audio.muted = false;
+    // document.body.appendChild(audio);
+
     // 🎤 Add local tracks before offer
     stream.getTracks().forEach((track) => {
       console.log("🎙️ Adding track:", track.kind);
