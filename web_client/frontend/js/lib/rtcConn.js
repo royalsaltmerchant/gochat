@@ -5,7 +5,7 @@ export default class RTCConn {
     this.userID = props.userID;
 
     this.sfuUrl = "ws://99.36.161.96:7000/ws";
-    this.turnUrl = "turn:99.36.161.96:3478?transport=udp"; // replace with your actual TURN
+    this.turnUrl = "turn:99.36.161.96:3478?transport=udp";
 
     this.socketConn = null;
     this.pc = null;
@@ -16,9 +16,6 @@ export default class RTCConn {
   }
 
   async start() {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    console.log("🎙️ Got local stream");
-
     this.pc = new RTCPeerConnection({
       iceServers: [
         {
@@ -28,23 +25,9 @@ export default class RTCConn {
         },
         { urls: "stun:stun.l.google.com:19302" },
       ],
-      iceTransportPolicy: "all", // use "relay" to test TURN-only mode
+      iceTransportPolicy: "all",
     });
 
-    // const audio = document.createElement("audio");
-    // audio.srcObject = stream;
-    // audio.autoplay = true;
-    // audio.controls = true;
-    // audio.muted = false;
-    // document.body.appendChild(audio);
-
-    // 🎤 Add local tracks before offer
-    stream.getTracks().forEach((track) => {
-      console.log("🎙️ Adding track:", track.kind);
-      this.pc.addTrack(track, stream);
-    });
-
-    // 🔊 ICE + Track handling
     this.pc.onicecandidate = (event) => {
       if (event.candidate) {
         this.sendJSONRPC("trickle", { candidate: event.candidate });
@@ -61,13 +44,11 @@ export default class RTCConn {
     };
 
     this.pc.ontrack = async (event) => {
-      console.log("📥 ontrack triggered");
+      console.log("👥 ontrack triggered");
 
-      // Prefer event.streams[0], but fallback to event.track
-      const remoteStream =
-        event.streams?.[0] instanceof MediaStream
-          ? event.streams[0]
-          : new MediaStream([event.track]);
+      const remoteStream = event.streams?.[0] instanceof MediaStream
+        ? event.streams[0]
+        : new MediaStream([event.track]);
 
       const track = remoteStream.getAudioTracks()[0];
       if (!track) {
@@ -82,10 +63,8 @@ export default class RTCConn {
         readyState: track.readyState,
       });
 
-      // Ensure AudioContext is ready
       if (!this.audioCtx || this.audioCtx.state === "closed") {
-        this.audioCtx = new (window.AudioContext ||
-          window.webkitAudioContext)();
+        this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         await this.audioCtx.resume();
         console.log("🔊 AudioContext resumed");
       }
@@ -93,15 +72,13 @@ export default class RTCConn {
       try {
         const source = this.audioCtx.createMediaStreamSource(remoteStream);
         const gainNode = this.audioCtx.createGain();
-        gainNode.gain.value = 1.0; // Set volume to 100%
-
+        gainNode.gain.value = 1.0;
         source.connect(gainNode).connect(this.audioCtx.destination);
         console.log("🔈 Audio routed to speakers");
       } catch (err) {
         console.error("❌ Failed to route audio through AudioContext", err);
       }
 
-      // Optional: add a visible <audio> element for manual verification
       const testAudio = document.createElement("audio");
       testAudio.srcObject = remoteStream;
       testAudio.autoplay = true;
@@ -110,24 +87,13 @@ export default class RTCConn {
       document.body.appendChild(testAudio);
     };
 
-    // setInterval(() => {
-    //   this.pc.getStats().then((stats) => {
-    //     console.log(stats);
-    //     stats.forEach((report) => {
-    //       console.log(report);
-    //       if (report.kind === "audio") {
-    //       }
-    //     });
-    //   });
-    // }, 1000);
-
-    // 📡 WebSocket signaling
     this.socketConn = new WebSocket(this.sfuUrl);
     this.socketConn.onmessage = this.onmessage;
 
     this.socketConn.onopen = async () => {
       console.log("🔌 WebSocket connected");
 
+      // Send empty offer for initial join
       const offer = await this.pc.createOffer();
       await this.pc.setLocalDescription(offer);
       console.log("📤 Sending offer SDP");
@@ -140,6 +106,25 @@ export default class RTCConn {
           sdp: offer.sdp,
         },
       });
+
+      // Add tracks after join
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      console.log("🎙️ Got local stream");
+
+      stream.getTracks().forEach((track) => {
+        console.log("🎙️ Adding track:", track.kind);
+        this.pc.addTrack(track, stream);
+      });
+
+      const renegotiationOffer = await this.pc.createOffer();
+      await this.pc.setLocalDescription(renegotiationOffer);
+
+      this.sendJSONRPC("offer", {
+        desc: {
+          type: renegotiationOffer.type,
+          sdp: renegotiationOffer.sdp,
+        },
+      });
     };
 
     this.socketConn.onclose = (e) => {
@@ -147,7 +132,7 @@ export default class RTCConn {
     };
 
     this.socketConn.onerror = (err) => {
-      console.error("🛑 WebSocket error:", err);
+      console.error("🚩 WebSocket error:", err);
     };
   }
 
@@ -155,7 +140,6 @@ export default class RTCConn {
     const msg = JSON.parse(msgEvent.data);
     console.log("📩 Got message:", msg);
 
-    // 🧠 Renegotiation offer from SFU
     if (msg.method === "offer" && msg.params) {
       console.log("📡 Got renegotiation offer");
 
@@ -171,7 +155,6 @@ export default class RTCConn {
       });
     }
 
-    // // ✅ Join response
     if (msg.id && msg.result?.type === "answer") {
       console.log("✅ Setting initial remote description");
       await this.pc.setRemoteDescription(new RTCSessionDescription(msg.result));
@@ -183,7 +166,6 @@ export default class RTCConn {
       this.pendingCandidates = [];
     }
 
-    // // ❄️ Trickle ICE
     if (msg.method === "trickle" && msg.params?.candidate) {
       if (this.remoteDescriptionSet) {
         await this.pc.addIceCandidate(msg.params.candidate);
@@ -193,7 +175,6 @@ export default class RTCConn {
       }
     }
 
-    // 👋 Peer left
     if (msg.method === "peer-leave" && msg.params?.uid) {
       console.log(`👋 Peer ${msg.params.uid} left the room`);
     }
