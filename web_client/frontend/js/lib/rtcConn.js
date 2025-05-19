@@ -66,7 +66,7 @@ export default class RTCConnUsingIon {
       // Using LocalStream to get the local media
       const localStream = await LocalStream.getUserMedia({
         audio: true,
-        video: true,
+        video: false,
       }); // Request audio/video
       this.client.publish(localStream); // Publish local stream using ion-sdk-js's client
       console.log("📤 Local stream published");

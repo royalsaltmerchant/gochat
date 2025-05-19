@@ -40,16 +40,21 @@ class ChatBoxComponent {
     this.socketConn = props.socketConn;
     this.channelUUID = props.channelUUID;
 
-    this.voiceChannelActive = false;
-    this.voiceManager = null;
-    this.audioCtx = null;
-
     this.chatBoxMessagesComponent = new ChatBoxMessagesComponent({
       domComponent: createElement("div", {
         class: "chat-box-messages",
         id: "chat-box-messages",
       }),
       channelUUID: this.channelUUID,
+    });
+
+    this.voiceChatComponent = new VoiceChatComponent({
+      domComponent: createElement("div", {
+        class: "voice-chat-component",
+        id: "voice-chat-component",
+      }),
+      channUUID: this.channelUUID,
+      user: this.data.user,
     });
 
     this.render();
@@ -62,30 +67,7 @@ class ChatBoxComponent {
     this.domComponent.append(
       this.chatBoxMessagesComponent.domComponent,
       createElement("div", {}, [
-        createElement("button", { class: "chat-box-btn" }, "🔊", {
-          type: "click",
-          event: async () => {
-            if (!this.voiceChannelActive) {
-              console.log("Starting Voice channel...");
-              this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-              await this.audioCtx.resume(); // <- this unlocks autoplay
-
-              this.voiceManager = new VoiceManager(this.audioCtx);
-              this.voiceManager.joinVoice({
-                room: this.channelUUID,
-                userID: this.data.user.id,
-              });
-              this.voiceChannelActive = true;
-            } else {
-              if (this.voiceManager) {
-                this.voiceManager.leaveVoice();
-                this.audioCtx = null;
-                this.voiceManager = null;
-                this.voiceChannelActive = false;
-              }
-            }
-          },
-        }),
+        this.voiceChatComponent.domComponent,
         createElement(
           "form",
           { class: "chat-box-form" },
@@ -207,6 +189,53 @@ class ChatBoxMessagesComponent {
     this.domComponent.innerHTML = "";
     // render
     this.domComponent.append(...this.renderMessages());
+  };
+}
+
+class VoiceChatComponent {
+  constructor(props) {
+    this.domComponent = props.domComponent;
+    this.channelUUID = props.channelUUID;
+    this.user = props.user;
+
+    this.voiceChannelActive = false;
+    this.voiceManager = null;
+    this.audioCtx = null;
+
+    this.render();
+  }
+
+  render = () => {
+    this.domComponent.innerHTML = "";
+    this.domComponent.append(
+      createElement("button", { class: this.voiceChannelActive ? "chat-box-btn-active" : "chat-box-btn" }, "🔊", {
+        type: "click",
+        event: async () => {
+          if (!this.voiceChannelActive) {
+            console.log("Starting Voice channel...");
+            this.audioCtx = new (window.AudioContext ||
+              window.webkitAudioContext)();
+            await this.audioCtx.resume(); // <- this unlocks autoplay
+
+            this.voiceManager = new VoiceManager(this.audioCtx);
+            this.voiceManager.joinVoice({
+              room: this.channelUUID,
+              userID: this.user.id,
+            });
+            this.voiceChannelActive = true;
+            this.render();
+          } else {
+            if (this.voiceManager) {
+              this.voiceManager.leaveVoice();
+              this.audioCtx = null;
+              this.voiceManager = null;
+              this.voiceChannelActive = false;
+              this.render();
+            }
+          }
+        },
+      })
+    );
   };
 }
 

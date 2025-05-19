@@ -24,7 +24,7 @@ class App {
       this.dashboard.mainContent.render();
     }
     if (this.dashboard.dashModal) {
-      this.dashboard.closeDashModal()
+      this.dashboard.closeDashModal();
     }
     this.dashboard.socketConn.hardClose();
 
@@ -140,7 +140,7 @@ export default class HostForm {
       createElement("button", {}, "Return To List", {
         type: "click",
         event: () => {
-          this.render({ type: "knwon" });
+          this.render({ type: "known" });
         },
       })
     );

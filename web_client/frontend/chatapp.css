@@ -49,11 +49,26 @@
   padding: 5px 10px;
 }
 
+.chat-box-btn:hover {
+  background: var(--light-green);
+}
+
+.chat-box-btn-active {
+  padding: 5px 10px;
+  background-color: var(--light-yellow);
+}
+
+.chat-box-btn-active:hover {
+  background: var(--light-red);
+}
+
 @keyframes highlightFade {
   from {
     background-color: var(--light-yellow);
   }
+
   to {
-    background-color: inherit; /* or your normal bg color */
+    background-color: inherit;
+    /* or your normal bg color */
   }
 }
