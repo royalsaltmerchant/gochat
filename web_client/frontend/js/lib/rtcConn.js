@@ -1,5 +1,6 @@
 import { Client, LocalStream, RemoteStream } from "ion-sdk-js";
 import { IonSFUJSONRPCSignal } from "ion-sdk-js/lib/signal/json-rpc-impl";
+import { relayBaseURL } from "./config.js";
 
 export default class RTCConnUsingIon {
   constructor(props) {
@@ -8,27 +9,43 @@ export default class RTCConnUsingIon {
     this.userID = props.userID;
 
     this.sfuUrl = "ws://99.36.161.96:7000/ws"; // Update this as needed
+    this.peerConfig = null;
 
     this.signal = null;
     this.client = null;
     this.audioElement = null;
 
-    this.peerConfig = {
-      iceServers: [
-        {
-          urls: "turn:99.36.161.96:3478?transport=udp",
-          username: "1747510821",
-          credential: "9U9t8QqEdHbKF71Fv4sU9GmN0vw",
-        },
-        {
-          urls: "stun:stun.l.google.com:19302",
-        },
-      ],
-      iceTransportPolicy: "all",
-    };
+    this.init();
   }
 
-  async start() {
+  init = async () => {
+    try {
+      const res = await fetch(`${relayBaseURL}/api/turn_credentials`);
+      const data = await res.json();
+      if (res.ok) {
+        this.peerConfig = {
+          iceServers: [
+            {
+              urls: data.url,
+              username: data.username,
+              credential: data.credential,
+              credentialType: "password",
+            },
+            {
+              urls: "stun:stun.l.google.com:19302",
+            },
+          ],
+          iceTransportPolicy: "all",
+        };
+        console.log(this.peerConfig)
+      } else throw new Error("Failed to fetch credentials for TURN server");
+    } catch (err) {
+      console.log(err);
+      window.go.main.App.Alert("Failed to fetch credentials for TURN server");
+    }
+  };
+
+  start = async () => {
     // Initialize the signaling connection
     this.signal = new IonSFUJSONRPCSignal(this.sfuUrl);
     this.client = new Client(this.signal, this.peerConfig); // Pass ICE config here
@@ -74,11 +91,11 @@ export default class RTCConnUsingIon {
       // Optional: Simulcast setup if required for video
       // await this.client.publish(localStream, { simulcast: true });
     };
-  }
+  };
 
-  async close() {
+  close = async () => {
     if (this.client) {
-      await this.client.close();
+      this.client.close();
       this.client = null;
     }
 
@@ -99,5 +116,5 @@ export default class RTCConnUsingIon {
     }
 
     console.log("🔌 RTC connection closed");
-  }
+  };
 }

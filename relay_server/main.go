@@ -13,6 +13,7 @@ import (
 	"net/http"
 
 	ratelimit "github.com/JGLTechnologies/gin-rate-limit"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	_ "github.com/mattn/go-sqlite3"
@@ -63,6 +64,9 @@ func main() {
 		KeyFunc:      keyFunc,
 	}))
 
+	// CORS
+	r.Use(cors.Default())
+
 	m := &webrtc.MediaEngine{}
 	_ = m.RegisterDefaultCodecs()
 	rtcapi := webrtc.NewAPI(webrtc.WithMediaEngine(m))
@@ -76,6 +80,7 @@ func main() {
 	r.POST("/api/user_by_id", HandleGetUserByID)
 	r.POST("/api/user_by_email", HandleGetUserByEmail)
 	r.POST("/api/users_by_ids", HandleGetUsersByIDs)
+	r.GET("/api/turn_credentials", HandleGetTurnCredentials)
 
 	// Create HTTP server manually so we can shut it down
 	server := &http.Server{
