@@ -489,13 +489,15 @@ export default class SocketConn {
     }
   };
 
-  getMessages = () => {
+  getMessages = (timestamp) => {
     console.log("Attempting to get messages:");
     if (this.socket?.readyState === WebSocket.OPEN) {
       console.log("Socket is open, sending message");
       const wsMessage = {
         type: "get_messages",
-        data: "",
+        data: {
+          "before_unix_time": timestamp
+        },
       };
       this.socket.send(JSON.stringify(wsMessage));
     } else {

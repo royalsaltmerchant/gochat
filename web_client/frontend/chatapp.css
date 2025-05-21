@@ -15,13 +15,6 @@
   word-wrap: break-word;
 }
 
-.chat-box-messages * {
-  padding: 3px;
-  user-select: text;
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-}
 
 .chat-box-messages br {
   margin-left: 2.5px;
@@ -30,20 +23,36 @@
 
 .chat-box-message-content {
   display: flex;
-  flex-direction: row;
-  align-items: center;
+  flex-direction: column;
+  padding: var(--main-distance);
+}
+
+.chat-box-message-text {
+  color: var(--main-white);
+  word-break: break-word;
+  /* ✅ key for long words */
+  white-space: pre-wrap;
+  /* ✅ keep newlines, allow wrapping */
+
 }
 
 .chat-box-form {
   display: flex;
-  align-items: center;
+  flex-direction: column;
 }
 
-.chat-box-form input {
-  flex: 1;
+.chat-box-form-input {
   padding: 5px 10px;
   background-color: var(--dark-blue);
+  resize: none;
+  overflow: hidden;
+  line-height: 1.4;
+  max-height: 300px;
+  font: inherit;
+  color: var(--bright-white);
+  outline: none;
 }
+
 
 .chat-box-btn {
   padding: 5px 10px;

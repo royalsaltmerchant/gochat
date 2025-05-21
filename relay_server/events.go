@@ -645,7 +645,13 @@ func handleChatMessage(client *Client, conn *websocket.Conn, wsMsg *WSMessage) {
 	})
 }
 
-func handleGetMessages(client *Client, conn *websocket.Conn) {
+func handleGetMessages(client *Client, conn *websocket.Conn, wsMsg *WSMessage) {
+	data, err := decodeData[GetMessagesClient](wsMsg.Data)
+	if err != nil {
+		safeSend(client, conn, WSMessage{Type: "error", Data: ChatError{Content: "Invalid chat message data"}})
+		return
+	}
+
 	host, exists := GetHost(client.HostUUID)
 	if !exists {
 		log.Printf("host %s not found\n", client.HostUUID)
@@ -670,8 +676,9 @@ func handleGetMessages(client *Client, conn *websocket.Conn) {
 	SendToAuthor(client, WSMessage{
 		Type: "get_messages_request",
 		Data: GetMessagesRequest{
-			ChannelUUID: channelUUID,
-			ClientUUID:  client.ClientUUID,
+			ChannelUUID:    channelUUID,
+			ClientUUID:     client.ClientUUID,
+			BeforeUnixTime: data.BeforeUnixTime,
 		},
 	})
 }
@@ -706,8 +713,9 @@ func handleGetMessagesRes(client *Client, conn *websocket.Conn, wsMsg *WSMessage
 	SendToClient(client.HostUUID, data.ClientUUID, WSMessage{
 		Type: "get_messages_success",
 		Data: GetMessagesSuccess{
-			Messages:    data.Messages,
-			ChannelUUID: data.ChannelUUID,
+			Messages:        data.Messages,
+			ChannelUUID:     data.ChannelUUID,
+			HasMoreMessages: data.HasMoreMessages,
 		},
 	})
 }

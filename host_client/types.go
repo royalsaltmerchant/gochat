@@ -242,8 +242,9 @@ type SaveChatMessageRequest struct {
 }
 
 type GetMessagesRequest struct {
-	ChannelUUID string `json:"channel_uuid"`
-	ClientUUID  string `json:"client_uuid"`
+	ChannelUUID    string `json:"channel_uuid"`
+	ClientUUID     string `json:"client_uuid"`
+	BeforeUnixTime string `json:"before_unix_time"` // optional
 }
 
 type GetMessagesMessage struct {
@@ -256,7 +257,8 @@ type GetMessagesMessage struct {
 }
 
 type GetMessagesResponse struct {
-	Messages    []GetMessagesMessage `json:"messages"`
-	ChannelUUID string               `json:"channel_uuid"`
-	ClientUUID  string               `json:"client_uuid"`
+	Messages        []GetMessagesMessage `json:"messages"`
+	HasMoreMessages bool                 `json:"has_more_messages"`
+	ChannelUUID     string               `json:"channel_uuid"`
+	ClientUUID      string               `json:"client_uuid"`
 }

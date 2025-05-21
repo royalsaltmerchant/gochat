@@ -55,6 +55,14 @@ br {
   margin-top: var(--main-distance);
 }
 
+hr {
+  height: 1px;
+
+  border: none;
+  background-color: var(--main-gray);
+  margin: 8px 0;
+}
+
 main {
   padding: 15px 30px;
 }
@@ -224,8 +232,9 @@ button:focus {
 }
 
 .host-list-index {
-  height:  300px;
-  width: 200px;;
+  height: 300px;
+  width: 200px;
+  ;
   padding: 10px;
   border-width: 2px;
   border-style: solid;
