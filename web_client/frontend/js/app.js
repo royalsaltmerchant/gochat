@@ -1,5 +1,6 @@
 import createElement from "./components/createElement.js";
 import DashboardApp from "./dashboard.js";
+import { relayBaseURL } from "./lib/config.js";
 
 class App {
   constructor() {
@@ -61,24 +62,79 @@ export default class HostForm {
     }
 
     return hosts.map((host) => {
-      return createElement("div", { class: "host-item" }, `${host.name} `, {
-        type: "click",
-        event: () => {
-          localStorage.setItem("hostUUID", host.uuid);
-          this.app.render({ type: "dash" });
-        },
-      });
+      const hostOnline = host.online == 1 ? true : false;
+      return createElement(
+        "div",
+        { class: "host-item" },
+        [
+          createElement(
+            "div",
+            { style: "display: flex; align-items: baseline" },
+            [
+              createElement("span", {
+                class: hostOnline ? "host-online-span" : "host-offline-span",
+              }),
+              createElement(
+                "div",
+                { class: "host-item-name" },
+                `${host.name} `
+              ),
+            ]
+          ),
+          createElement("button", { class: "btn-small btn-red" }, "Remove", {
+            type: "click",
+            event: (event) => {
+              event.stopPropagation();
+              window.go.main.App.Confirm(
+                "Are you sure you want to remove this host?"
+              ).then((confirmed) => {
+                if (confirmed) {
+                  window.go.main.App.RemoveHost(host.uuid);
+                  event.target.parentElement.remove();
+                }
+              });
+            },
+          }),
+        ],
+        {
+          type: "click",
+          event: () => {
+            if (hostOnline) {
+              localStorage.setItem("hostUUID", host.uuid);
+              this.app.render({ type: "dash" });
+            } else window.go.main.App.Alert("Host is not online");
+          },
+        }
+      );
     });
   };
 
   renderKnownHosts = async () => {
     const hosts = await window.go.main.App.GetHosts();
+    const hostUUIDs = hosts.map((host) => host.uuid);
+
+    // Get hosts by UUID from relay API
+    const res = await fetch(`${relayBaseURL}/api/hosts_by_uuids`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ uuids: hostUUIDs }),
+    });
+    const hostsData = await res.json();
 
     this.domComponent.append(
       createElement("h2", {}, "Select From Known Hosts"),
       createElement("br"),
+      createElement("button", {}, "Refresh", {
+        type: "click",
+        event: () => {
+          this.render({ type: "known" });
+        },
+      }),
+      createElement("br"),
       createElement("div", { class: "host-list-index" }, [
-        ...this.renderHostList(hosts),
+        ...this.renderHostList(hostsData.hosts),
       ]),
       createElement("br"),
       createElement("div", {}, "Or"),

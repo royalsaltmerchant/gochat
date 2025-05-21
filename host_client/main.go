@@ -48,5 +48,18 @@ func main() {
 
 	log.Println("Interrupt received, shutting down...")
 	cancel()
+
+	// Try to send notice of offline to relay
+	payload := map[string]string{
+		"author_id": cfg.AuthorID,
+	}
+
+	resp, err := PostJSON(relayBaseURL.String()+"/api/host_offline/"+cfg.UUID, payload, nil)
+	if err != nil {
+		log.Println("Error:", err)
+		return
+	}
+	defer resp.Body.Close()
+
 	time.Sleep(1 * time.Second)
 }

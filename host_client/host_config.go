@@ -26,13 +26,19 @@ type HostConfig struct {
 // }
 
 func getConfigPath() (string, error) {
-	execPath, err := os.Executable()
+	configDir, err := os.UserConfigDir()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("unable to get user config directory: %w", err)
 	}
-	execDir := filepath.Dir(execPath)
-	log.Println(execDir)
-	return filepath.Join(execDir, "host_config.json"), nil
+
+	appDir := filepath.Join(configDir, "ParchHost")
+	if err := os.MkdirAll(appDir, 0755); err != nil {
+		return "", fmt.Errorf("unable to create config directory: %w", err)
+	}
+
+	configPath := filepath.Join(appDir, "host_config.json")
+	log.Println("Using config path:", configPath)
+	return configPath, nil
 }
 
 func LoadOrInitHostConfig() (*HostConfig, error) {

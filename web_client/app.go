@@ -11,9 +11,11 @@ type App struct {
 	ctx          context.Context
 	HostManager  *HostManager
 	TokenManager *AuthTokenManager
+	relayBaseURL string
 }
 
 func NewApp() *App {
+
 	hostMgr, err := NewHostManager()
 	if err != nil {
 		panic("Failed to create host manager: " + err.Error())
@@ -25,6 +27,7 @@ func NewApp() *App {
 	}
 
 	return &App{
+		relayBaseURL: "http://99.36.161.96:8000",
 		HostManager:  hostMgr,
 		TokenManager: tokenMgr,
 	}
@@ -66,8 +69,12 @@ func (a *App) GetHosts() ([]Host, error) {
 	return a.HostManager.GetHosts()
 }
 
-func (a *App) VerifyHostKey(hostUUID string) (string, error) {
-	return a.HostManager.VerifyHostKey(hostUUID)
+func (a *App) VerifyHostKey(hostUUID string) (interface{}, error) {
+	return a.HostManager.VerifyHostKey(hostUUID, a.relayBaseURL)
+}
+
+func (a *App) RemoveHost(hostUUID string) error {
+	return a.HostManager.RemoveHost(hostUUID)
 }
 
 // Updated TokenManager methods for single-token storage

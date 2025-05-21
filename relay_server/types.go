@@ -474,3 +474,15 @@ type TurnCredentialsResponse struct {
 type SDPOfferClient struct {
 	Offer webrtc.SessionDescription `json:"offer"`
 }
+
+type ClientHost struct {
+	ID       int    `json:"id"`
+	UUID     string `json:"uuid"`
+	Name     string `json:"name"`
+	AuthorID string `json:"author_id"`
+	Online   bool   `json:"online"`
+}
+
+type UUIDListRequest struct {
+	UUIDs []string `json:"uuids"`
+}

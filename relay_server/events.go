@@ -40,6 +40,9 @@ func registerOrCreateHost(hostUUID, potentialAuthorID string, conn *websocket.Co
 		host.mu.Lock()
 		host.ConnByAuthorID[potentialAuthorID] = conn
 		host.mu.Unlock()
+
+		// Set host to online
+		HandleUpdateHostOnline(hostUUID)
 	}
 
 	return host, nil

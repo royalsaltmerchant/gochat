@@ -73,42 +73,45 @@ func handleGetMessages(conn *websocket.Conn, wsMsg *WSMessage) {
 		log.Println("Row iteration error:", err)
 	}
 
-	// Deduplicate user_ids
-	var userIDs []int
-	for uid := range userIDSet {
-		userIDs = append(userIDs, uid)
-	}
-
-	// Make batch API request
-	payload := map[string][]int{
-		"user_ids": userIDs,
-	}
-	resp, err := PostJSON(relayBaseURL.String()+"/api/users_by_ids", payload, nil)
-	if err != nil {
-		log.Println("Error fetching user info:", err)
-		return
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == 400 {
-		log.Println("User not found by ID")
-	}
-
 	var users []DashDataUser
-	if err := json.NewDecoder(resp.Body).Decode(&users); err != nil {
-		log.Println("Error decoding user list:", err)
-		return
-	}
 
-	// Create user_id → username map
-	userMap := make(map[int]string)
-	for _, user := range users {
-		userMap[user.ID] = user.Username
-	}
+	if len(messages) > 0 {
+		// Deduplicate user_ids
+		var userIDs []int
+		for uid := range userIDSet {
+			userIDs = append(userIDs, uid)
+		}
 
-	// Assign usernames
-	for i := range messages {
-		messages[i].Username = userMap[messages[i].UserID]
+		// Make batch API request
+		payload := map[string][]int{
+			"user_ids": userIDs,
+		}
+		resp, err := PostJSON(relayBaseURL.String()+"/api/users_by_ids", payload, nil)
+		if err != nil {
+			log.Println("Error fetching user info:", err)
+			return
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode == 400 {
+			log.Println("User not found by ID")
+		}
+
+		if err := json.NewDecoder(resp.Body).Decode(&users); err != nil {
+			log.Println("Error decoding user list:", err)
+			return
+		}
+
+		// Create user_id → username map
+		userMap := make(map[int]string)
+		for _, user := range users {
+			userMap[user.ID] = user.Username
+		}
+
+		// Assign usernames
+		for i := range messages {
+			messages[i].Username = userMap[messages[i].UserID]
+		}
 	}
 
 	hasMoreMessages := false

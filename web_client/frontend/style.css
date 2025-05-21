@@ -232,31 +232,49 @@ button:focus {
 }
 
 .host-list-index {
+  display: flex;
+  flex-direction: column;
   height: 300px;
-  width: 200px;
+  width: 400px;
   ;
-  padding: 10px;
   border-width: 2px;
   border-style: solid;
   border-color: var(--main-gray);
 }
 
 .host-item {
+  padding: 10px;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
   cursor: pointer;
-  font-size: 20px;
 }
 
 .host-item:hover {
-  text-decoration: underline;
+  background: var(--dark-blue);
 }
 
-footer {
-  margin-top: auto;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+.host-item-name {
+  margin-left: 20px;
+  font-size: 20px;
 }
+
+.host-online-span,
+.host-offline-span {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+}
+
+.host-online-span {
+  background-color: var(--light-green);
+}
+
+.host-offline-span {
+  background-color: var(--main-gray);
+}
+
 
 /* spinner */
 .initial-spinner {

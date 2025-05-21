@@ -80,8 +80,7 @@ func handleCreateSpace(conn *websocket.Conn, wsMsg *WSMessage) {
 		return
 	}
 
-	space.Channels = append(space.Channels, channel)
-	space.Users = append(space.Users, DashDataUser{})
+	AppendspaceChannelsAndUsers(&space)
 
 	sendToConn(conn, WSMessage{
 		Type: "create_space_response",

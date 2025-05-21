@@ -20,7 +20,7 @@ import (
 	"github.com/pion/webrtc/v3"
 )
 
-//go:embed relay-migrations
+//go:embed relay-migrations/*.sql
 var MigrationFiles embed.FS
 
 func keyFunc(c *gin.Context) string {
@@ -76,6 +76,8 @@ func main() {
 		HandleSocket(c, rtcapi)
 	})
 	r.GET("/api/host/:uuid", HandleGetHost)
+	r.POST("/api/hosts_by_uuids", HandleGetHostsByUUIDs)
+	r.POST("/api/host_offline/:uuid", HandleUpdateHostOffline)
 	r.POST("/api/register_host", HandleRegisterHost)
 	r.POST("/api/user_by_id", HandleGetUserByID)
 	r.POST("/api/user_by_email", HandleGetUserByEmail)

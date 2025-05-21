@@ -287,6 +287,7 @@ export default class DashboardApp {
 
   handleIncomingMessages = (data) => {
     if (
+      data.data.messages &&
       this.mainContent.chatApp &&
       this.mainContent.chatApp.chatBoxComponent.channelUUID ===
         data.data.channel_uuid

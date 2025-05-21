@@ -19,7 +19,7 @@ func NewAuthTokenManager() (*AuthTokenManager, error) {
 	if err != nil {
 		return nil, err
 	}
-	path := filepath.Join(configDir, "gochat", "auth_token.json")
+	path := filepath.Join(configDir, "ParchClient", "auth_token.json")
 
 	// Ensure directory exists
 	err = os.MkdirAll(filepath.Dir(path), 0755)
