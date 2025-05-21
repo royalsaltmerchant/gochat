@@ -20,8 +20,9 @@ class ChatApp {
     });
 
     this.render();
-    // Get previous messages
-    this.socketConn.getMessages();
+    // Init with first batch of previous messages
+    const anchorTime = new Date().toISOString(); // RFC3339 format
+    this.socketConn.getMessages(anchorTime);
   };
 
   render = () => {
@@ -46,6 +47,7 @@ class ChatBoxComponent {
         id: "chat-box-messages",
       }),
       channelUUID: this.channelUUID,
+      socketConn: this.socketConn,
     });
 
     this.voiceChatComponent = new VoiceChatComponent({
@@ -66,34 +68,46 @@ class ChatBoxComponent {
     // render
     this.domComponent.append(
       this.chatBoxMessagesComponent.domComponent,
-      createElement("div", {}, [
-        this.voiceChatComponent.domComponent,
+      this.voiceChatComponent.domComponent,
+      createElement("div", { class: "chat-box-form" }, [
         createElement(
-          "form",
-          { class: "chat-box-form" },
-          [
-            createElement("input", {
-              id: "chat-box-form-input",
-              autofocus: true,
-              type: "text",
-              required: true,
-              autocomplete: "off",
-              placeholder: "Type message here...",
-            }),
-            createElement("button", { class: "chat-box-btn" }, "Send"),
-          ],
+          "textarea",
           {
-            type: "submit",
-            event: (e) => {
-              e.preventDefault();
-              const content = e.target.elements["chat-box-form-input"].value;
-              this.socketConn.sendMessage(content);
-
-              // clear input
-              e.target.elements["chat-box-form-input"].value = "";
-              e.target.elements["chat-box-form-input"].focus();
+            id: "chat-box-form-input",
+            class: "chat-box-form-input",
+            autofocus: true,
+            type: "text",
+            required: true,
+            autocomplete: "off",
+            placeholder: "Type message here...",
+          },
+          null,
+          [
+            {
+              type: "input",
+              event: (e) => {
+                const textarea = e.target;
+                textarea.style.height = "auto";
+                textarea.style.height = `${textarea.scrollHeight}px`;
+              },
             },
-          }
+            {
+              type: "keydown",
+              event: (e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault(); // prevent newline
+                  const textarea = e.target;
+                  const content = textarea.value.trim();
+                  if (content) {
+                    this.socketConn.sendMessage(content);
+                    textarea.value = "";
+                    textarea.style.height = "auto";
+                    textarea.focus();
+                  }
+                }
+              },
+            },
+          ]
         ),
       ])
     );
@@ -102,13 +116,66 @@ class ChatBoxComponent {
 
 class ChatBoxMessagesComponent {
   constructor(props) {
-    this.domComponent = props.domComponent;
     this.chatBoxMessages = [];
     this.channelUUID = props.channelUUID;
+    this.socketConn = props.socketConn;
+
+    this.messageRequestSize = 50;
+    this.hasMoreMessages = true;
+    this.debounceTimeout = null;
+    this.isLoading = false;
+
+    // Virtual scroll state
+    this.visibleStartIndex = 0;
+    this.visibleEndIndex = 50;
+    this.messageHeightEstimate = 100;
+    this.renderThreshold = 10;
+    this.lastRenderStartIndex = -1;
+
+    this.domComponent = createElement(
+      "div",
+      {
+        class: "chat-box-messages",
+        id: "chat-box-messages",
+      },
+      null,
+      {
+        type: "scroll",
+        event: () => {
+          this.getPreviousMessagesDebounce();
+          this.onScrollThrottled();
+        },
+      }
+    );
   }
+
+  getPreviousMessagesDebounce = () => {
+    if (this.debounceTimeout) clearTimeout(this.debounceTimeout);
+    this.debounceTimeout = setTimeout(() => {
+      this.getPreviousMessages();
+    }, 300);
+  };
+
+  getPreviousMessages = () => {
+    if (
+      this.isLoading ||
+      !this.hasMoreMessages ||
+      !this.chatBoxMessages.length ||
+      !this.isScrolledToTop()
+    )
+      return;
+
+    this.isLoading = true;
+    const oldestTimestamp = this.chatBoxMessages[0].timestamp;
+    this.socketConn.getMessages(oldestTimestamp);
+  };
 
   scrollDown = () => {
     this.domComponent.scrollTop = this.domComponent.scrollHeight;
+  };
+
+  isScrolledToTop = () => {
+    return this.domComponent.scrollTop <= 20;
   };
 
   isScrolledToBottom = () => {
@@ -120,12 +187,23 @@ class ChatBoxMessagesComponent {
   };
 
   appendNewMessage = (data) => {
+    const wasAtBottom = this.isScrolledToBottom();
+
     this.chatBoxMessages.push(data);
-    this.domComponent.append(this.createMessage(data, true));
+
+    if (wasAtBottom) {
+      this.visibleStartIndex = Math.max(
+        0,
+        this.chatBoxMessages.length - this.messageRequestSize
+      );
+      this.visibleEndIndex = this.chatBoxMessages.length;
+      this.lastRenderStartIndex = this.visibleStartIndex;
+      this.renderVirtual();
+      this.scrollDown();
+    }
   };
 
   createMessage = (data, isNew = false) => {
-    // isNew is bool to render message with animation
     const parseMessageContent = (content) => {
       const urlRegexAll = /(https?:\/\/[^\s]+)/g;
       const urlRegex = /^https?:\/\/[^\s]+$/;
@@ -154,19 +232,28 @@ class ChatBoxMessagesComponent {
     };
 
     const elem = createElement("div", { class: "chat-box-message-content" }, [
-      createElement(
-        "small",
-        { style: "margin-right: var(--main-distance)" },
-        isoDateFormat(data.timestamp)
-      ),
-      createElement(
-        "div",
-        {
-          style: "font-weight: bold; margin-right: var(--main-distance);",
-        },
-        `${data.username}:`
-      ),
-      ...parseMessageContent(data.content),
+      createElement("div", { style: "display: flex; align-items: flex-end;" }, [
+        createElement(
+          "small",
+          {
+            style:
+              "margin-right: var(--main-distance); color: var(--main-gray);",
+          },
+          isoDateFormat(data.timestamp)
+        ),
+        createElement(
+          "div",
+          {
+            style:
+              "font-weight: bold; margin-right: var(--main-distance); color: var(--light-yellow);",
+          },
+          data.username
+        ),
+      ]),
+      createElement("div", { class: "chat-box-message-text" }, [
+        ...parseMessageContent(data.content),
+      ]),
+      createElement("hr"),
     ]);
 
     if (isNew) {
@@ -176,19 +263,67 @@ class ChatBoxMessagesComponent {
     return elem;
   };
 
-  renderMessages = () => {
-    if (this.chatBoxMessages) {
-      return this.chatBoxMessages.map((data) => this.createMessage(data));
-    } else {
-      return [];
+  onScrollThrottled = () => {
+    if (this.scrollTimeout) clearTimeout(this.scrollTimeout);
+    this.scrollTimeout = setTimeout(() => this.updateVisibleWindow(), 100);
+  };
+
+  updateVisibleWindow = () => {
+    const scrollTop = this.domComponent.scrollTop;
+    const containerHeight = this.domComponent.clientHeight;
+    const buffer = 10;
+
+    const startIndex = Math.max(
+      0,
+      Math.floor(scrollTop / this.messageHeightEstimate) - buffer
+    );
+    const endIndex = Math.min(
+      this.chatBoxMessages.length,
+      Math.ceil((scrollTop + containerHeight) / this.messageHeightEstimate) +
+        buffer
+    );
+
+    const shouldRender =
+      Math.abs(startIndex - this.lastRenderStartIndex) >= this.renderThreshold;
+
+    if (!shouldRender) {
+      return;
     }
+
+    this.visibleStartIndex = startIndex;
+    this.visibleEndIndex = endIndex;
+    this.lastRenderStartIndex = startIndex;
+    this.renderVirtual();
+  };
+
+  renderVirtual = () => {
+    const topHeight = this.visibleStartIndex * this.messageHeightEstimate;
+    const bottomHeight =
+      (this.chatBoxMessages.length - this.visibleEndIndex) *
+      this.messageHeightEstimate;
+
+    const topSpacer = createElement("div", {
+      style: `height: ${topHeight}px;`,
+    });
+
+    const bottomSpacer = createElement("div", {
+      style: `height: ${bottomHeight}px;`,
+    });
+
+    const visibleMessages = this.chatBoxMessages
+      .slice(this.visibleStartIndex, this.visibleEndIndex)
+      .map((data) => this.createMessage(data));
+
+    this.domComponent.innerHTML = "";
+    this.domComponent.append(topSpacer, ...visibleMessages, bottomSpacer);
+  };
+
+  renderMessages = () => {
+    return this.chatBoxMessages.map((data) => this.createMessage(data));
   };
 
   render = () => {
-    // clear
-    this.domComponent.innerHTML = "";
-    // render
-    this.domComponent.append(...this.renderMessages());
+    this.renderVirtual();
   };
 }
 
@@ -208,33 +343,42 @@ class VoiceChatComponent {
   render = () => {
     this.domComponent.innerHTML = "";
     this.domComponent.append(
-      createElement("button", { class: this.voiceChannelActive ? "chat-box-btn-active" : "chat-box-btn" }, "🔊", {
-        type: "click",
-        event: async () => {
-          if (!this.voiceChannelActive) {
-            console.log("Starting Voice channel...");
-            this.audioCtx = new (window.AudioContext ||
-              window.webkitAudioContext)();
-            await this.audioCtx.resume(); // <- this unlocks autoplay
-
-            this.voiceManager = new VoiceManager(this.audioCtx);
-            this.voiceManager.joinVoice({
-              room: this.channelUUID,
-              userID: this.user.id,
-            });
-            this.voiceChannelActive = true;
-            this.render();
-          } else {
-            if (this.voiceManager) {
-              this.voiceManager.leaveVoice();
-              this.audioCtx = null;
-              this.voiceManager = null;
-              this.voiceChannelActive = false;
-              this.render();
-            }
-          }
+      createElement(
+        "button",
+        {
+          class: this.voiceChannelActive
+            ? "chat-box-btn-active"
+            : "chat-box-btn",
         },
-      })
+        "🔊",
+        {
+          type: "click",
+          event: async () => {
+            if (!this.voiceChannelActive) {
+              console.log("Starting Voice channel...");
+              this.audioCtx = new (window.AudioContext ||
+                window.webkitAudioContext)();
+              await this.audioCtx.resume(); // <- this unlocks autoplay
+
+              this.voiceManager = new VoiceManager(this.audioCtx);
+              this.voiceManager.joinVoice({
+                room: this.channelUUID,
+                userID: this.user.id,
+              });
+              this.voiceChannelActive = true;
+              this.render();
+            } else {
+              if (this.voiceManager) {
+                this.voiceManager.leaveVoice();
+                this.audioCtx = null;
+                this.voiceManager = null;
+                this.voiceChannelActive = false;
+                this.render();
+              }
+            }
+          },
+        }
+      )
     );
   };
 }

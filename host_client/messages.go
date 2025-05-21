@@ -33,13 +33,15 @@ func handleGetMessages(conn *websocket.Conn, wsMsg *WSMessage) {
 		return
 	}
 
+	const messageRequestSize = 50
+
 	rows, err := db.ChatDB.Query(`
 		SELECT id, channel_uuid, content, user_id, timestamp
 		FROM messages
-		WHERE channel_uuid = ?
-		ORDER BY timestamp ASC
-		LIMIT 100
-	`, data.ChannelUUID)
+		WHERE channel_uuid = ? AND timestamp < ?
+		ORDER BY timestamp DESC
+		LIMIT ?
+	`, data.ChannelUUID, data.BeforeUnixTime, messageRequestSize+1) // Get one extra to check if there are more
 	if err != nil {
 		sendToConn(conn, WSMessage{
 			Type: "error",
@@ -53,6 +55,7 @@ func handleGetMessages(conn *websocket.Conn, wsMsg *WSMessage) {
 	defer rows.Close()
 
 	var messages []GetMessagesMessage
+
 	userIDSet := make(map[int]struct{})
 
 	for rows.Next() {
@@ -108,13 +111,26 @@ func handleGetMessages(conn *websocket.Conn, wsMsg *WSMessage) {
 		messages[i].Username = userMap[messages[i].UserID]
 	}
 
+	hasMoreMessages := false
+
+	if len(messages) > messageRequestSize {
+		hasMoreMessages = true
+		messages = messages[:messageRequestSize] // Reduce by one
+	}
+
+	// Reverse so messages are sent oldest → newest
+	for i, j := 0, len(messages)-1; i < j; i, j = i+1, j-1 {
+		messages[i], messages[j] = messages[j], messages[i]
+	}
+
 	// Send response
 	sendToConn(conn, WSMessage{
 		Type: "get_messages_response",
 		Data: GetMessagesResponse{
-			Messages:    messages,
-			ChannelUUID: data.ChannelUUID,
-			ClientUUID:  data.ClientUUID,
+			Messages:        messages,
+			HasMoreMessages: hasMoreMessages,
+			ChannelUUID:     data.ChannelUUID,
+			ClientUUID:      data.ClientUUID,
 		},
 	})
 }

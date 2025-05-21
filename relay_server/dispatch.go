@@ -74,7 +74,7 @@ func dispatchMessage(client *Client, conn *websocket.Conn, wsMsg WSMessage, rtca
 	case "chat":
 		handleChatMessage(client, conn, &wsMsg)
 	case "get_messages":
-		handleGetMessages(client, conn)
+		handleGetMessages(client, conn, &wsMsg)
 	case "get_messages_response":
 		handleGetMessagesRes(client, conn, &wsMsg)
 	// case "get_turn_credentials":

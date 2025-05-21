@@ -148,7 +148,9 @@ export default class DashboardApp {
   };
 
   handleInviteUser = (data) => {
-    window.go.main.App.Alert(`Successfully invited user by email: ${data.data.email}`);
+    window.go.main.App.Alert(
+      `Successfully invited user by email: ${data.data.email}`
+    );
   };
 
   handleAddInvite = (data) => {
@@ -282,19 +284,35 @@ export default class DashboardApp {
   };
 
   handleIncomingMessages = (data) => {
-    if (this.mainContent.chatApp) {
-      if (
-        this.mainContent.chatApp.chatBoxComponent.channelUUID ===
+    if (
+      this.mainContent.chatApp &&
+      this.mainContent.chatApp.chatBoxComponent.channelUUID ===
         data.data.channel_uuid
-      ) {
-        this.mainContent.chatApp.chatBoxComponent.chatBoxMessagesComponent.chatBoxMessages =
-          data.data.messages;
-        this.mainContent.chatApp.chatBoxComponent.chatBoxMessagesComponent.render();
+    ) {
+      const component =
+        this.mainContent.chatApp.chatBoxComponent.chatBoxMessagesComponent;
+      const container = component.domComponent;
 
-        setTimeout(() => {
-          this.mainContent.chatApp.chatBoxComponent.chatBoxMessagesComponent.scrollDown();
-        }, 1000);
-      }
+      // Capture scroll position before prepending
+      const previousHeight = container.scrollHeight;
+      const previousScrollTop = container.scrollTop;
+
+      // Update flags
+      component.hasMoreMessages = data.data.has_more_messages;
+      component.isLoading = false;
+
+      // Prepend older messages
+      component.chatBoxMessages = [
+        ...data.data.messages,
+        ...component.chatBoxMessages,
+      ];
+
+      // Re-render updated messages
+      component.render();
+
+      // Restore scroll position to maintain visual position
+      const newHeight = container.scrollHeight;
+      container.scrollTop = newHeight - previousHeight + previousScrollTop;
     }
   };
 
