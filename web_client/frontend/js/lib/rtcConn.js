@@ -15,7 +15,6 @@ export default class RTCConnUsingIon {
     this.client = null;
     this.audioElement = null;
 
-    this.init();
   }
 
   init = async () => {

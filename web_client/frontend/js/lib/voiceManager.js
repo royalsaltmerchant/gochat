@@ -6,7 +6,7 @@ export default class VoiceManager {
     this.audioCtx = audioCtx;
   }
 
-  joinVoice({ room, userID }) {
+  joinVoice = async ({ room, userID }) => {
     if (this.currentRTCConn) {
       this.currentRTCConn.close();
     }
@@ -16,21 +16,22 @@ export default class VoiceManager {
       room,
       userID: userID,
     });
-    
+    await this.currentRTCConn.init();
+
     // const peer2 = new RTCConn({
     //   room,
     //   userID: "second",
     // });
-    
+
     // peer1.start()
     // peer2.start()
-    this.currentRTCConn.start(); // Connects to SFU and joins room
-  }
+    await this.currentRTCConn.start(); // Connects to SFU and joins room
+  };
 
-  leaveVoice() {
+  leaveVoice = () => {
     if (this.currentRTCConn) {
       this.currentRTCConn.close();
       this.currentRTCConn = null;
     }
-  }
+  };
 }
