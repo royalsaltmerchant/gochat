@@ -19,13 +19,7 @@ type HostConfig struct {
 	DBFile   string `json:"db_file"`
 }
 
-// func generateSecret(n int) string {
-// 	b := make([]byte, n)
-// 	_, _ = rand.Read(b)
-// 	return hex.EncodeToString(b)
-// }
-
-func getConfigPath() (string, error) {
+func getAppSupportPathFor(filename string) (string, error) {
 	configDir, err := os.UserConfigDir()
 	if err != nil {
 		return "", fmt.Errorf("unable to get user config directory: %w", err)
@@ -36,13 +30,18 @@ func getConfigPath() (string, error) {
 		return "", fmt.Errorf("unable to create config directory: %w", err)
 	}
 
-	configPath := filepath.Join(appDir, "host_config.json")
+	configPath := filepath.Join(appDir, filename)
 	log.Println("Using config path:", configPath)
 	return configPath, nil
 }
 
 func LoadOrInitHostConfig() (*HostConfig, error) {
-	configPath, err := getConfigPath()
+	configPath, err := getAppSupportPathFor(configFileName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve config path: %w", err)
+	}
+
+	dbPath, err := getAppSupportPathFor(dbName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve config path: %w", err)
 	}
@@ -50,15 +49,17 @@ func LoadOrInitHostConfig() (*HostConfig, error) {
 	if data, err := os.ReadFile(configPath); err == nil {
 		var cfg HostConfig
 		if json.Unmarshal(data, &cfg) == nil && cfg.UUID != "" {
-			return &cfg, nil
+			return &cfg, nil // Return existing config
 		}
 	}
 
+	// Ask for new host name and create config
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Print("Enter a name for this host: ")
 	name, _ := reader.ReadString('\n')
 	name = strings.TrimSpace(name)
 
+	// Call to relay to register new host
 	uuid, authorID, err := registerHostWithRelay(name)
 	if err != nil {
 		return nil, fmt.Errorf("failed to register host: %w", err)
@@ -68,9 +69,10 @@ func LoadOrInitHostConfig() (*HostConfig, error) {
 		UUID:     uuid,
 		AuthorID: authorID,
 		Name:     name,
-		DBFile:   "chat.db",
+		DBFile:   dbPath,
 	}
 
+	// Write config to file
 	data, _ := json.MarshalIndent(cfg, "", "  ")
 	os.WriteFile(configPath, data, 0644)
 

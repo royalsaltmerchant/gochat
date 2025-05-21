@@ -4,7 +4,7 @@ import { relayBaseURL } from "./lib/config.js";
 
 class App {
   constructor() {
-    window.go.main.App.Greet("Hello GoChat").then((res) => console.log(res));
+    window.go.main.App.Greet("Hello Parch").then((res) => console.log(res));
 
     this.domComponent = document.getElementById("app");
     this.hostForm = new HostForm(this);
@@ -56,10 +56,12 @@ export default class HostForm {
     this.domComponent = createElement("div", { class: "host-form-container" });
   }
 
-  renderHostList = (hosts) => {
-    if (!hosts.length) {
+  renderHostList = (data) => {
+    if (!data || !data.hosts || !data.hosts.length) {
       return [createElement("div", {}, "...No Hosts")];
     }
+
+    const hosts = data.hosts;
 
     return hosts.map((host) => {
       const hostOnline = host.online == 1 ? true : false;
@@ -134,7 +136,7 @@ export default class HostForm {
       }),
       createElement("br"),
       createElement("div", { class: "host-list-index" }, [
-        ...this.renderHostList(hostsData.hosts),
+        ...this.renderHostList(hostsData),
       ]),
       createElement("br"),
       createElement("div", {}, "Or"),

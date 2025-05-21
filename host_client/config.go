@@ -9,3 +9,7 @@ var relayHost = "99.36.161.96:8000"
 var relayBaseURL = url.URL{Scheme: "http", Host: relayHost, Path: ""}
 
 var wsRelayURL = url.URL{Scheme: "ws", Host: relayHost, Path: "/ws"}
+
+var dbName = "chat.db"
+
+var configFileName = "host_config.json"
