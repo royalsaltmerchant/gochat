@@ -173,12 +173,14 @@ export default class DashboardApp {
   };
 
   handleAcceptInviteUpdate = (data) => {
+    console.log(data);
     const spaceToUpdate = this.data.spaces.find(
       (space) => space.uuid === data.data.space_uuid
     );
-    if (spaceToUpdate && this.spaceUUID === spaceToUpdate.uuid) {
+    spaceToUpdate.users.push(data.data.user);
+
+    if (spaceToUpdate && this.currentSpaceUUID === spaceToUpdate.uuid) {
       if (this.data.user.id !== data.data.user.id) {
-        spaceToUpdate.users.push(data.data.user);
         this.sidebar.spaceUserListComponent.render();
       }
     }

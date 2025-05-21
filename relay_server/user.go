@@ -60,7 +60,7 @@ func HandleGetUsersByIDs(c *gin.Context) {
 
 func HandleGetUserByID(c *gin.Context) {
 	var req struct {
-		UserID string `json:"user_id" binding:"required"`
+		UserID int `json:"user_id" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
