@@ -2,6 +2,7 @@ import createElement from "./components/createElement.js";
 import isoDateFormat from "./lib/isoDateFormat.js";
 import { isImageUrl, createValidatedImage } from "./lib/imageValidation.js";
 import voiceManager from "./lib/voiceManager.js";
+import voiceElemContainer from "./components/voiceElemContainer.js";
 
 class ChatApp {
   constructor(props) {
@@ -363,6 +364,9 @@ class VoiceChatComponent {
             type: "click",
             event: async () => {
               await voiceManager.leaveVoice();
+              if (voiceElemContainer.isOpen) {
+                voiceElemContainer.close();
+              }
               this.render();
             },
           }
@@ -384,14 +388,15 @@ class VoiceChatComponent {
         {
           type: "click",
           event: async () => {
-            voiceManager.initAudio(); // Start the audio ctx
-            // Join voice channel
-            voiceManager.joinVoice({
+            await voiceManager.leaveVoice();
+            await voiceManager.initAudio();
+            await voiceManager.joinVoice({
               channelUUID: this.channelUUID,
               userID: this.user.id,
             });
 
             this.render();
+            voiceElemContainer.open();
           },
         }
       );

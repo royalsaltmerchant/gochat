@@ -3,6 +3,7 @@ import DashModal from "./components/dashModal.js";
 import SidebarComponent from "./components/sidebar.js";
 import MainContentComponent from "./components/mainContent.js";
 import SocketConn from "./lib/socketConn.js";
+import voiceElemContainer from "./components/voiceElemContainer.js";
 import voiceManager from "./lib/voiceManager.js";
 
 export default class DashboardApp {
@@ -48,6 +49,9 @@ export default class DashboardApp {
       handleLeaveSpaceUpdate: this.handleLeaveSpaceUpdate,
       handleIncomingMessages: this.handleIncomingMessages,
     });
+
+    // Set the socket conn on the voice manager
+    voiceManager.socketConn = this.socketConn;
 
     // Render modal early for login/register
     this.dashModal = new DashModal(this, this.socketConn);
@@ -326,6 +330,7 @@ export default class DashboardApp {
     this.domComponent.append(
       this.sidebar.domComponent,
       this.mainContent.domComponent,
+      voiceElemContainer.domComponent,
       this.dashModal.domComponent
     );
   }

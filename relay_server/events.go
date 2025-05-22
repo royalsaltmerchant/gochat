@@ -459,7 +459,7 @@ func joinChannel(client *Client, channelUUID string) {
 	host.mu.Lock()
 
 	if _, ok := host.Channels[channelUUID]; !ok {
-		host.Channels[channelUUID] = &Channel{Users: make(map[*websocket.Conn]int)}
+		host.Channels[channelUUID] = &Channel{Users: make(map[*websocket.Conn]int), VoiceStreams: make(map[*websocket.Conn]string)}
 	}
 	channel := host.Channels[channelUUID]
 	channel.mu.Lock()
@@ -736,6 +736,122 @@ func handleChannelAllowVoice(client *Client, conn *websocket.Conn, wsMsg *WSMess
 			UUID:       data.UUID,
 			Allow:      data.Allow,
 			ClientUUID: client.ClientUUID,
+		},
+	})
+}
+
+func handleJoinVoiceChannel(client *Client, conn *websocket.Conn, wsMsg *WSMessage) {
+	data, err := decodeData[JoinVoiceChannelClient](wsMsg.Data)
+	if err != nil {
+		safeSend(client, conn, WSMessage{Type: "error", Data: ChatError{Content: "Invalid chat message response data"}})
+		return
+	}
+
+	host, exists := GetHost(client.HostUUID)
+	if !exists {
+		log.Printf("host %s not found\n", client.HostUUID)
+		SendToClient(client.HostUUID, client.ClientUUID, WSMessage{
+			Type: "author_error",
+			Data: ChatError{Content: "Failed to connect to the host"},
+		})
+		return
+	}
+
+	host.mu.Lock()
+	channelUUID, ok := host.ChannelSubscriptions[client.Conn]
+	if !ok {
+		SendToClient(client.HostUUID, client.ClientUUID, WSMessage{
+			Type: "error",
+			Data: ChatError{Content: "Failed to connect to channel"},
+		})
+	}
+
+	channel, exists := host.Channels[channelUUID]
+	if !exists {
+		SendToClient(client.HostUUID, client.ClientUUID, WSMessage{
+			Type: "error",
+			Data: ChatError{Content: "Failed to connect to channel"},
+		})
+
+	}
+	channel.mu.Lock()
+	channel.VoiceStreams[client.Conn] = data.StreamID
+	channel.mu.Unlock()
+
+	voiceSubs := []VoiceSub{}
+
+	for conn, streamID := range channel.VoiceStreams {
+		if cl, ok := host.ClientsByConn[conn]; ok {
+			voiceSubs = append(voiceSubs, VoiceSub{
+				UserID:   cl.UserID,
+				Username: cl.Username,
+				StreamID: streamID,
+			})
+		}
+	}
+
+	host.mu.Unlock()
+
+	BroadcastToChannel(client.HostUUID, channelUUID, WSMessage{
+		Type: "joined_voice_channel",
+		Data: JoinedOrLeftVoiceChannel{
+			ChannelUUID: channelUUID,
+			VoiceSubs:   voiceSubs,
+		},
+	})
+}
+
+func handleLeaveVoiceChannel(client *Client) {
+	host, exists := GetHost(client.HostUUID)
+	if !exists {
+		log.Printf("host %s not found\n", client.HostUUID)
+		SendToClient(client.HostUUID, client.ClientUUID, WSMessage{
+			Type: "author_error",
+			Data: ChatError{Content: "Failed to connect to the host"},
+		})
+		return
+	}
+
+	host.mu.Lock()
+	channelUUID, ok := host.ChannelSubscriptions[client.Conn]
+	if !ok {
+		SendToClient(client.HostUUID, client.ClientUUID, WSMessage{
+			Type: "error",
+			Data: ChatError{Content: "Failed to connect to channel"},
+		})
+	}
+
+	channel, exists := host.Channels[channelUUID]
+	if !exists {
+		SendToClient(client.HostUUID, client.ClientUUID, WSMessage{
+			Type: "error",
+			Data: ChatError{Content: "Failed to connect to channel"},
+		})
+
+	}
+	channel.mu.Lock()
+	delete(channel.VoiceStreams, client.Conn)
+	channel.mu.Unlock()
+
+	voiceSubs := []VoiceSub{}
+
+	for conn, streamID := range channel.VoiceStreams {
+		if cl, ok := host.ClientsByConn[conn]; ok {
+			voiceSubs = append(voiceSubs, VoiceSub{
+				UserID:   cl.UserID,
+				Username: cl.Username,
+				StreamID: streamID,
+			})
+		}
+	}
+
+	host.mu.Unlock()
+
+	BroadcastToChannel(client.HostUUID, channelUUID, WSMessage{
+		Type: "left_voice_channel",
+		Data: JoinedOrLeftVoiceChannel{
+			ChannelUUID: channelUUID,
+			VoiceSubs:   voiceSubs,
 		},
 	})
 }

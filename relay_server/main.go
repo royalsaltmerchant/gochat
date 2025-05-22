@@ -69,11 +69,10 @@ func main() {
 
 	m := &webrtc.MediaEngine{}
 	_ = m.RegisterDefaultCodecs()
-	rtcapi := webrtc.NewAPI(webrtc.WithMediaEngine(m))
 
 	// WebSocket route
 	r.GET("/ws", func(c *gin.Context) {
-		HandleSocket(c, rtcapi)
+		HandleSocket(c)
 	})
 	r.GET("/api/host/:uuid", HandleGetHost)
 	r.POST("/api/hosts_by_uuids", HandleGetHostsByUUIDs)

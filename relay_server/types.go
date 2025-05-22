@@ -32,8 +32,9 @@ type UserData struct {
 }
 
 type Channel struct {
-	Users map[*websocket.Conn]int
-	mu    sync.Mutex
+	Users        map[*websocket.Conn]int
+	VoiceStreams map[*websocket.Conn]string
+	mu           sync.Mutex
 }
 
 type Space struct {
@@ -497,4 +498,19 @@ type ChannelAllowVoiceRequest struct {
 	UUID       string `json:"uuid"`
 	Allow      int    `json:"allow"`
 	ClientUUID string `json:"client_uuid"`
+}
+
+type JoinVoiceChannelClient struct {
+	StreamID string `json:"stream_id"`
+}
+
+type VoiceSub struct {
+	UserID   int    `json:"user_id"`
+	Username string `json:"username"`
+	StreamID string `json:"stream_id"`
+}
+
+type JoinedOrLeftVoiceChannel struct {
+	ChannelUUID string     `json:"channel_uuid"`
+	VoiceSubs   []VoiceSub `json:"voice_subs"`
 }

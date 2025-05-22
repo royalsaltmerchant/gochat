@@ -2,6 +2,7 @@ import { relayBaseURL } from "./lib/config.js";
 import createElement from "./components/createElement.js";
 import DashboardApp from "./dashboard.js";
 import voiceManager from "./lib/voiceManager.js";
+import voiceElemContainer from "./components/voiceElemContainer.js";
 
 class App {
   constructor() {
@@ -19,6 +20,8 @@ class App {
   returnToHostList = async () => {
     // Leave any voice channels
     await voiceManager.leaveVoice();
+    // Close voice elem container
+    voiceElemContainer.close();
     // Remove host UUID
     localStorage.removeItem("hostUUID");
     // Reset Dashboard, Sidebar, mainContent, chatApp, dashmodal

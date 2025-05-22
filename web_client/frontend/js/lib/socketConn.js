@@ -1,3 +1,5 @@
+import voiceManager from "./voiceManager";
+
 export default class SocketConn {
   constructor(props) {
     this.returnToHostList = props.returnToHostList;
@@ -199,6 +201,14 @@ export default class SocketConn {
           case "get_messages_success":
             console.log("Get messages success", data);
             this.handleIncomingMessages(data);
+            break;
+          case "joined_voice_channel":
+            console.log("Joined voice channel", data);
+            voiceManager.voiceSubscriptions = data.data.voice_subs;
+            break;
+          case "left_voice_channel":
+            console.log("Left voice channel", data);
+            voiceManager.voiceSubscriptions = data.data.voice_subs;
             break;
           case "error":
             // TODO: handle certain types of errors for login and registration
@@ -515,6 +525,36 @@ export default class SocketConn {
           uuid: channelUUID,
           allow: allow,
         },
+      };
+      this.socket.send(JSON.stringify(wsMessage));
+    } else {
+      console.error("Socket is not open. State:", this.socket?.readyState);
+    }
+  };
+
+  joinVoiceChannel = (streamID) => {
+    console.log("Attempting to join voice channel:");
+    if (this.socket?.readyState === WebSocket.OPEN) {
+      console.log("Socket is open, sending message");
+      const wsMessage = {
+        type: "join_voice_channel",
+        data: {
+          stream_id: streamID,
+        },
+      };
+      this.socket.send(JSON.stringify(wsMessage));
+    } else {
+      console.error("Socket is not open. State:", this.socket?.readyState);
+    }
+  };
+
+  leaveVoiceChannel = () => {
+    console.log("Attempting to leave voice channel:");
+    if (this.socket?.readyState === WebSocket.OPEN) {
+      console.log("Socket is open, sending message");
+      const wsMessage = {
+        type: "leave_voice_channel",
+        data: "",
       };
       this.socket.send(JSON.stringify(wsMessage));
     } else {

@@ -195,6 +195,31 @@
   gap: 20px;
 }
 
+.modal .btn-danger {
+  background-color: var(--light-red);
+  color: var(--bright-white);
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-top: 10px;
+  display: block;
+  width: 100%;
+}
+
+.modal .btn-danger:hover {
+  background-color: var(--dark-red);
+}
+
+.modal .space-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+/* end modal styles */
+
 .space-info {
   text-align: center;
 }
@@ -227,29 +252,6 @@
   border-radius: 4px;
   cursor: pointer;
   transition: background-color 0.2s;
-}
-
-.modal .btn-danger {
-  background-color: var(--light-red);
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-top: 10px;
-  display: block;
-  width: 100%;
-}
-
-.modal .btn-danger:hover {
-  background-color: var(--dark-red);
-}
-
-.modal .space-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 20px;
 }
 
 .settings-section {
@@ -296,4 +298,45 @@
 
 .btn-red:hover {
   background-color: var(--dark-red);
-} 
+}
+
+.voice-elem-container {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 300px;
+  height: 300px;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+}
+
+.voice-elem-container-content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--main-dark);
+  width: 100%;
+  height: 100%;
+  border: 1px solid var(--main-gray);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.voice-elem-control {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.voice-elem {
+  width: 100%;
+  outline: none;
+}
+
+.voice-elem-wrapper {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  width: 100%;
+  padding: 10px;
+}

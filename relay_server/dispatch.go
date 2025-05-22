@@ -4,10 +4,9 @@ import (
 	"log"
 
 	"github.com/gorilla/websocket"
-	"github.com/pion/webrtc/v3"
 )
 
-func dispatchMessage(client *Client, conn *websocket.Conn, wsMsg WSMessage, rtcapi *webrtc.API) {
+func dispatchMessage(client *Client, conn *websocket.Conn, wsMsg WSMessage) {
 	switch wsMsg.Type {
 	case "register_user":
 		handleRegisterUser(client, conn, &wsMsg)
@@ -79,6 +78,10 @@ func dispatchMessage(client *Client, conn *websocket.Conn, wsMsg WSMessage, rtca
 		handleGetMessagesRes(client, conn, &wsMsg)
 	case "channel_allow_voice":
 		handleChannelAllowVoice(client, conn, &wsMsg)
+	case "join_voice_channel":
+		handleJoinVoiceChannel(client, conn, &wsMsg)
+	case "leave_voice_channel":
+		handleLeaveVoiceChannel(client)
 	case "error":
 		data, err := decodeData[ChatError](wsMsg.Data)
 		if err != nil {

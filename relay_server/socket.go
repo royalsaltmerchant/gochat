@@ -8,7 +8,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
-	"github.com/pion/webrtc/v3"
 )
 
 var upgrader = websocket.Upgrader{
@@ -34,7 +33,7 @@ func decodeData[T any](raw interface{}) (T, error) {
 	return data, err
 }
 
-func HandleSocket(c *gin.Context, rtcapi *webrtc.API) {
+func HandleSocket(c *gin.Context) {
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		log.Println("WebSocket upgrade failed:", err)
@@ -88,7 +87,7 @@ func HandleSocket(c *gin.Context, rtcapi *webrtc.API) {
 			continue
 		}
 
-		dispatchMessage(client, conn, wsMsg, rtcapi)
+		dispatchMessage(client, conn, wsMsg)
 	}
 
 	if client != nil {
