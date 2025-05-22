@@ -1,6 +1,7 @@
+import { relayBaseURL } from "./lib/config.js";
 import createElement from "./components/createElement.js";
 import DashboardApp from "./dashboard.js";
-import { relayBaseURL } from "./lib/config.js";
+import voiceManager from "./lib/voiceManager.js";
 
 class App {
   constructor() {
@@ -15,20 +16,26 @@ class App {
     this.render({ type: "host_form" });
   }
 
-  returnToHostList = () => {
+  returnToHostList = async () => {
+    // Leave any voice channels
+    await voiceManager.leaveVoice();
+    // Remove host UUID
     localStorage.removeItem("hostUUID");
+    // Reset Dashboard, Sidebar, mainContent, chatApp, dashmodal
     this.dashboard.currentSpaceUUID = null;
     if (this.dashboard.sidebar) {
       this.dashboard.sidebar.render();
     }
     if (this.dashboard.mainContent) {
+      this.dashboard.mainContent.chatApp = null;
       this.dashboard.mainContent.render();
     }
     if (this.dashboard.dashModal) {
       this.dashboard.closeDashModal();
     }
+    // Close socket
     this.dashboard.socketConn.hardClose();
-
+    // Render host form
     this.render({ type: "host_form" });
   };
 

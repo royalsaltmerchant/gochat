@@ -1,10 +1,10 @@
 import { Client, LocalStream, RemoteStream } from "ion-sdk-js";
 import { IonSFUJSONRPCSignal } from "ion-sdk-js/lib/signal/json-rpc-impl";
 import { relayBaseURL } from "./config.js";
+import voiceManager from "./voiceManager.js";
 
 export default class RTCConnUsingIon {
   constructor(props) {
-    this.audioCtx = props.audioCtx;
     this.room = props.room;
     this.userID = props.userID;
 
@@ -63,16 +63,10 @@ export default class RTCConnUsingIon {
       // Using RemoteStream for handling remote media
       this.audioElement.srcObject = stream;
 
-      if (!this.audioCtx || this.audioCtx.state === "closed") {
-        this.audioCtx = new (window.AudioContext ||
-          window.webkitAudioContext)();
-        this.audioCtx.resume();
-      }
-
-      const source = this.audioCtx.createMediaStreamSource(stream);
-      const gainNode = this.audioCtx.createGain();
+      const source = voiceManager.audioCtx.createMediaStreamSource(stream);
+      const gainNode = voiceManager.audioCtx.createGain();
       gainNode.gain.value = 1.0;
-      source.connect(gainNode).connect(this.audioCtx.destination);
+      source.connect(gainNode).connect(voiceManager.audioCtx.destination);
     };
 
     this.signal.onopen = async () => {
@@ -107,11 +101,6 @@ export default class RTCConnUsingIon {
       this.audioElement.srcObject = null;
       this.audioElement.remove();
       this.audioElement = null;
-    }
-
-    if (this.audioCtx) {
-      this.audioCtx.close();
-      this.audioCtx = null;
     }
 
     console.log("🔌 RTC connection closed");

@@ -3,6 +3,7 @@ import DashModal from "./components/dashModal.js";
 import SidebarComponent from "./components/sidebar.js";
 import MainContentComponent from "./components/mainContent.js";
 import SocketConn from "./lib/socketConn.js";
+import voiceManager from "./lib/voiceManager.js";
 
 export default class DashboardApp {
   constructor(props) {

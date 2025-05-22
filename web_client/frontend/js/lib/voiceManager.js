@@ -1,37 +1,54 @@
 import RTCConn from "./rtcConn.js";
 
-export default class VoiceManager {
-  constructor(audioCtx) {
+class VoiceManager {
+  constructor() {
     this.currentRTCConn = null;
-    this.audioCtx = audioCtx;
+    this.currentChannelUUID = null;
+    this.audioCtx = null;
   }
 
-  joinVoice = async ({ room, userID }) => {
-    if (this.currentRTCConn) {
-      this.currentRTCConn.close();
+  initAudio = async () => {
+    console.log("initializing audio");
+    this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    await this.audioCtx.resume(); // <- this unlocks autoplay
+    console.log("audio context", this.audioCtx);
+  };
+
+  joinVoice = async ({ channelUUID, userID }) => {
+    if (!this.audioCtx) {
+      throw new Error(
+        "Audio context not initialized. Call initAudio() from a user gesture first."
+      );
     }
+    
+    this.currentChannelUUID = channelUUID;
 
     this.currentRTCConn = new RTCConn({
-      audioCtx: this.audioCtx,
-      room,
+      room: this.currentChannelUUID,
       userID: userID,
     });
+
+    console.log("current RTC conn", this.currentRTCConn);
+
     await this.currentRTCConn.init();
-
-    // const peer2 = new RTCConn({
-    //   room,
-    //   userID: "second",
-    // });
-
-    // peer1.start()
-    // peer2.start()
     await this.currentRTCConn.start(); // Connects to SFU and joins room
   };
 
-  leaveVoice = () => {
+  leaveVoice = async () => {
+    console.log("leaving voice from voice manager");
+    this.currentChannelUUID = null;
+
     if (this.currentRTCConn) {
       this.currentRTCConn.close();
       this.currentRTCConn = null;
     }
+
+    if (this.audioCtx) {
+      await this.audioCtx.close();
+      this.audioCtx = null;
+    }
   };
 }
+
+const voiceManager = new VoiceManager();
+export default voiceManager;

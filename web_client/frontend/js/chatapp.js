@@ -1,7 +1,7 @@
 import createElement from "./components/createElement.js";
 import isoDateFormat from "./lib/isoDateFormat.js";
 import { isImageUrl, createValidatedImage } from "./lib/imageValidation.js";
-import VoiceManager from "./lib/voiceManager.js";
+import voiceManager from "./lib/voiceManager.js";
 
 class ChatApp {
   constructor(props) {
@@ -36,8 +36,8 @@ class ChatApp {
 class ChatBoxComponent {
   constructor(props) {
     this.domComponent = props.domComponent;
-    this.data = props.data;
     this.domComponent.className = "chat-box-container";
+    this.data = props.data;
     this.socketConn = props.socketConn;
     this.channelUUID = props.channelUUID;
     for (const space of this.data.spaces) {
@@ -63,7 +63,7 @@ class ChatBoxComponent {
         class: "voice-chat-component",
         id: "voice-chat-component",
       }),
-      channUUID: this.channelUUID,
+      channelUUID: this.channelUUID,
       user: this.data.user,
     });
 
@@ -347,53 +347,60 @@ class VoiceChatComponent {
     this.channelUUID = props.channelUUID;
     this.user = props.user;
 
-    this.voiceChannelActive = false;
     this.voiceManager = null;
-    this.audioCtx = null;
 
     this.render();
   }
 
-  render = () => {
-    this.domComponent.innerHTML = "";
-    this.domComponent.append(
-      createElement(
+  renderVoiceComponent = () => {
+    if (voiceManager.currentChannelUUID === this.channelUUID) {
+      return createElement("div", { class: "voice-chat-toolbar" }, [
+        createElement(
+          "button",
+          { class: "voice-leave-btn" },
+          "🔊 Leave Voice",
+          {
+            type: "click",
+            event: async () => {
+              await voiceManager.leaveVoice();
+              this.render();
+            },
+          }
+        ),
+        createElement("button", { class: "voice-options-btn" }, "Options", {
+          type: "click",
+          event: () => {
+            //
+          },
+        }),
+      ]);
+    } else {
+      return createElement(
         "button",
         {
-          class: this.voiceChannelActive
-            ? "chat-box-btn-active"
-            : "chat-box-btn",
+          class: "chat-box-btn",
         },
-        "🔊",
+        "🔊 Join Voice",
         {
           type: "click",
           event: async () => {
-            if (!this.voiceChannelActive) {
-              console.log("Starting Voice channel...");
-              this.audioCtx = new (window.AudioContext ||
-                window.webkitAudioContext)();
-              await this.audioCtx.resume(); // <- this unlocks autoplay
+            voiceManager.initAudio(); // Start the audio ctx
+            // Join voice channel
+            voiceManager.joinVoice({
+              channelUUID: this.channelUUID,
+              userID: this.user.id,
+            });
 
-              this.voiceManager = new VoiceManager(this.audioCtx);
-              this.voiceManager.joinVoice({
-                room: this.channelUUID,
-                userID: this.user.id,
-              });
-              this.voiceChannelActive = true;
-              this.render();
-            } else {
-              if (this.voiceManager) {
-                this.voiceManager.leaveVoice();
-                this.audioCtx = null;
-                this.voiceManager = null;
-                this.voiceChannelActive = false;
-                this.render();
-              }
-            }
+            this.render();
           },
         }
-      )
-    );
+      );
+    }
+  };
+
+  render = () => {
+    this.domComponent.innerHTML = "";
+    this.domComponent.append(this.renderVoiceComponent());
   };
 }
 

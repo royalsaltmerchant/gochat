@@ -1,5 +1,5 @@
 import createElement from "./createElement.js";
-import ChatApp from "../chatapp.js"
+import ChatApp from "../chatapp.js";
 
 export default class MainContentComponent {
   constructor(props) {
@@ -14,12 +14,16 @@ export default class MainContentComponent {
   renderChannel = (channelUUID) => {
     this.currentChannelUUID = channelUUID;
     this.domComponent.innerHTML = "";
-    const chatAppDiv = createElement("div", { class: "chatapp-container" });
-    this.domComponent.append(chatAppDiv);
+    const chatAppComponent = createElement("div", { class: "chatapp-container" });
+    this.domComponent.append(chatAppComponent);
     if (!this.chatApp) {
-      this.chatApp = new ChatApp({ domComponent: chatAppDiv, data: this.data, socketConn: this.socketConn });
+      this.chatApp = new ChatApp({
+        domComponent: chatAppComponent,
+        data: this.data,
+        socketConn: this.socketConn,
+      });
     } else {
-      this.chatApp.domComponent = chatAppDiv;
+      this.chatApp.domComponent = chatAppComponent;
     }
     this.chatApp.initialize(channelUUID);
   };
