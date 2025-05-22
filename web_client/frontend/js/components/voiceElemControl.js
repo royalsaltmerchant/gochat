@@ -11,21 +11,52 @@ class VoiceElemControl {
     this.audioElements = new Map();
 
     voiceManager.onStreamAdded = (stream) => {
-      console.log("on stream added", stream)
       const voiceSub = voiceManager.voiceSubscriptions.find((sub) => {
-        console.log("stream id and sub stream id", stream.id, sub.stream_id);
         return stream.id == sub.stream_id;
       });
-      console.log("voice sub", voiceSub);
+
+      const container = document.createElement("div");
+      container.className = "audio-container";
 
       const audio = document.createElement("audio");
       audio.className = "voice-elem";
       audio.id = `audio-item-${stream.id}`;
       audio.srcObject = stream;
       audio.autoplay = true;
-      audio.controls = true;
+      audio.controls = false; // We're making custom controls
 
-      this.audioElements.set(stream.id, audio);
+      const playPauseBtn = document.createElement("div");
+      playPauseBtn.style.cursor = "pointer";
+      playPauseBtn.textContent = "🔇";
+      playPauseBtn.onclick = () => {
+        if (audio.paused) {
+          audio.play();
+          playPauseBtn.textContent = "🔇";
+        } else {
+          audio.pause();
+          playPauseBtn.textContent = "🔊";
+        }
+      };
+
+      const volumeSlider = document.createElement("input");
+      volumeSlider.type = "range";
+      volumeSlider.min = "0";
+      volumeSlider.max = "1";
+      volumeSlider.step = "0.01";
+      volumeSlider.value = audio.volume;
+      volumeSlider.oninput = (e) => {
+        audio.volume = e.target.value;
+      };
+
+      container.appendChild(audio);
+      container.appendChild(playPauseBtn);
+      container.appendChild(volumeSlider);
+
+      if (voiceSub) {
+        container.username = voiceSub.username;
+      }
+
+      this.audioElements.set(stream.id, container);
 
       // render
       if (voiceElemContainer.isOpen) {

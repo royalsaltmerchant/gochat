@@ -316,10 +316,12 @@
   display: flex;
   flex-direction: column;
   background-color: var(--main-dark);
+  padding: 5px 10px;
   width: 100%;
   height: 100%;
   border: 1px solid var(--main-gray);
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  overflow-y: auto;
 }
 
 .voice-elem-control {
@@ -328,15 +330,24 @@
   flex-direction: column;
 }
 
-.voice-elem {
-  width: 100%;
-  outline: none;
+.audio-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
+.audio-container button,
+.audio-container input[type="range"] {
+  font-size: 14px;
+}
+
+
 .voice-elem-wrapper {
+  background-color: var(--main-dark);
   display: flex;
   flex-direction: row;
   justify-content: center;
+  align-items: baseline;
   width: 100%;
-  padding: 10px;
+  padding: 5px;
 }

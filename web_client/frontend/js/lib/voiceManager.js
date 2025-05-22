@@ -4,7 +4,6 @@ class VoiceManager {
   constructor() {
     this.socketConn = null;
     this.currentRTCConn = null;
-    this.audioCtx = null;
 
     this.onStreamAdded = null; // Setup by voiceControl
     this.onStreamRemoved = null; // Setup by voiceControl
@@ -14,17 +13,7 @@ class VoiceManager {
     this.voiceSubscriptions = [];
   }
 
-  initAudio = async () => {
-    this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    await this.audioCtx.resume(); // <- this unlocks autoplay
-  };
-
   joinVoice = async ({ channelUUID, userID }) => {
-    if (!this.audioCtx) {
-      throw new Error(
-        "Audio context not initialized. Call initAudio() from a user gesture first."
-      );
-    }
 
     this.currentChannelUUID = channelUUID;
 
@@ -41,10 +30,6 @@ class VoiceManager {
   addRemoteStream = (stream) => {
     if (this.remoteStreams.has(stream.id)) return;
 
-    const source = this.audioCtx.createMediaStreamSource(stream);
-    const gainNode = this.audioCtx.createGain();
-    source.connect(gainNode).connect(this.audioCtx.destination);
-
     stream.onremovetrack = (event) => {
       const stream = event.target;
       this.removeRemoteStream(stream.id);
@@ -52,8 +37,6 @@ class VoiceManager {
 
     this.remoteStreams.set(stream.id, {
       stream,
-      source,
-      gainNode,
     });
 
     if (this.onStreamAdded) {
@@ -65,8 +48,6 @@ class VoiceManager {
     const entry = this.remoteStreams.get(streamID);
     if (!entry) return;
 
-    entry.source.disconnect();
-    entry.gainNode.disconnect();
     this.remoteStreams.delete(streamID);
 
     if (this.onStreamRemoved) {
@@ -74,7 +55,7 @@ class VoiceManager {
     }
   };
 
-  clearAll = () => {
+  removeAllRemoteStreams = () => {
     for (const id of this.remoteStreams.keys()) {
       this.removeRemoteStream(id);
     }
@@ -93,13 +74,10 @@ class VoiceManager {
       this.currentRTCConn = null;
     }
 
-    if (this.audioCtx) {
-      await this.audioCtx.close();
-      this.audioCtx = null;
-    }
-
     // Send to relay
     this.socketConn.leaveVoiceChannel();
+
+    this.removeAllRemoteStreams()
   };
 }
 

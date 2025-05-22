@@ -22,11 +22,30 @@ class VoiceElemContainer {
     this.domComponent.innerHTML = "";
     this.domComponent.append(
       createElement("div", { class: "voice-elem-container-content" }, [
-        createElement("div", {}, "Voices"),
-        ...Array.from(voiceElemControl.audioElements.values(), (audio) =>
+        createElement(
+          "div",
+          {
+            style:
+              "display: flex; align-items: baseline; justify-content: space-between;",
+          },
+          [
+            createElement("div", {}, "Voices"),
+            createElement("div", { style: "cursor: pointer; font-size: 30px;" }, "×", {
+              type: "click",
+              event: () => {
+                this.close();
+              },
+            }),
+          ]
+        ),
+        ...Array.from(voiceElemControl.audioElements.values(), (audioElem) =>
           createElement("div", { class: "voice-elem-wrapper" }, [
-            createElement("div", {}, "Username"),
-            audio,
+            createElement(
+              "div",
+              { style: "margin-right: 5px;" },
+              audioElem.username ? audioElem.username : "Unknown"
+            ),
+            audioElem,
           ])
         ),
       ])

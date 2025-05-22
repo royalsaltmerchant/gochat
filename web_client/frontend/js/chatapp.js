@@ -358,7 +358,7 @@ class VoiceChatComponent {
       return createElement("div", { class: "voice-chat-toolbar" }, [
         createElement(
           "button",
-          { class: "voice-leave-btn" },
+          { class: "voice-leave-btn btn-red", style: "margin-right: 5px;" },
           "🔊 Leave Voice",
           {
             type: "click",
@@ -371,10 +371,11 @@ class VoiceChatComponent {
             },
           }
         ),
-        createElement("button", { class: "voice-options-btn" }, "Options", {
+        createElement("button", { class: "voice-options-btn" }, "Show Voices", {
           type: "click",
           event: () => {
-            //
+            if(voiceElemContainer.isOpen) return;
+            voiceElemContainer.open();
           },
         }),
       ]);
@@ -389,7 +390,6 @@ class VoiceChatComponent {
           type: "click",
           event: async () => {
             await voiceManager.leaveVoice();
-            await voiceManager.initAudio();
             await voiceManager.joinVoice({
               channelUUID: this.channelUUID,
               userID: this.user.id,
