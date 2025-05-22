@@ -54,7 +54,7 @@ func handleCreateSpace(conn *websocket.Conn, wsMsg *WSMessage) {
 	var channel DashDataChannel
 
 	query = `INSERT INTO channels (uuid, name, space_uuid) VALUES (?, ?, ?) RETURNING *`
-	err = db.ChatDB.QueryRow(query, channelUUID, initalChannelName, space.UUID).Scan(&channel.ID, &channel.UUID, &channel.Name, &channel.SpaceUUID)
+	err = db.ChatDB.QueryRow(query, channelUUID, initalChannelName, space.UUID).Scan(&channel.ID, &channel.UUID, &channel.Name, &channel.SpaceUUID, &channel.AllowVoice)
 
 	if err != nil {
 		// Check if the error message contains "UNIQUE constraint failed"

@@ -21,7 +21,7 @@ func handleCreateChannel(conn *websocket.Conn, wsMsg *WSMessage) {
 	var channel DashDataChannel
 
 	query := `INSERT INTO channels (uuid, name, space_uuid) VALUES (?, ?, ?) RETURNING *`
-	err = db.ChatDB.QueryRow(query, channelUUID, data.Name, data.SpaceUUID).Scan(&channel.ID, &channel.UUID, &channel.Name, &channel.SpaceUUID)
+	err = db.ChatDB.QueryRow(query, channelUUID, data.Name, data.SpaceUUID).Scan(&channel.ID, &channel.UUID, &channel.Name, &channel.SpaceUUID, &channel.AllowVoice)
 
 	if err != nil {
 		// Check if the error message contains "UNIQUE constraint failed"
@@ -112,4 +112,36 @@ func handleDeleteChannel(conn *websocket.Conn, wsMsg *WSMessage) {
 			ClientUUID: data.ClientUUID,
 		},
 	})
+}
+
+func handleChannelAllowVoice(conn *websocket.Conn, wsMsg *WSMessage) {
+	data, err := decodeData[ChannelAllowVoiceRequest](wsMsg.Data)
+	if err != nil {
+		log.Println("error decoding channel_allow_voice_request:", err)
+		return
+	}
+
+	query := `UPDATE channels SET allow_voice = ? WHERE uuid = ?`
+	res, err := db.ChatDB.Exec(query, data.Allow, data.UUID)
+	if err != nil {
+		sendToConn(conn, WSMessage{
+			Type: "error",
+			Data: ChatError{
+				Content:    "Database error updating channel allow voice",
+				ClientUUID: data.ClientUUID,
+			},
+		})
+		return
+	}
+
+	if rows, _ := res.RowsAffected(); rows == 0 {
+		sendToConn(conn, WSMessage{
+			Type: "error",
+			Data: ChatError{
+				Content:    "Database error updating channel allow voice",
+				ClientUUID: data.ClientUUID,
+			},
+		})
+		return
+	}
 }

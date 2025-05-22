@@ -126,6 +126,46 @@ input:focus {
   outline: 1px solid var(--light-blue);
 }
 
+input[type="checkbox"] {
+  appearance: none;
+  width: 32px;
+  height: 32px;
+  border: 2px solid var(--main-gray);
+  background-color: var(--main-dark);
+  border-radius: 6px;
+  position: relative;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+
+input[type="checkbox"]:hover {
+  background-color: var(--main-dark);
+}
+
+input[type="checkbox"]:checked {
+  background-color: var(--light-green);
+  border-color: var(--light-green);
+}
+
+input[type="checkbox"]::after {
+  content: "";
+  position: absolute;
+  top: 6px;
+  left: 10px;
+  width: 6px;
+  height: 14px;
+  border: solid var(--main-dark);
+  border-width: 0 3px 3px 0;
+  transform: rotate(45deg);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+input[type="checkbox"]:checked::after {
+  opacity: 1;
+}
+
+
 button {
   color: var(--bright-white);
   font: inherit;

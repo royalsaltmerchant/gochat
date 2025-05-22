@@ -40,6 +40,14 @@ class ChatBoxComponent {
     this.domComponent.className = "chat-box-container";
     this.socketConn = props.socketConn;
     this.channelUUID = props.channelUUID;
+    for (const space of this.data.spaces) {
+      const channel = space.channels.find((c) => c.uuid === this.channelUUID);
+      if (channel) {
+        this.space = space;
+        this.channel = channel;
+        break;
+      }
+    }
 
     this.chatBoxMessagesComponent = new ChatBoxMessagesComponent({
       domComponent: createElement("div", {
@@ -62,13 +70,19 @@ class ChatBoxComponent {
     this.render();
   }
 
+  renderVoiceChatComponent = () => {
+    if (this.channel.allow_voice == 1) {
+      return this.voiceChatComponent.domComponent;
+    } else return "";
+  };
+
   render = () => {
     // clear
     this.domComponent.innerHTML = "";
     // render
     this.domComponent.append(
       this.chatBoxMessagesComponent.domComponent,
-      this.voiceChatComponent.domComponent,
+      this.renderVoiceChatComponent(),
       createElement("div", { class: "chat-box-form" }, [
         createElement(
           "textarea",

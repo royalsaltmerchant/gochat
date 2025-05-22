@@ -17,10 +17,11 @@ type Space struct {
 }
 
 type Channel struct {
-	ID        int
-	UUID      string
-	Name      string
-	SpaceUUID string
+	ID         int
+	UUID       string
+	Name       string
+	SpaceUUID  string
+	AllowVoice int
 }
 
 type Message struct {
@@ -36,6 +37,7 @@ type Host struct {
 	UUID     string
 	Name     string
 	AuthorID string
+	Online   int
 }
 
 type SpaceUser struct {
@@ -114,10 +116,11 @@ type DashDataUser struct {
 }
 
 type DashDataChannel struct {
-	ID        int    `json:"id"`
-	UUID      string `json:"uuid"`
-	Name      string `json:"name"`
-	SpaceUUID string `json:"space_uuid"`
+	ID         int    `json:"id"`
+	UUID       string `json:"uuid"`
+	Name       string `json:"name"`
+	SpaceUUID  string `json:"space_uuid"`
+	AllowVoice int    `json:"allow_voice"`
 }
 
 type DashDataInvite struct {
@@ -261,4 +264,10 @@ type GetMessagesResponse struct {
 	HasMoreMessages bool                 `json:"has_more_messages"`
 	ChannelUUID     string               `json:"channel_uuid"`
 	ClientUUID      string               `json:"client_uuid"`
+}
+
+type ChannelAllowVoiceRequest struct {
+	UUID       string `json:"uuid"`
+	Allow      int    `json:"allow"`
+	ClientUUID string `json:"client_uuid"`
 }

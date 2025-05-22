@@ -51,6 +51,8 @@
   font: inherit;
   color: var(--bright-white);
   outline: none;
+  border: none;
+  border-top: 1px solid var(--main-gray);
 }
 
 

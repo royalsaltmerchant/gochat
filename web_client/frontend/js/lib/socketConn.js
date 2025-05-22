@@ -496,7 +496,24 @@ export default class SocketConn {
       const wsMessage = {
         type: "get_messages",
         data: {
-          "before_unix_time": timestamp
+          before_unix_time: timestamp,
+        },
+      };
+      this.socket.send(JSON.stringify(wsMessage));
+    } else {
+      console.error("Socket is not open. State:", this.socket?.readyState);
+    }
+  };
+
+  channelAllowVoice = (channelUUID, allow) => {
+    console.log("Attempting to allow voice for channel:");
+    if (this.socket?.readyState === WebSocket.OPEN) {
+      console.log("Socket is open, sending message");
+      const wsMessage = {
+        type: "channel_allow_voice",
+        data: {
+          uuid: channelUUID,
+          allow: allow,
         },
       };
       this.socket.send(JSON.stringify(wsMessage));

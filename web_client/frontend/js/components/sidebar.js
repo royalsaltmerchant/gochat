@@ -236,18 +236,6 @@ class SpaceItemComponent {
     return String(this.space.author_id) === String(this.user.id);
   };
 
-  renderActions = () => {
-    return [
-      createElement("button", { class: "btn-icon open-settings" }, "⚙️", {
-        type: "click",
-        event: (e) => {
-          e.stopPropagation();
-          this.openSpaceSettings(this.space);
-        },
-      }),
-    ];
-  };
-
   renderChannelList = () => {
     return createElement(
       "div",
@@ -277,7 +265,13 @@ class SpaceItemComponent {
           createElement(
             "div",
             { class: "space-actions" },
-            this.renderActions()
+            createElement("button", { class: "btn-icon open-settings" }, "⚙️", {
+              type: "click",
+              event: (e) => {
+                e.stopPropagation();
+                this.openSpaceSettings(this.space);
+              },
+            })
           ),
         ],
         { type: "click", event: this.toggleChannels }

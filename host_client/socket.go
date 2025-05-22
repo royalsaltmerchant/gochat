@@ -113,6 +113,8 @@ func handleSocketMessages(ctx context.Context, conn *websocket.Conn) error {
 				handleSaveChatMessage(&wsMsg)
 			case "get_messages_request":
 				handleGetMessages(conn, &wsMsg)
+			case "channel_allow_voice_request":
+				handleChannelAllowVoice(conn, &wsMsg)
 
 			default:
 				log.Println("Unhandled message type:", wsMsg.Type)

@@ -10,6 +10,7 @@ CREATE TABLE channels (
     uuid TEXT NOT NULL UNIQUE,
     name TEXT NOT NULL,
     space_uuid TEXT NOT NULL,
+    allow_voice INTEGER DEFAULT 0,
     FOREIGN KEY (space_uuid) REFERENCES spaces(uuid) ON DELETE CASCADE
 );
 

@@ -722,3 +722,20 @@ func handleGetMessagesRes(client *Client, conn *websocket.Conn, wsMsg *WSMessage
 		},
 	})
 }
+
+func handleChannelAllowVoice(client *Client, conn *websocket.Conn, wsMsg *WSMessage) {
+	data, err := decodeData[ChannelAllowVoiceClient](wsMsg.Data)
+	if err != nil {
+		safeSend(client, conn, WSMessage{Type: "error", Data: ChatError{Content: "Invalid chat message response data"}})
+		return
+	}
+
+	SendToAuthor(client, WSMessage{
+		Type: "channel_allow_voice_request",
+		Data: ChannelAllowVoiceRequest{
+			UUID:       data.UUID,
+			Allow:      data.Allow,
+			ClientUUID: client.ClientUUID,
+		},
+	})
+}

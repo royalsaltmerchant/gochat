@@ -77,8 +77,8 @@ func dispatchMessage(client *Client, conn *websocket.Conn, wsMsg WSMessage, rtca
 		handleGetMessages(client, conn, &wsMsg)
 	case "get_messages_response":
 		handleGetMessagesRes(client, conn, &wsMsg)
-	// case "get_turn_credentials":
-	// 	handleGetTurnCredentials(client)
+	case "channel_allow_voice":
+		handleChannelAllowVoice(client, conn, &wsMsg)
 	case "error":
 		data, err := decodeData[ChatError](wsMsg.Data)
 		if err != nil {

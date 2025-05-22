@@ -61,6 +61,61 @@ export default class DashModal {
     });
   };
 
+  renderCheckbox = (channel) => {
+    if (channel.allow_voice) {
+      return createElement(
+        "input",
+        {
+          type: "checkbox",
+          checked: true,
+        },
+        null,
+        {
+          type: "change",
+          event: (e) => {
+            const newValue = e.target.checked ? 1 : 0;
+            this.socketConn.channelAllowVoice(channel.uuid, newValue);
+            channel.allow_voice = newValue;
+          },
+        }
+      );
+    } else {
+      return createElement(
+        "input",
+        {
+          type: "checkbox",
+        },
+        null,
+        {
+          type: "change",
+          event: (e) => {
+            const newValue = e.target.checked ? 1 : 0;
+            this.socketConn.channelAllowVoice(channel.uuid, newValue);
+            channel.allow_voice = newValue;
+          },
+        }
+      );
+    }
+  };
+
+  renderChannelSettings = (channel) => {
+    this.domComponent.append(
+      createElement("div", { class: "modal-content" }, [
+        createElement("div", { class: "modal-header" }, [
+          createElement("h2", {}, `Channel Settings: ${channel.name}`),
+          createElement("button", { class: "close-modal" }, "×", {
+            type: "click",
+            event: this.close,
+          }),
+        ]),
+        createElement("div", { class: "settings-actions" }, [
+          createElement("div", {}, "Allow Voice"),
+          this.renderCheckbox(channel),
+        ]),
+      ])
+    );
+  };
+
   renderAuthorSettings = (space) => {
     return [
       // Space Management Section
@@ -126,23 +181,39 @@ export default class DashModal {
           space.channels.map((channel) =>
             createElement("div", { class: "channel-item" }, [
               createElement("span", {}, channel.name),
-              createElement(
-                "button",
-                { class: "btn-small btn-red" },
-                "Delete",
-                {
-                  type: "click",
-                  event: () => {
-                    window.go.main.App.Confirm(
-                      "Are you sure you want to delete this channel?"
-                    ).then((confirmed) => {
-                      if (confirmed) {
-                        this.socketConn.deleteChannel({ uuid: channel.uuid });
-                      }
-                    });
-                  },
-                }
-              ),
+              createElement("div", { style: "display: flex;" }, [
+                createElement(
+                  "button",
+                  { class: "btn-small btn-gray", style: "margin-right: 5px;" },
+                  "Settings",
+                  {
+                    type: "click",
+                    event: () => {
+                      this.open({
+                        type: "channel-settings",
+                        data: { channel },
+                      });
+                    },
+                  }
+                ),
+                createElement(
+                  "button",
+                  { class: "btn-small btn-red" },
+                  "Delete",
+                  {
+                    type: "click",
+                    event: () => {
+                      window.go.main.App.Confirm(
+                        "Are you sure you want to delete this channel?"
+                      ).then((confirmed) => {
+                        if (confirmed) {
+                          this.socketConn.deleteChannel({ uuid: channel.uuid });
+                        }
+                      });
+                    },
+                  }
+                ),
+              ]),
             ])
           )
         ),
@@ -387,11 +458,9 @@ export default class DashModal {
           createElement("button", { class: "btn-red" }, "Logout", {
             type: "click",
             event: (e) => {
-              window.go.main.App.RemoveAuthToken().then(
-                () => {
-                  console.log("Token removed for", this.socketConn.hostUUID);
-                }
-              );
+              window.go.main.App.RemoveAuthToken().then(() => {
+                console.log("Token removed for", this.socketConn.hostUUID);
+              });
               this.open({
                 type: "login",
                 data: {},
@@ -480,6 +549,9 @@ export default class DashModal {
         break;
       case "invites":
         this.renderInvites(props.data.invites, props.data.user);
+        break;
+      case "channel-settings":
+        this.renderChannelSettings(props.data.channel);
         break;
       case "space-settings":
         if (props.data.space && props.data.user) {

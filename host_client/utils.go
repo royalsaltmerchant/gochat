@@ -8,14 +8,14 @@ import (
 
 func AppendspaceChannelsAndUsers(space *DashDataSpace) {
 	// Fetch channels
-	channelsQuery := `SELECT id, uuid, name, space_uuid FROM channels WHERE space_uuid = ?`
+	channelsQuery := `SELECT id, uuid, name, space_uuid, allow_voice FROM channels WHERE space_uuid = ?`
 	channelRows, err := db.ChatDB.Query(channelsQuery, space.UUID)
 	if err == nil {
 		defer channelRows.Close()
 		var channels []DashDataChannel
 		for channelRows.Next() {
 			var channel DashDataChannel
-			if err := channelRows.Scan(&channel.ID, &channel.UUID, &channel.Name, &channel.SpaceUUID); err == nil {
+			if err := channelRows.Scan(&channel.ID, &channel.UUID, &channel.Name, &channel.SpaceUUID, &channel.AllowVoice); err == nil {
 				channels = append(channels, channel)
 			}
 		}

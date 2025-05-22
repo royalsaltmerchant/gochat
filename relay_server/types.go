@@ -196,10 +196,11 @@ type DashDataUser struct {
 }
 
 type DashDataChannel struct {
-	ID        int    `json:"id"`
-	UUID      string `json:"uuid"`
-	Name      string `json:"name"`
-	SpaceUUID string `json:"space_uuid"`
+	ID         int    `json:"id"`
+	UUID       string `json:"uuid"`
+	Name       string `json:"name"`
+	SpaceUUID  string `json:"space_uuid"`
+	AllowVoice int    `json:"allow_voice"`
 }
 
 type DashDataSpace struct {
@@ -485,4 +486,15 @@ type ClientHost struct {
 
 type UUIDListRequest struct {
 	UUIDs []string `json:"uuids"`
+}
+
+type ChannelAllowVoiceClient struct {
+	UUID  string `json:"uuid"`
+	Allow int    `json:"allow"`
+}
+
+type ChannelAllowVoiceRequest struct {
+	UUID       string `json:"uuid"`
+	Allow      int    `json:"allow"`
+	ClientUUID string `json:"client_uuid"`
 }
