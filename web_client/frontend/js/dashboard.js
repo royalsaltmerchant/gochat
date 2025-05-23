@@ -38,7 +38,7 @@ export default class DashboardApp {
       renderChatAppMessage: this.renderChatAppMessage,
       handleCreateSpace: this.handleCreateSpace,
       handleDeleteSpace: this.handleDeleteSpace,
-      handleCreateChannel: this.handleCreatehannel,
+      handleCreateChannel: this.handleCreateChannel,
       handleCreateChannelUpdate: this.handleCreateChannelUpdate,
       handleDeleteChannel: this.handleDeleteChannel,
       handleDeleteChannelUpdate: this.handleDeleteChannelUpdate,
@@ -228,104 +228,117 @@ export default class DashboardApp {
     }
   };
 
-  handleCreatehannel = (data) => {
-    const spaceToUpdate = this.data.spaces.find(
-      (space) => space.uuid === data.data.space_uuid
-    );
+  handleCreateChannel = (data) => {
+    const { space_uuid: spaceUUID, channel } = data.data;
 
-    if (spaceToUpdate) {
-      // Update local data
-      spaceToUpdate.channels.push(data.data.channel);
-      // render
-      const spaceElemToUpdate = this.sidebar.spaceComponents.find(
-        (elem) => elem.space.uuid == data.data.space_uuid
-      );
-      // Update the channel data on the elem
-      spaceElemToUpdate.render();
-      // Update modal
-      this.openDashModal({
-        type: "space-settings",
-        data: { space: spaceToUpdate, user: this.data.user },
-      });
-    }
+    const spaceToUpdate = this.data.spaces.find(
+      (space) => space.uuid === spaceUUID
+    );
+    if (!spaceToUpdate) return;
+
+    // Add the new channel
+    spaceToUpdate.channels.push(channel);
+
+    // Re-render the corresponding sidebar element
+    const spaceElem = this.sidebar.spaceComponents.find(
+      (elem) => elem.space.uuid === spaceUUID
+    );
+    if (spaceElem) spaceElem.render();
+
+    // Open the updated modal
+    this.openDashModal({
+      type: "space-settings",
+      data: { space: spaceToUpdate, user: this.data.user },
+    });
   };
 
   handleCreateChannelUpdate = (data) => {
+    const { space_uuid: spaceUUID, channel } = data.data;
+
     const spaceToUpdate = this.data.spaces.find(
-      (space) => space.uuid === data.data.space_uuid
+      (space) => space.uuid === spaceUUID
     );
-    if (spaceToUpdate) {
-      if (
-        !spaceToUpdate.channels.find(
-          (chan) => chan.uuid === data.data.channel.uuid
-        )
-      ) {
-        // Update local data
-        spaceToUpdate.channels.push(data.data.channel);
-        // render
-        const spaceElemToUpdate = this.sidebar.spaceComponents.find(
-          (elem) => elem.space.uuid == data.data.space_uuid
-        );
-        // Update the channel data on the elem
-        spaceElemToUpdate.render();
-      }
-    }
+    if (!spaceToUpdate) return;
+
+    // Only add if not already present
+    const alreadyExists = spaceToUpdate.channels.some(
+      (chan) => chan.uuid === channel.uuid
+    );
+    if (alreadyExists) return;
+
+    spaceToUpdate.channels.push(channel);
+
+    // Re-render the corresponding sidebar element
+    const spaceElem = this.sidebar.spaceComponents.find(
+      (elem) => elem.space.uuid === spaceUUID
+    );
+    if (spaceElem) spaceElem.render();
   };
 
   handleDeleteChannel = (data) => {
+    const { uuid: deletedChannelUUID, space_uuid: spaceUUID } = data.data;
+
     const spaceToUpdate = this.data.spaces.find(
-      (space) => space.uuid === data.data.space_uuid
+      (space) => space.uuid === spaceUUID
+    );
+    if (!spaceToUpdate) return;
+
+    const channelIndex = spaceToUpdate.channels.findIndex(
+      (channel) => channel.uuid === deletedChannelUUID
     );
 
-    if (spaceToUpdate) {
-      // Update local data
-      const index = spaceToUpdate.channels.findIndex(
-        (channel) => channel.uuid === data.data.uuid
-      );
-      if (index) {
-        spaceToUpdate.channels.splice(index, 1);
-        // render
-        const spaceElemToUpdate = this.sidebar.spaceComponents.find(
-          (elem) => elem.space.uuid == data.data.space_uuid
-        );
-        // Update the channel data on the elem
-        spaceElemToUpdate.render();
-        // Update modal
-        this.openDashModal({
-          type: "space-settings",
-          data: { space: spaceToUpdate, user: this.data.user },
-        });
-        // update main view
-        this.mainContent.render();
-      }
+    if (channelIndex === -1) return;
+
+    // Remove the channel
+    spaceToUpdate.channels.splice(channelIndex, 1);
+
+    // Re-render the affected space in the sidebar
+    const spaceElem = this.sidebar.spaceComponents.find(
+      (elem) => elem.space.uuid === spaceUUID
+    );
+    if (spaceElem) spaceElem.render();
+
+    // Update the dashboard modal
+    this.openDashModal({
+      type: "space-settings",
+      data: { space: spaceToUpdate, user: this.data.user },
+    });
+
+    // If the deleted channel was currently open, reset the main view
+    if (this.mainContent.currentChannelUUID === deletedChannelUUID) {
+      this.mainContent.currentChannelUUID = null;
+      this.mainContent.chatApp = null;
+      this.mainContent.render();
     }
   };
 
   handleDeleteChannelUpdate = (data) => {
+    const { uuid: deletedChannelUUID, space_uuid: spaceUUID } = data.data;
+
     const spaceToUpdate = this.data.spaces.find(
-      (space) => space.uuid === data.data.space_uuid
+      (space) => space.uuid === spaceUUID
     );
-    if (spaceToUpdate) {
-      // Update local data
-      const index = spaceToUpdate.channels.findIndex(
-        (channel) => channel.id === data.data.uuid
-      );
-      if (index) {
-        spaceToUpdate.channels.splice(index, 1);
-        // render
-        const spaceElemToUpdate = this.sidebar.spaceComponents.find(
-          (elem) => elem.space.uuid == data.data.space_uuid
-        );
-        // Update the channel data on the elem
-        spaceElemToUpdate.render();
-        // Update modal
-        this.openDashModal({
-          type: "space-settings",
-          data: { space: spaceToUpdate, user: this.data.user },
-        });
-        // update main view
-        this.mainContent.render();
-      }
+    if (!spaceToUpdate) return;
+
+    const channelIndex = spaceToUpdate.channels.findIndex(
+      (channel) => channel.uuid === deletedChannelUUID
+    );
+    if (channelIndex === -1) return;
+
+    // Remove the channel
+    spaceToUpdate.channels.splice(channelIndex, 1);
+
+    // Re-render the affected space in the sidebar
+    const spaceElem = this.sidebar.spaceComponents.find(
+      (elem) => elem.space.uuid === spaceUUID
+    );
+    if (spaceElem) spaceElem.render();
+
+    // If the deleted channel was currently open, reset the main view
+    if (this.mainContent.currentChannelUUID === deletedChannelUUID) {
+      this.mainContent.currentChannelUUID = null;
+      this.mainContent.chatApp = null;
+      this.mainContent.render();
     }
   };
 
