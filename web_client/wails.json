@@ -1,7 +1,7 @@
 {
   "$schema": "https://wails.io/schemas/config.v2.json",
-  "name": "web_client",
-  "outputfilename": "web_client",
+  "name": "Parch",
+  "outputfilename": "Parch",
   "frontend:dir": "frontend/dist",
   "frontend:install": "",
   "frontend:build": "",

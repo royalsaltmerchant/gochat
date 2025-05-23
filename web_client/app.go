@@ -40,7 +40,7 @@ func (a *App) startup(ctx context.Context) {
 func (a *App) Alert(message string) {
 	runtime.MessageDialog(a.ctx, runtime.MessageDialogOptions{
 		Type:    runtime.InfoDialog,
-		Title:   "GoChat",
+		Title:   "Parch",
 		Message: message,
 	})
 }

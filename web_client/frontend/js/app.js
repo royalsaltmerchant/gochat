@@ -126,7 +126,7 @@ export default class HostForm {
     const hostUUIDs = hosts.map((host) => host.uuid);
 
     // Get hosts by UUID from relay API
-    const hostsData = [];
+    let hostsData = [];
     try {
       const res = await fetch(`${relayBaseURL}/api/hosts_by_uuids`, {
         method: "POST",
