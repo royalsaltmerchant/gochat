@@ -126,14 +126,22 @@ export default class HostForm {
     const hostUUIDs = hosts.map((host) => host.uuid);
 
     // Get hosts by UUID from relay API
-    const res = await fetch(`${relayBaseURL}/api/hosts_by_uuids`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ uuids: hostUUIDs }),
-    });
-    const hostsData = await res.json();
+    const hostsData = [];
+    try {
+      const res = await fetch(`${relayBaseURL}/api/hosts_by_uuids`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ uuids: hostUUIDs }),
+      });
+      hostsData = await res.json();
+
+    } catch (error)  {
+      console.log(error)
+      window.go.main.App.Alert("Failed to connect to relay server")
+    }
+    
 
     this.domComponent.append(
       createElement("h2", {}, "Select From Known Hosts"),
