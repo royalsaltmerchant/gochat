@@ -7,10 +7,8 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"os/signal"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/andlabs/ui"
@@ -24,18 +22,14 @@ func main() {
 	ui.Main(setupUI)
 }
 
-func runMainLogic(cfg *HostConfig) {
+func runMainLogic(ctx context.Context, cfg *HostConfig) {
 	var err error
-
 	db.ChatDB, err = db.InitDB(cfg.DBFile, MigrationFiles, "migrations")
 	if err != nil {
 		log.Println("Error opening database:", err)
 		return
 	}
 	defer db.CloseDB(db.ChatDB)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	go func() {
 		err := SocketClient(ctx, cfg.UUID, cfg.AuthorID)
@@ -44,12 +38,8 @@ func runMainLogic(cfg *HostConfig) {
 		}
 	}()
 
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, os.Interrupt, syscall.SIGTERM)
-	<-sigs
-
-	log.Println("Interrupt received, shutting down...")
-	cancel()
+	<-ctx.Done()
+	log.Println("Shutting down...")
 
 	payload := map[string]string{
 		"author_id": cfg.AuthorID,
@@ -65,6 +55,8 @@ func runMainLogic(cfg *HostConfig) {
 
 func setupUI() {
 	LoadOrInitHostConfigGUI(func(cfg *HostConfig) {
+		ctx, cancel := context.WithCancel(context.Background())
+
 		multiline := ui.NewMultilineEntry()
 		multiline.SetReadOnly(true)
 
@@ -75,16 +67,22 @@ func setupUI() {
 
 		win.SetChild(box)
 		win.OnClosing(func(*ui.Window) bool {
-			ui.Quit()
-			return true
+			log.Println("Closing window, sending shutdown signal...")
+			cancel() // cancel context
+			go func() {
+				time.Sleep(1500 * time.Millisecond) // give time for shutdown
+				ui.Quit()
+			}()
+			return true // allow window to close
 		})
+
 		win.Show()
 		bringToFront()
 
 		log.SetOutput(logWriter{multiline})
 		log.Println("Startup complete. Connecting...")
 
-		go runMainLogic(cfg)
+		go runMainLogic(ctx, cfg)
 	})
 }
 
