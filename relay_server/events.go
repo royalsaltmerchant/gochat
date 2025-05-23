@@ -140,7 +140,27 @@ func handleCreateSpaceRes(client *Client, conn *websocket.Conn, wsMsg *WSMessage
 		return
 	}
 
-	joinSpace(client, data.Space.UUID)
+	host, exists := GetHost(client.HostUUID)
+	if !exists {
+		log.Printf("host %s not found\n", client.HostUUID)
+		SendToClient(client.HostUUID, client.ClientUUID, WSMessage{
+			Type: "author_error",
+			Data: ChatError{Content: "Failed to connect to the host"},
+		})
+		return
+	}
+
+	host.mu.Lock()
+	joinConn, ok := host.ClientConnsByUUID[data.ClientUUID]
+	if !ok {
+		host.mu.Unlock()
+		log.Printf("SendToClient: client not connected to host\n")
+		return
+	}
+	joinClient := host.ClientsByConn[joinConn]
+	host.mu.Unlock()
+
+	joinSpace(joinClient, data.Space.UUID)
 
 	SendToClient(client.HostUUID, data.ClientUUID, WSMessage{
 		Type: "create_space_success",
