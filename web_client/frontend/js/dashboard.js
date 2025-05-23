@@ -41,6 +41,7 @@ export default class DashboardApp {
       handleCreateChannel: this.handleCreatehannel,
       handleCreateChannelUpdate: this.handleCreateChannelUpdate,
       handleDeleteChannel: this.handleDeleteChannel,
+      handleDeleteChannelUpdate: this.handleDeleteChannelUpdate,
       handleInviteUser: this.handleInviteUser,
       handleAddInvite: this.handleAddInvite,
       handleAcceptInvite: this.handleAcceptInvite,
@@ -254,7 +255,11 @@ export default class DashboardApp {
       (space) => space.uuid === data.data.space_uuid
     );
     if (spaceToUpdate) {
-      if (!spaceToUpdate.channels.find(chan => chan.uuid === data.data.channel.uuid)) {
+      if (
+        !spaceToUpdate.channels.find(
+          (chan) => chan.uuid === data.data.channel.uuid
+        )
+      ) {
         // Update local data
         spaceToUpdate.channels.push(data.data.channel);
         // render
@@ -275,22 +280,52 @@ export default class DashboardApp {
     if (spaceToUpdate) {
       // Update local data
       const index = spaceToUpdate.channels.findIndex(
-        (channel) => channel.id === data.data.id
+        (channel) => channel.uuid === data.data.uuid
       );
-      spaceToUpdate.channels.splice(index, 1);
-      // render
-      const spaceElemToUpdate = this.sidebar.spaceComponents.find(
-        (elem) => elem.space.uuid == data.data.space_uuid
+      if (index) {
+        spaceToUpdate.channels.splice(index, 1);
+        // render
+        const spaceElemToUpdate = this.sidebar.spaceComponents.find(
+          (elem) => elem.space.uuid == data.data.space_uuid
+        );
+        // Update the channel data on the elem
+        spaceElemToUpdate.render();
+        // Update modal
+        this.openDashModal({
+          type: "space-settings",
+          data: { space: spaceToUpdate, user: this.data.user },
+        });
+        // update main view
+        this.mainContent.render();
+      }
+    }
+  };
+
+  handleDeleteChannelUpdate = (data) => {
+    const spaceToUpdate = this.data.spaces.find(
+      (space) => space.uuid === data.data.space_uuid
+    );
+    if (spaceToUpdate) {
+      // Update local data
+      const index = spaceToUpdate.channels.findIndex(
+        (channel) => channel.id === data.data.uuid
       );
-      // Update the channel data on the elem
-      spaceElemToUpdate.render();
-      // Update modal
-      this.openDashModal({
-        type: "space-settings",
-        data: { space: spaceToUpdate, user: this.data.user },
-      });
-      // update main view
-      this.mainContent.render();
+      if (index) {
+        spaceToUpdate.channels.splice(index, 1);
+        // render
+        const spaceElemToUpdate = this.sidebar.spaceComponents.find(
+          (elem) => elem.space.uuid == data.data.space_uuid
+        );
+        // Update the channel data on the elem
+        spaceElemToUpdate.render();
+        // Update modal
+        this.openDashModal({
+          type: "space-settings",
+          data: { space: spaceToUpdate, user: this.data.user },
+        });
+        // update main view
+        this.mainContent.render();
+      }
     }
   };
 

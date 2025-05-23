@@ -15,6 +15,7 @@ export default class SocketConn {
     this.handleNewChannel = props.handleNewChannel;
     this.handleCreateChannelUpdate = props.handleCreateChannelUpdate;
     this.handleDeleteChannel = props.handleDeleteChannel;
+    this.handleDeleteChannelUpdate = props.handleDeleteChannelUpdate;
     this.handleInviteUser = props.handleInviteUser;
     this.handleAddInvite = props.handleAddInvite;
     this.handleAcceptInvite = props.handleAcceptInvite;
@@ -164,6 +165,10 @@ export default class SocketConn {
             console.log("delete channel success", data);
             this.handleDeleteChannel(data);
             break;
+          case "delete_channel_update":
+            console.log("delete_channel_update", data);
+            this.handleDeleteChannelUpdate(data);
+            break;
           case "invite_user_success":
             console.log("invite user success", data);
             this.handleInviteUser(data);
@@ -194,7 +199,6 @@ export default class SocketConn {
             break;
           case "joined_channel":
             console.log("Join message:", data);
-
             break;
           case "left_channel":
             console.log("Leave message:", data);

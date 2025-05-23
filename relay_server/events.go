@@ -270,6 +270,14 @@ func handleDeleteChannelRes(client *Client, conn *websocket.Conn, wsMsg *WSMessa
 		Type: "delete_channel_success",
 		Data: data,
 	})
+
+	BroadcastToSpace(client.HostUUID, data.SpaceUUID, WSMessage{
+		Type: "delete_channel_update",
+		Data: DeleteChannelUpdate{
+			UUID:      data.UUID,
+			SpaceUUID: data.SpaceUUID,
+		},
+	})
 }
 
 func handleInviteUser(client *Client, conn *websocket.Conn, wsMsg *WSMessage) {

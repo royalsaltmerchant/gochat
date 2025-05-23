@@ -304,6 +304,11 @@ type DeleteChannelResponse struct {
 	ClientUUID string `json:"client_uuid"`
 }
 
+type DeleteChannelUpdate struct {
+	UUID      string `json:"uuid"`
+	SpaceUUID string `json:"space_uuid"`
+}
+
 type InviteUserClient struct {
 	Email     string `json:"email"`
 	SpaceUUID string `json:"space_uuid"`
