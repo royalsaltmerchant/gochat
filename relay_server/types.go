@@ -283,6 +283,10 @@ type CreateChannelSuccess struct {
 	SpaceUUID string          `json:"space_uuid"`
 	Channel   DashDataChannel `json:"channel"`
 }
+type CreateChannelUpdate struct {
+	SpaceUUID string          `json:"space_uuid"`
+	Channel   DashDataChannel `json:"channel"`
+}
 
 type DeleteChannelClient struct {
 	UUID string `json:"uuid"`

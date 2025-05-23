@@ -233,6 +233,14 @@ func handleCreateChannelRes(client *Client, conn *websocket.Conn, wsMsg *WSMessa
 			Channel:   data.Channel,
 		},
 	})
+
+	BroadcastToSpace(client.HostUUID, data.SpaceUUID, WSMessage{
+		Type: "create_channel_update",
+		Data: CreateChannelUpdate{
+			SpaceUUID: data.SpaceUUID,
+			Channel:   data.Channel,
+		},
+	})
 }
 
 func handleDeleteChannel(client *Client, conn *websocket.Conn, wsMsg *WSMessage) {

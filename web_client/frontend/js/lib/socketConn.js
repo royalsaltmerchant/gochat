@@ -13,6 +13,7 @@ export default class SocketConn {
     this.handleDeleteSpace = props.handleDeleteSpace;
     this.handleDeleteChannel = props.handleDeleteChannel;
     this.handleNewChannel = props.handleNewChannel;
+    this.handleCreateChannelUpdate = props.handleCreateChannelUpdate;
     this.handleDeleteChannel = props.handleDeleteChannel;
     this.handleInviteUser = props.handleInviteUser;
     this.handleAddInvite = props.handleAddInvite;
@@ -154,6 +155,10 @@ export default class SocketConn {
           case "create_channel_success":
             console.log("Create channel success", data);
             this.handleCreateChannel(data);
+            break;
+          case "create_channel_update":
+            console.log("Create channel update", data);
+            this.handleCreateChannelUpdate(data);
             break;
           case "delete_channel_success":
             console.log("delete channel success", data);

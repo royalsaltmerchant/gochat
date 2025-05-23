@@ -39,6 +39,7 @@ export default class DashboardApp {
       handleCreateSpace: this.handleCreateSpace,
       handleDeleteSpace: this.handleDeleteSpace,
       handleCreateChannel: this.handleCreatehannel,
+      handleCreateChannelUpdate: this.handleCreateChannelUpdate,
       handleDeleteChannel: this.handleDeleteChannel,
       handleInviteUser: this.handleInviteUser,
       handleAddInvite: this.handleAddInvite,
@@ -178,7 +179,7 @@ export default class DashboardApp {
   };
 
   handleAcceptInviteUpdate = (data) => {
-    console.log("invite update", data)
+    console.log("invite update", data);
     const spaceToUpdate = this.data.spaces.find(
       (space) => space.uuid === data.data.space_uuid
     );
@@ -245,6 +246,24 @@ export default class DashboardApp {
         type: "space-settings",
         data: { space: spaceToUpdate, user: this.data.user },
       });
+    }
+  };
+
+  handleCreateChannelUpdate = (data) => {
+    const spaceToUpdate = this.data.spaces.find(
+      (space) => space.uuid === data.data.space_uuid
+    );
+    if (spaceToUpdate) {
+      if (!spaceToUpdate.channels.find(chan => chan.uuid === data.data.channel.uuid)) {
+        // Update local data
+        spaceToUpdate.channels.push(data.data.channel);
+        // render
+        const spaceElemToUpdate = this.sidebar.spaceComponents.find(
+          (elem) => elem.space.uuid == data.data.space_uuid
+        );
+        // Update the channel data on the elem
+        spaceElemToUpdate.render();
+      }
     }
   };
 
