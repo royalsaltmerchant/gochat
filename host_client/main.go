@@ -57,15 +57,45 @@ func setupUI() {
 	LoadOrInitHostConfigGUI(func(cfg *HostConfig) {
 		ctx, cancel := context.WithCancel(context.Background())
 
+		win := ui.NewWindow("Parch Host", 600, 400, true)
+
+		hostLabel := ui.NewLabel("Host Key:")
+
+		hostKey := ui.NewLabel(cfg.UUID)
+
+		copyBtn := ui.NewButton("Copy")
+		copyBtn.OnClicked(func(*ui.Button) {
+			copyToClipboard(cfg.UUID)
+		})
+
+		hostKeyRow := ui.NewHorizontalBox()
+		hostKeyRow.Append(hostKey, true)
+		hostKeyRow.Append(copyBtn, false)
+
+		hostKeyBox := ui.NewVerticalBox()
+		hostKeyBox.Append(hostLabel, false)
+		hostKeyBox.Append(hostKeyRow, false)
+		hostKeyBox.Append(ui.NewHorizontalSeparator(), false)
+
+		logHeader := ui.NewLabel("Parch Host Logs:")
+
 		multiline := ui.NewMultilineEntry()
 		multiline.SetReadOnly(true)
 
-		win := ui.NewWindow("Parch Host", 600, 400, true)
-		box := ui.NewVerticalBox()
-		box.Append(ui.NewLabel("Parch Host Logs:"), false)
-		box.Append(multiline, true)
+		logBox := ui.NewVerticalBox()
+		logBox.Append(logHeader, false)
+		logBox.Append(multiline, true)
 
-		win.SetChild(box)
+		container := ui.NewVerticalBox()
+
+		// Add vertical spacing by inserting empty labels
+		container.Append(ui.NewLabel(" "), false)
+		container.Append(hostKeyBox, false)
+		container.Append(ui.NewLabel(" "), false)
+		container.Append(logBox, true)
+
+		win.SetChild(container)
+
 		win.OnClosing(func(*ui.Window) bool {
 			log.Println("Closing window, sending shutdown signal...")
 			cancel() // cancel context
@@ -108,4 +138,20 @@ func showErrorAndQuit(msg string) {
 		ui.MsgBoxError(nil, "Startup Error", msg)
 		ui.Quit()
 	})
+}
+
+func copyToClipboard(text string) {
+	cmd := exec.Command("pbcopy")
+	in, err := cmd.StdinPipe()
+	if err != nil {
+		log.Println("Clipboard error:", err)
+		return
+	}
+	if err := cmd.Start(); err != nil {
+		log.Println("Clipboard error:", err)
+		return
+	}
+	_, _ = in.Write([]byte(text))
+	_ = in.Close()
+	_ = cmd.Wait()
 }
