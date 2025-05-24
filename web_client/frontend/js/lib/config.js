@@ -1,3 +1,8 @@
-const relayBaseURL = "http://99.36.161.96:8000";
+const relayHost = "parch.julianranieri.com";
+const sfuHost = "sfu.parch.julianranieri.com";
 
-export { relayBaseURL };
+const relayBaseURL = "https://" + relayHost;
+const relayBaseURLWS = "wss://" + relayHost + "/ws";
+const sfuBaseURLWS = "wss://" + sfuHost + "/ws";
+
+export { relayBaseURL, relayBaseURLWS, sfuBaseURLWS };

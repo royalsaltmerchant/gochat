@@ -4,11 +4,11 @@ import (
 	"net/url"
 )
 
-var relayHost = "99.36.161.96:8000"
+var relayHost = "parch.julianranieri.com"
 
-var relayBaseURL = url.URL{Scheme: "http", Host: relayHost, Path: ""}
+var relayBaseURL = url.URL{Scheme: "https", Host: relayHost, Path: ""}
 
-var wsRelayURL = url.URL{Scheme: "ws", Host: relayHost, Path: "/ws"}
+var wsRelayURL = url.URL{Scheme: "wss", Host: relayHost, Path: "/ws"}
 
 var dbName = "chat.db"
 

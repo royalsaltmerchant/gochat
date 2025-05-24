@@ -1,4 +1,5 @@
 import voiceManager from "./voiceManager";
+import { relayBaseURLWS } from "./config.js";
 
 export default class SocketConn {
   constructor(props) {
@@ -73,7 +74,7 @@ export default class SocketConn {
   };
 
   connect = () => {
-    const url = `ws://99.36.161.96:8000/ws`; // Relay socket server remote
+    const url = relayBaseURLWS; // Relay socket server remote
     console.log("Connecting to WebSocket:", url);
     this.socket = new WebSocket(url);
 

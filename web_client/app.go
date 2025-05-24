@@ -27,7 +27,7 @@ func NewApp() *App {
 	}
 
 	return &App{
-		relayBaseURL: "http://99.36.161.96:8000",
+		relayBaseURL: "https://parch.julianranieri.com",
 		HostManager:  hostMgr,
 		TokenManager: tokenMgr,
 	}

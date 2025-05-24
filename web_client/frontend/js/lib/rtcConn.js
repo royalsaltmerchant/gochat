@@ -1,6 +1,6 @@
 import { Client, LocalStream, RemoteStream } from "ion-sdk-js";
 import { IonSFUJSONRPCSignal } from "ion-sdk-js/lib/signal/json-rpc-impl";
-import { relayBaseURL } from "./config.js";
+import { relayBaseURL, sfuBaseURLWS } from "./config.js";
 import voiceManager from "./voiceManager.js";
 
 export default class RTCConnUsingIon {
@@ -9,7 +9,7 @@ export default class RTCConnUsingIon {
     this.room = props.room;
     this.userID = props.userID;
 
-    this.sfuUrl = "ws://99.36.161.96:7000/ws";
+    this.sfuUrl = sfuBaseURLWS;
     this.peerConfig = null;
 
     this.signal = null;
@@ -68,7 +68,7 @@ export default class RTCConnUsingIon {
       console.log("📤 Local stream published", this.localStream);
       // Send local stream ID with user ID so we can find their info later
       this.socketConn.joinVoiceChannel(this.localStream.id);
-      
+
       // Optional: Simulcast setup if required for video
       // await this.client.publish(localStream, { simulcast: true });
     };
