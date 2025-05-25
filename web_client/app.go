@@ -63,6 +63,10 @@ func (a *App) Greet(name string) string {
 	return fmt.Sprintf("Hello %s, It's show time!", name)
 }
 
+func (a *App) OpenInBrowser(url string) {
+	runtime.BrowserOpenURL(a.ctx, url)
+}
+
 // Forward HostManager methods directly
 
 func (a *App) GetHosts() ([]Host, error) {

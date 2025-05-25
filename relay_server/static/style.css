@@ -1,0 +1,242 @@
+:root {
+  --main-white: rgb(235, 235, 235);
+  --bright-white: rgb(245, 245, 245);
+  --main-dark: rgb(25, 29, 37);
+  --second-dark: rgb(21, 24, 31);
+  --black: rgb(19, 20, 24);
+  --light-blue: rgb(66, 85, 119);
+  --second-blue: rgb(55, 71, 99);
+  --dark-blue: rgb(38, 44, 57);
+  --a-blue: rgb(157, 179, 211);
+  --main-gray: rgb(89, 96, 117);
+  --light-red: rgb(209, 102, 124);
+  --dark-red: rgb(152, 74, 90);
+  --light-yellow: rgb(255, 250, 155);
+  --light-green: rgb(119, 167, 77);
+  --main-distance: 10px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.4;
+  font-family: serif;
+  font-size: 18px;
+  background-color: var(--main-dark);
+  color: var(--main-white);
+  letter-spacing: 0.8px;
+}
+
+p {
+  display: inline-block;
+}
+
+a {
+  display: inline-block;
+  color: var(--a-blue);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+br {
+  display: block;
+  content: "";
+  margin-top: var(--main-distance);
+}
+
+hr {
+  height: 1px;
+
+  border: none;
+  background-color: var(--main-gray);
+  margin: 8px 0;
+}
+
+main {
+  padding: 15px 30px;
+}
+
+header {
+  color: var(--bright-white);
+  padding: calc(var(--main-distance) / 2) var(--main-distance);
+  background-color: var(--dark-blue);
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+nav {
+  display: inline-block;
+}
+
+nav a {
+  margin-left: var(--main-distance);
+}
+
+legend {
+  color: var(--bright-white);
+}
+
+fieldset {
+  width: fit-content;
+  padding: 12px 15px;
+  border-color: var(--main-gray);
+}
+
+label {
+  font-size: small;
+  font-weight: bold;
+  position: absolute;
+  top: -10;
+  left: 10px;
+  transform: translateY(-50%);
+  background: linear-gradient(var(--main-dark) 10%, var(--second-dark) 90%);
+}
+
+.input-container {
+  position: relative;
+  padding-top: 5px;
+  display: inline-block;
+}
+
+input {
+  float: right;
+  color: inherit;
+  font: inherit;
+  padding: 5px;
+  background-color: var(--second-dark);
+  border-left: 1px solid var(--main-gray);
+  border-top: 1px solid var(--main-gray);
+  border-right: 1px solid var(--black);
+  border-bottom: 1px solid var(--black);
+}
+
+input:focus {
+  outline: 1px solid var(--light-blue);
+}
+
+input[type="checkbox"] {
+  appearance: none;
+  width: 32px;
+  height: 32px;
+  border: 2px solid var(--main-gray);
+  background-color: var(--main-dark);
+  border-radius: 6px;
+  position: relative;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+
+input[type="checkbox"]:hover {
+  background-color: var(--main-dark);
+}
+
+input[type="checkbox"]:checked {
+  background-color: var(--light-green);
+  border-color: var(--light-green);
+}
+
+input[type="checkbox"]::after {
+  content: "";
+  position: absolute;
+  top: 6px;
+  left: 10px;
+  width: 6px;
+  height: 14px;
+  border: solid var(--main-dark);
+  border-width: 0 3px 3px 0;
+  transform: rotate(45deg);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+input[type="checkbox"]:checked::after {
+  opacity: 1;
+}
+
+
+button {
+  color: var(--bright-white);
+  font: inherit;
+  padding: 2px 4px;
+  cursor: pointer;
+  background-color: var(--light-blue);
+  border-left: 1px solid var(--main-gray);
+  border-top: 1px solid var(--main-gray);
+  border-right: 1px solid var(--black);
+  border-bottom: 1px solid var(--black);
+}
+
+button:hover {
+  background: linear-gradient(var(--light-blue) 25%, var(--second-blue) 75%);
+  /* border-left: 1px solid var(--black);
+  border-top: 1px solid var(--black);
+  border-right: 1px solid var(--main-gray);
+  border-bottom: 1px solid var(--main-gray); */
+}
+
+button:focus {
+  outline: 1px solid var(--light-blue);
+}
+
+.btn-red {
+  background-color: var(--light-red);
+}
+
+.btn-red:hover {
+  background: linear-gradient(var(--light-red) 25%, var(--dark-red) 75%);
+}
+
+.toast-warning {
+  color: var(--light-red);
+}
+
+/* spinner */
+.initial-spinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.lds-dual-ring {
+  display: inline-block;
+  width: 40px;
+  height: 40px;
+}
+
+.lds-dual-ring:after {
+  content: " ";
+  display: block;
+  width: 30px;
+  height: 30px;
+  margin: 4px;
+  border-radius: 50%;
+  border: 3px solid var(--bright-white);
+  border-color: var(--bright-white) transparent var(--bright-white) transparent;
+  animation: lds-dual-ring 1.2s linear infinite;
+}
+
+@keyframes lds-dual-ring {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}

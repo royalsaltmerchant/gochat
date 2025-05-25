@@ -74,6 +74,7 @@ func main() {
 	r.GET("/ws", func(c *gin.Context) {
 		HandleSocket(c)
 	})
+	// API
 	r.GET("/api/host/:uuid", HandleGetHost)
 	r.POST("/api/hosts_by_uuids", HandleGetHostsByUUIDs)
 	r.POST("/api/host_offline/:uuid", HandleUpdateHostOffline)
@@ -82,6 +83,19 @@ func main() {
 	r.POST("/api/user_by_email", HandleGetUserByEmail)
 	r.POST("/api/users_by_ids", HandleGetUsersByIDs)
 	r.GET("/api/turn_credentials", HandleGetTurnCredentials)
+	r.POST("/api/request_reset_email", HandlePasswordResetRequest)
+	r.POST("/api/reset_password", HandlePasswordReset)
+	// Static
+	r.GET("/", func(c *gin.Context) {
+		c.File("/root/relay_server/static/index.html")
+	})
+	r.GET("/forgot_password", func(c *gin.Context) {
+		c.File("/root/relay_server/static/forgot_password.html")
+	})
+	r.GET("/reset_password", func(c *gin.Context) {
+		c.File("/root/relay_server/static/reset_password.html")
+	})
+	r.Static("/static", "/root/relay_server/static")
 
 	// Create HTTP server manually so we can shut it down
 	server := &http.Server{

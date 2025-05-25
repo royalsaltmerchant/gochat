@@ -1,4 +1,5 @@
 import createElement from "./createElement.js";
+import { relayBaseURL } from "../lib/config.js";
 
 export default class DashModal {
   constructor(app, socketConn) {
@@ -313,6 +314,14 @@ export default class DashModal {
                 type: "register",
                 data: {},
               });
+            },
+          }),
+          createElement("a", {}, "Forgot Password?", {
+            type: "click",
+            event: () => {
+              window.go.main.App.OpenInBrowser(
+                `${relayBaseURL}/forgot_password`
+              );
             },
           }),
         ]),

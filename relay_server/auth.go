@@ -5,16 +5,18 @@ import (
 	"fmt"
 	"gochat/db"
 	"log"
+	"net/url"
 	"os"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"golang.org/x/crypto/bcrypt"
 
 	jwt "github.com/dgrijalva/jwt-go"
 )
 
-func generateJWT(userData UserData, jwtSecret string, expirationTime time.Duration) (string, error) {
+func generateJWT(userData UserData, expirationTime time.Duration) (string, error) {
 	claims := jwt.MapClaims{
 		"userID":       userData.ID,
 		"userEmail":    userData.Email,
@@ -22,6 +24,7 @@ func generateJWT(userData UserData, jwtSecret string, expirationTime time.Durati
 		"exp":          time.Now().Add(expirationTime).Unix(), // Token expiration
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	jwtSecret := os.Getenv("JWT_SECRET")
 	tokenString, err := token.SignedString([]byte(jwtSecret))
 	if err != nil {
 		return "", err
@@ -56,7 +59,7 @@ func handleRegisterUser(client *Client, conn *websocket.Conn, wsMsg *WSMessage) 
 	if err != nil {
 		// Duplicate email case
 		if err.Error() == "UNIQUE constraint failed: users.email" {
-			SendToClient(client.HostUUID, client.HostUUID, WSMessage{
+			SendToClient(client.HostUUID, client.ClientUUID, WSMessage{
 				Type: "error",
 				Data: ChatError{
 					Content: "Email is already taken",
@@ -66,7 +69,7 @@ func handleRegisterUser(client *Client, conn *websocket.Conn, wsMsg *WSMessage) 
 		}
 
 		// Other DB errors
-		SendToClient(client.ClientUUID, client.HostUUID, WSMessage{
+		SendToClient(client.HostUUID, client.ClientUUID, WSMessage{
 			Type: "error",
 			Data: ChatError{
 				Content: "Database error inserting user data",
@@ -75,9 +78,7 @@ func handleRegisterUser(client *Client, conn *websocket.Conn, wsMsg *WSMessage) 
 		return
 	}
 
-	jwtSecret := os.Getenv("JWT_SECRET")
-
-	token, err := generateJWT(userData, jwtSecret, time.Hour*672) // 28 days
+	token, err := generateJWT(userData, time.Hour*672) // 28 days
 	if err != nil {
 		SendToClient(client.HostUUID, client.ClientUUID, WSMessage{
 			Type: "error",
@@ -132,9 +133,7 @@ func handleLogin(client *Client, conn *websocket.Conn, wsMsg *WSMessage) {
 		return
 	}
 
-	jwtSecret := os.Getenv("JWT_SECRET")
-
-	token, err := generateJWT(userData, jwtSecret, time.Hour*672) // 28 days
+	token, err := generateJWT(userData, time.Hour*672) // 28 days
 	if err != nil {
 		SendToClient(client.HostUUID, client.ClientUUID, WSMessage{
 			Type: "error",
@@ -252,9 +251,7 @@ func handleUpdateUsername(client *Client, conn *websocket.Conn, wsMsg *WSMessage
 		return
 	}
 
-	jwtSecret := os.Getenv("JWT_SECRET")
-
-	token, err := generateJWT(userData, jwtSecret, time.Hour*672) // 28 days
+	token, err := generateJWT(userData, time.Hour*672) // 28 days
 	if err != nil {
 		SendToClient(client.HostUUID, client.ClientUUID, WSMessage{
 			Type: "error",
@@ -301,72 +298,108 @@ func handleUpdateUsernameApproved(client *Client, conn *websocket.Conn, userID i
 	})
 }
 
-// func sendPasswordResetEmail(userEmail string, resetToken string) error {
-// 	// Construct the password reset link (ensure the reset endpoint is properly set up)
-// 	resetLink := fmt.Sprintf("https://yourdomain.com/reset-password?token=%s", resetToken)
+func HandlePasswordResetRequest(c *gin.Context) {
+	var json struct {
+		Email string `json:"email"`
+	}
 
-// 	// Sender data
-// 	from := "your-email@example.com"
-// 	password := "your-email-password"
+	// Bind incoming JSON
+	if err := c.BindJSON(&json); err != nil {
+		c.JSON(400, gin.H{"error": "Invalid request data"})
+		return
+	}
 
-// 	// Recipient data
-// 	to := []string{userEmail}
+	// Check if the email exists in the database
+	var userData UserData
+	query := `SELECT id, username, email FROM users WHERE email = ?`
+	err := db.HostDB.QueryRow(query, json.Email).Scan(&userData.ID, &userData.Username, &userData.Email)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(400, gin.H{"error": "User not found by email"})
+		} else {
+			c.JSON(500, gin.H{"error": "Error querying the database for user"})
+		}
+		return
+	}
 
-// 	// Set up the message
-// 	subject := "Password Reset Request"
-// 	body := fmt.Sprintf("To reset your password, please click the following link: %s", resetLink)
+	// Generate a password reset token
+	resetToken, err := generateJWT(userData, time.Hour*2) // 2 hours
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to generate reset token"})
+		return
+	}
 
-// 	message := []byte("Subject: " + subject + "\r\n" +
-// 		"To: " + userEmail + "\r\n" +
-// 		"Content-Type: text/plain; charset=\"UTF-8\"\r\n\r\n" +
-// 		body)
+	recipient := userData.Email
+	subject := "Parch Password Reset"
+	var link = url.URL{Scheme: "https", Host: relayHost, Path: "/reset_password"}
+	q := url.Values{}
+	q.Set("token", resetToken)
+	link.RawQuery = q.Encode()
+	finalURL := link.String()
 
-// 	// Set up authentication information
-// 	auth := smtp.PlainAuth("", from, password, "smtp.example.com")
+	body := fmt.Sprintf("Please follow this link to reset your password: %s", finalURL)
 
-// 	// Send email
-// 	err := smtp.SendMail("smtp.example.com:587", auth, from, to, message)
-// 	return err
-// }
+	// Send the reset link via email
+	SendEmail(recipient, subject, body)
 
-// func HandlePasswordResetRequest(c *gin.Context) {
-// 	var json struct {
-// 		Email string `json:"email"`
-// 	}
+	c.JSON(200, gin.H{"message": "Password reset email sent to: " + userData.Email})
+}
 
-// 	// Bind incoming JSON
-// 	if err := c.BindJSON(&json); err != nil {
-// 		c.JSON(400, gin.H{"error": "Invalid request data"})
-// 		return
-// 	}
+func HandlePasswordReset(c *gin.Context) {
+	var json struct {
+		Password string `json:"password"`
+		Token    string `json:"token"`
+	}
 
-// 	// Check if the email exists in the database
-// 	var userData types.UserData
-// 	query := `SELECT email FROM users WHERE email = ?`
-// 	err := db.HostDB.QueryRow(query, json.Email).Scan(&userData.Email)
-// 	if err != nil {
-// 		if err == sql.ErrNoRows {
-// 			c.JSON(400, gin.H{"error": "User not found by email"})
-// 		} else {
-// 			c.JSON(500, gin.H{"error": "Error querying the database"})
-// 		}
-// 		return
-// 	}
+	// Bind incoming JSON
+	if err := c.BindJSON(&json); err != nil {
+		c.JSON(400, gin.H{"error": "Invalid request data"})
+		return
+	}
 
-// 	// Generate a password reset token
-// 	resetToken, err := generateJWT(userData, time.Hour*2) // 2 hours
-// 	if err != nil {
-// 		c.JSON(500, gin.H{"error": "Failed to generate reset token"})
-// 		return
-// 	}
+	// Validate token
+	jwtSecret := os.Getenv("JWT_SECRET")
 
-// 	// Send the reset link via email
-// 	err = sendPasswordResetEmail(userData.Email, resetToken)
-// 	if err != nil {
-// 		log.Println("Error sending email:", err)
-// 		c.JSON(500, gin.H{"error": "Failed to send password reset email"})
-// 		return
-// 	}
+	// Parse the JWT token
+	token, err := jwt.Parse(json.Token, func(token *jwt.Token) (interface{}, error) {
+		// Ensure the token's signing method is correct
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(jwtSecret), nil
+	})
 
-// 	c.JSON(200, gin.H{"message": "Password reset email sent"})
-// }
+	if err != nil || !token.Valid {
+		c.JSON(400, gin.H{"error": "Invalid link. Token invalid."})
+		return
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	{
+		if !ok {
+			c.JSON(500, gin.H{"error": "Failed to extract email from token"})
+			return
+		}
+
+	}
+	email := claims["userEmail"].(string)
+
+	// hash and save
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(json.Password), bcrypt.DefaultCost)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to hash password"})
+		return
+	}
+
+	query := `UPDATE users SET password = ? WHERE email = ?`
+	res, err := db.HostDB.Exec(query, hashedPassword, email)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to update the new password to this email address"})
+	}
+	if rows, _ := res.RowsAffected(); rows == 0 {
+		c.JSON(500, gin.H{"error": "Failed to update the new password to this email address"})
+	}
+
+	c.JSON(200, gin.H{"message": "Successfully updated password for " + email})
+}

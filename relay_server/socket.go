@@ -66,6 +66,7 @@ func HandleSocket(c *gin.Context) {
 				})
 				continue
 			}
+
 			host, err := registerOrCreateHost(data.UUID, data.ID, conn)
 			if err != nil {
 				conn.WriteJSON(WSMessage{
@@ -97,13 +98,12 @@ func HandleSocket(c *gin.Context) {
 
 func cleanupClient(client *Client) {
 	leaveChannel(client)
-	leaveAllSpaces(client)
+	leaveAllSpaces(client) // ← This must run before locking host.mu
 
-	// Clean up voice client
 	voiceClientsMu.Lock()
 	if vc, ok := voiceClients[client.ClientUUID]; ok {
 		if vc.Peer != nil {
-			_ = vc.Peer.Close() // Graceful shutdown of Pion WebRTC connection
+			_ = vc.Peer.Close()
 		}
 		delete(voiceClients, client.ClientUUID)
 	}
@@ -114,6 +114,7 @@ func cleanupClient(client *Client) {
 		return
 	}
 
+	// NOW safe to lock
 	host.mu.Lock()
 	delete(host.ClientsByConn, client.Conn)
 	delete(host.ClientConnsByUUID, client.ClientUUID)
@@ -154,12 +155,21 @@ func SendToClient(hostUUID, clientUUID string, msg WSMessage) {
 	host.mu.Lock()
 	conn, ok := host.ClientConnsByUUID[clientUUID]
 	if !ok {
+		log.Printf("SendToClient: clientUUID %s not found in host %s\n", clientUUID, hostUUID)
 		host.mu.Unlock()
-		log.Printf("SendToClient: client %d not connected to host %s\n", host.AuthorUserID, hostUUID)
 		return
 	}
-	client := host.ClientsByConn[conn]
+
+	client, ok := host.ClientsByConn[conn]
+	if !ok {
+		log.Printf("SendToClient: connection for clientUUID %s not found in ClientsByConn\n", clientUUID)
+		host.mu.Unlock()
+		return
+	}
 	host.mu.Unlock()
+
+	// Log type of message being sent (optional)
+	log.Printf("SendToClient: sending to clientUUID=%s, type=%s\n", clientUUID, msg.Type)
 
 	safeSend(client, conn, msg)
 }

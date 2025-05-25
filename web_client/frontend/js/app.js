@@ -10,34 +10,19 @@ class App {
 
     this.domComponent = document.getElementById("app");
     this.hostForm = new HostForm(this);
-    this.dashboard = new DashboardApp({
-      returnToHostList: this.returnToHostList,
-    });
 
     this.render({ type: "host_form" });
   }
 
   returnToHostList = async () => {
-    // Leave any voice channels
-    await voiceManager.leaveVoice();
-    // Close voice elem container
-    voiceElemContainer.close();
     // Remove host UUID
     localStorage.removeItem("hostUUID");
-    // Reset Dashboard, Sidebar, mainContent, chatApp, dashmodal
-    this.dashboard.currentSpaceUUID = null;
-    if (this.dashboard.sidebar) {
-      this.dashboard.sidebar.render();
-    }
-    if (this.dashboard.mainContent) {
-      this.dashboard.mainContent.chatApp = null;
-      this.dashboard.mainContent.render();
-    }
-    if (this.dashboard.dashModal) {
-      this.dashboard.closeDashModal();
-    }
-    // Close socket
+    // Leave any voice channels or socket conns
+    await voiceManager.leaveVoice();
     this.dashboard.socketConn.hardClose();
+    // Set dashboard to null
+    this.dashboard.innerHTML = "";
+    this.dashboard = null;
     // Render host form
     this.render({ type: "host_form" });
   };
@@ -46,6 +31,9 @@ class App {
     this.domComponent.innerHTML = "";
     switch (props.type) {
       case "dash":
+        this.dashboard = new DashboardApp({
+          returnToHostList: this.returnToHostList,
+        });
         this.domComponent.append(this.dashboard.domComponent);
         this.dashboard.initialize();
         break;
@@ -136,12 +124,10 @@ export default class HostForm {
         body: JSON.stringify({ uuids: hostUUIDs }),
       });
       hostsData = await res.json();
-
-    } catch (error)  {
-      console.log(error)
-      window.go.main.App.Alert("Failed to connect to relay server")
+    } catch (error) {
+      console.log(error);
+      window.go.main.App.Alert("Failed to connect to relay server");
     }
-    
 
     this.domComponent.append(
       createElement("h2", {}, "Select From Known Hosts"),

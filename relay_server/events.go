@@ -37,9 +37,7 @@ func registerOrCreateHost(hostUUID, potentialAuthorID string, conn *websocket.Co
 	}
 
 	if potentialAuthorID != "" {
-		host.mu.Lock()
 		host.ConnByAuthorID[potentialAuthorID] = conn
-		host.mu.Unlock()
 
 		// Set host to online
 		HandleUpdateHostOnline(hostUUID)
@@ -49,6 +47,16 @@ func registerOrCreateHost(hostUUID, potentialAuthorID string, conn *websocket.Co
 }
 
 func registerClient(host *Host, conn *websocket.Conn) *Client {
+	host.mu.Lock()
+
+	if oldClient, ok := host.ClientsByConn[conn]; ok {
+		delete(host.ClientConnsByUUID, oldClient.ClientUUID)
+		delete(host.ClientsByUserID, oldClient.UserID)
+		delete(host.ClientsByConn, conn)
+		close(oldClient.SendQueue)
+		close(oldClient.Done)
+	}
+
 	clientUUID := uuid.New().String()
 	client := &Client{
 		Conn:       conn,
@@ -58,7 +66,6 @@ func registerClient(host *Host, conn *websocket.Conn) *Client {
 		Done:       make(chan struct{}),
 	}
 
-	host.mu.Lock()
 	host.ClientsByConn[conn] = client
 	host.ClientConnsByUUID[clientUUID] = conn
 	host.mu.Unlock()
@@ -69,7 +76,6 @@ func registerClient(host *Host, conn *websocket.Conn) *Client {
 		Type: "join_ack",
 		Data: "Joined host successfully",
 	}
-
 	return client
 }
 
@@ -619,7 +625,10 @@ func handleRemoveSpaceUserRes(client *Client, conn *websocket.Conn, wsMsg *WSMes
 	removeClient, ok := host.ClientsByUserID[data.UserID]
 	if !ok {
 		host.mu.Unlock()
-		log.Printf("SendToClient: client not connected to host\n")
+		SendToClient(client.HostUUID, client.ClientUUID, WSMessage{
+			Type: "author_error",
+			Data: ChatError{Content: "Failed to connect to the host"},
+		})
 		return
 	}
 	host.mu.Unlock()
@@ -796,19 +805,22 @@ func handleJoinVoiceChannel(client *Client, conn *websocket.Conn, wsMsg *WSMessa
 	host.mu.Lock()
 	channelUUID, ok := host.ChannelSubscriptions[client.Conn]
 	if !ok {
+		host.mu.Unlock()
 		SendToClient(client.HostUUID, client.ClientUUID, WSMessage{
 			Type: "error",
 			Data: ChatError{Content: "Failed to connect to channel"},
 		})
+		return
 	}
 
 	channel, exists := host.Channels[channelUUID]
 	if !exists {
+		host.mu.Unlock()
 		SendToClient(client.HostUUID, client.ClientUUID, WSMessage{
 			Type: "error",
 			Data: ChatError{Content: "Failed to connect to channel"},
 		})
-
+		return
 	}
 	channel.mu.Lock()
 	channel.VoiceStreams[client.Conn] = data.StreamID
@@ -851,19 +863,22 @@ func handleLeaveVoiceChannel(client *Client) {
 	host.mu.Lock()
 	channelUUID, ok := host.ChannelSubscriptions[client.Conn]
 	if !ok {
+		host.mu.Unlock()
 		SendToClient(client.HostUUID, client.ClientUUID, WSMessage{
 			Type: "error",
 			Data: ChatError{Content: "Failed to connect to channel"},
 		})
+		return
 	}
 
 	channel, exists := host.Channels[channelUUID]
 	if !exists {
+		host.mu.Unlock()
 		SendToClient(client.HostUUID, client.ClientUUID, WSMessage{
 			Type: "error",
 			Data: ChatError{Content: "Failed to connect to channel"},
 		})
-
+		return
 	}
 	channel.mu.Lock()
 	delete(channel.VoiceStreams, client.Conn)
