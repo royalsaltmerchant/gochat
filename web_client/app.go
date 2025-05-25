@@ -27,7 +27,7 @@ func NewApp() *App {
 	}
 
 	return &App{
-		relayBaseURL: "https://parch.julianranieri.com",
+		relayBaseURL: "https://parchchat.com",
 		HostManager:  hostMgr,
 		TokenManager: tokenMgr,
 	}

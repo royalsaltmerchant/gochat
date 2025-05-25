@@ -1,5 +1,5 @@
-const relayHost = "parch.julianranieri.com";
-const sfuHost = "sfu.parch.julianranieri.com";
+const relayHost = "parchchat.com";
+const sfuHost = "sfu.parchchat.com";
 
 const relayBaseURL = "https://" + relayHost;
 const relayBaseURLWS = "wss://" + relayHost + "/ws";
