@@ -62,7 +62,7 @@ export default class DashModal {
     });
   };
 
-  renderCheckbox = (channel) => {
+  renderCheckbox = (channel, space) => {
     if (channel.allow_voice) {
       return createElement(
         "input",
@@ -75,7 +75,7 @@ export default class DashModal {
           type: "change",
           event: (e) => {
             const newValue = e.target.checked ? 1 : 0;
-            this.socketConn.channelAllowVoice(channel.uuid, newValue);
+            this.socketConn.channelAllowVoice(channel.uuid, space.uuid, newValue);
             channel.allow_voice = newValue;
           },
         }
@@ -91,7 +91,7 @@ export default class DashModal {
           type: "change",
           event: (e) => {
             const newValue = e.target.checked ? 1 : 0;
-            this.socketConn.channelAllowVoice(channel.uuid, newValue);
+            this.socketConn.channelAllowVoice(channel.uuid, space.uuid, newValue);
             channel.allow_voice = newValue;
           },
         }
@@ -99,7 +99,7 @@ export default class DashModal {
     }
   };
 
-  renderChannelSettings = (channel) => {
+  renderChannelSettings = (channel, space) => {
     this.domComponent.append(
       createElement("div", { class: "modal-content" }, [
         createElement("div", { class: "modal-header" }, [
@@ -111,7 +111,7 @@ export default class DashModal {
         ]),
         createElement("div", { class: "settings-actions" }, [
           createElement("div", {}, "Allow Voice"),
-          this.renderCheckbox(channel),
+          this.renderCheckbox(channel, space),
         ]),
       ])
     );
@@ -192,7 +192,7 @@ export default class DashModal {
                     event: () => {
                       this.open({
                         type: "channel-settings",
-                        data: { channel },
+                        data: { channel, space },
                       });
                     },
                   }
@@ -560,7 +560,7 @@ export default class DashModal {
         this.renderInvites(props.data.invites, props.data.user);
         break;
       case "channel-settings":
-        this.renderChannelSettings(props.data.channel);
+        this.renderChannelSettings(props.data.channel, props.data.space);
         break;
       case "space-settings":
         if (props.data.space && props.data.user) {

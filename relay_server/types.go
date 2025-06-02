@@ -499,14 +499,20 @@ type UUIDListRequest struct {
 }
 
 type ChannelAllowVoiceClient struct {
-	UUID  string `json:"uuid"`
-	Allow int    `json:"allow"`
+	ChannelUUID string `json:"channel_uuid"`
+	SpaceUUID   string `json:"space_uuid"`
+	Allow       int    `json:"allow"`
 }
 
 type ChannelAllowVoiceRequest struct {
 	UUID       string `json:"uuid"`
 	Allow      int    `json:"allow"`
 	ClientUUID string `json:"client_uuid"`
+}
+type ChannelAllowVoiceUpdate struct {
+	UUID      string `json:"uuid"`
+	SpaceUUID string `json:"space_uuid"`
+	Allow     int    `json:"allow"`
 }
 
 type JoinVoiceChannelClient struct {

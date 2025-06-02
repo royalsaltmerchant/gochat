@@ -50,6 +50,7 @@ export default class DashboardApp {
       handleLeaveSpace: this.handleLeaveSpace,
       handleLeaveSpaceUpdate: this.handleLeaveSpaceUpdate,
       handleIncomingMessages: this.handleIncomingMessages,
+      handleAllowVoiceUpdate: this.handleAllowVoiceUpdate,
     });
 
     // Set the socket conn on the voice manager
@@ -392,6 +393,26 @@ export default class DashboardApp {
       const newHeight = container.scrollHeight;
       container.scrollTop = newHeight - previousHeight + previousScrollTop;
     }
+  };
+
+  handleAllowVoiceUpdate = (data) => {
+    const {
+      uuid: channelUUID,
+      space_uuid: spaceUUID,
+      allow: allow,
+    } = data.data;
+
+    const spaceToUpdate = this.data.spaces.find(
+      (space) => space.uuid === spaceUUID
+    );
+    if (!spaceToUpdate) return;
+
+    const channel = spaceToUpdate.channels.find(
+      (channel) => channel.uuid === channelUUID
+    );
+    if (!channel) return;
+
+    channel.allow_voice = allow;
   };
 
   render() {

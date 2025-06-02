@@ -25,6 +25,7 @@ export default class SocketConn {
     this.handleLeaveSpace = props.handleLeaveSpace;
     this.handleLeaveSpaceUpdate = props.handleLeaveSpaceUpdate;
     this.handleIncomingMessages = props.handleIncomingMessages;
+    this.handleAllowVoiceUpdate = props.handleAllowVoiceUpdate;
 
     this.socket = null;
     this.manualClose = false;
@@ -219,6 +220,10 @@ export default class SocketConn {
           case "left_voice_channel":
             console.log("Left voice channel", data);
             voiceManager.voiceSubscriptions = data.data.voice_subs;
+            break;
+          case "channel_allow_voice_update":
+            console.log("Channel allow voice update", data);
+            this.handleAllowVoiceUpdate(data);
             break;
           case "error":
             // TODO: handle certain types of errors for login and registration
@@ -525,7 +530,7 @@ export default class SocketConn {
     }
   };
 
-  channelAllowVoice = (channelUUID, allow) => {
+  channelAllowVoice = (channelUUID, spaceUUID, allow) => {
     console.log("Attempting to allow voice for channel:");
     if (this.socket?.readyState === WebSocket.OPEN) {
       console.log("Socket is open, sending message");
@@ -533,6 +538,7 @@ export default class SocketConn {
         type: "channel_allow_voice",
         data: {
           uuid: channelUUID,
+          space_uuid: spaceUUID,
           allow: allow,
         },
       };
