@@ -140,13 +140,6 @@ class ChatBoxMessagesComponent {
     this.debounceTimeout = null;
     this.isLoading = false;
 
-    // Virtual scroll state
-    this.visibleStartIndex = 0;
-    this.visibleEndIndex = 50;
-    this.messageHeightEstimate = 100;
-    this.renderThreshold = 10;
-    this.lastRenderStartIndex = -1;
-
     this.domComponent = createElement(
       "div",
       {
@@ -158,7 +151,6 @@ class ChatBoxMessagesComponent {
         type: "scroll",
         event: () => {
           this.getPreviousMessagesDebounce();
-          this.onScrollThrottled();
         },
       }
     );
@@ -203,19 +195,22 @@ class ChatBoxMessagesComponent {
 
   appendNewMessage = (data) => {
     const wasAtBottom = this.isScrolledToBottom();
-
     this.chatBoxMessages.push(data);
-
+    this.render();
     if (wasAtBottom) {
-      this.visibleStartIndex = Math.max(
-        0,
-        this.chatBoxMessages.length - this.messageRequestSize
-      );
-      this.visibleEndIndex = this.chatBoxMessages.length;
-      this.lastRenderStartIndex = this.visibleStartIndex;
-      this.renderVirtual();
-      this.scrollDown();
+      requestAnimationFrame(() => this.scrollDown());
     }
+  };
+
+  prependMessages = (newMessages) => {
+    const previousHeight = this.domComponent.scrollHeight;
+    this.chatBoxMessages = [...newMessages, ...this.chatBoxMessages];
+    this.render();
+    // Preserve scroll position after prepend
+    requestAnimationFrame(() => {
+      const newHeight = this.domComponent.scrollHeight;
+      this.domComponent.scrollTop += newHeight - previousHeight;
+    });
   };
 
   createMessage = (data, isNew = false) => {
@@ -278,67 +273,12 @@ class ChatBoxMessagesComponent {
     return elem;
   };
 
-  onScrollThrottled = () => {
-    if (this.scrollTimeout) clearTimeout(this.scrollTimeout);
-    this.scrollTimeout = setTimeout(() => this.updateVisibleWindow(), 100);
-  };
-
-  updateVisibleWindow = () => {
-    const scrollTop = this.domComponent.scrollTop;
-    const containerHeight = this.domComponent.clientHeight;
-    const buffer = 10;
-
-    const startIndex = Math.max(
-      0,
-      Math.floor(scrollTop / this.messageHeightEstimate) - buffer
-    );
-    const endIndex = Math.min(
-      this.chatBoxMessages.length,
-      Math.ceil((scrollTop + containerHeight) / this.messageHeightEstimate) +
-        buffer
-    );
-
-    const shouldRender =
-      Math.abs(startIndex - this.lastRenderStartIndex) >= this.renderThreshold;
-
-    if (!shouldRender) {
-      return;
-    }
-
-    this.visibleStartIndex = startIndex;
-    this.visibleEndIndex = endIndex;
-    this.lastRenderStartIndex = startIndex;
-    this.renderVirtual();
-  };
-
-  renderVirtual = () => {
-    const topHeight = this.visibleStartIndex * this.messageHeightEstimate;
-    const bottomHeight =
-      (this.chatBoxMessages.length - this.visibleEndIndex) *
-      this.messageHeightEstimate;
-
-    const topSpacer = createElement("div", {
-      style: `height: ${topHeight}px;`,
-    });
-
-    const bottomSpacer = createElement("div", {
-      style: `height: ${bottomHeight}px;`,
-    });
-
-    const visibleMessages = this.chatBoxMessages
-      .slice(this.visibleStartIndex, this.visibleEndIndex)
-      .map((data) => this.createMessage(data));
-
-    this.domComponent.innerHTML = "";
-    this.domComponent.append(topSpacer, ...visibleMessages, bottomSpacer);
-  };
-
-  renderMessages = () => {
-    return this.chatBoxMessages.map((data) => this.createMessage(data));
-  };
-
   render = () => {
-    this.renderVirtual();
+    this.domComponent.innerHTML = "";
+    const allMessages = this.chatBoxMessages.map((data) =>
+      this.createMessage(data)
+    );
+    this.domComponent.append(...allMessages);
   };
 }
 
@@ -374,7 +314,7 @@ class VoiceChatComponent {
         createElement("button", { class: "voice-options-btn" }, "Show Voices", {
           type: "click",
           event: () => {
-            if(voiceElemContainer.isOpen) return;
+            if (voiceElemContainer.isOpen) return;
             voiceElemContainer.open();
           },
         }),
