@@ -499,9 +499,9 @@ type UUIDListRequest struct {
 }
 
 type ChannelAllowVoiceClient struct {
-	ChannelUUID string `json:"channel_uuid"`
-	SpaceUUID   string `json:"space_uuid"`
-	Allow       int    `json:"allow"`
+	UUID      string `json:"uuid"`
+	SpaceUUID string `json:"space_uuid"`
+	Allow     int    `json:"allow"`
 }
 
 type ChannelAllowVoiceRequest struct {

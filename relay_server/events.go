@@ -778,7 +778,7 @@ func handleChannelAllowVoice(client *Client, conn *websocket.Conn, wsMsg *WSMess
 	SendToAuthor(client, WSMessage{
 		Type: "channel_allow_voice_request",
 		Data: ChannelAllowVoiceRequest{
-			UUID:       data.ChannelUUID,
+			UUID:       data.UUID,
 			Allow:      data.Allow,
 			ClientUUID: client.ClientUUID,
 		},
@@ -788,7 +788,7 @@ func handleChannelAllowVoice(client *Client, conn *websocket.Conn, wsMsg *WSMess
 	BroadcastToSpace(client.HostUUID, data.SpaceUUID, WSMessage{
 		Type: "channel_allow_voice_update",
 		Data: ChannelAllowVoiceUpdate{
-			UUID:      data.ChannelUUID,
+			UUID:      data.UUID,
 			SpaceUUID: data.SpaceUUID,
 			Allow:     data.Allow,
 		},
