@@ -13,6 +13,9 @@ import (
 
 	"github.com/andlabs/ui"
 	_ "github.com/mattn/go-sqlite3"
+
+	// Windows build specific import for andlabs
+	_ "github.com/andlabs/ui/winmanifest"
 )
 
 //go:embed migrations/*.sql
@@ -65,7 +68,7 @@ func setupUI() {
 
 		copyBtn := ui.NewButton("Copy")
 		copyBtn.OnClicked(func(*ui.Button) {
-			copyToClipboard(cfg.UUID)
+			Copy(cfg.UUID)
 		})
 
 		hostKeyRow := ui.NewHorizontalBox()
@@ -138,20 +141,4 @@ func showErrorAndQuit(msg string) {
 		ui.MsgBoxError(nil, "Startup Error", msg)
 		ui.Quit()
 	})
-}
-
-func copyToClipboard(text string) {
-	cmd := exec.Command("pbcopy")
-	in, err := cmd.StdinPipe()
-	if err != nil {
-		log.Println("Clipboard error:", err)
-		return
-	}
-	if err := cmd.Start(); err != nil {
-		log.Println("Clipboard error:", err)
-		return
-	}
-	_, _ = in.Write([]byte(text))
-	_ = in.Close()
-	_ = cmd.Wait()
 }
