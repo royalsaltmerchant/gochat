@@ -55,7 +55,6 @@
   border-top: 1px solid var(--main-gray);
 }
 
-
 .chat-box-btn {
   padding: 5px 10px;
 }
@@ -72,6 +71,16 @@
 .chat-box-btn-active:hover {
   background: var(--light-red);
 }
+
+input[type="range"] {
+  /* -webkit-appearance: none; */
+  width: 100%;
+  display: block;
+  padding: 0;
+  margin: 0;
+  box-sizing: border-box;
+}
+
 
 @keyframes highlightFade {
   from {

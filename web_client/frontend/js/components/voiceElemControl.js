@@ -27,14 +27,14 @@ class VoiceElemControl {
 
       const playPauseBtn = document.createElement("div");
       playPauseBtn.style.cursor = "pointer";
-      playPauseBtn.textContent = "🔇";
+      playPauseBtn.textContent = "🔊";
       playPauseBtn.onclick = () => {
         if (audio.paused) {
           audio.play();
-          playPauseBtn.textContent = "🔇";
+          playPauseBtn.textContent = "🔊";
         } else {
           audio.pause();
-          playPauseBtn.textContent = "🔊";
+          playPauseBtn.textContent = "🔇";
         }
       };
 
