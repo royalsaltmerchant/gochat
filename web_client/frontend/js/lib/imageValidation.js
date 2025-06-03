@@ -17,10 +17,6 @@ function createValidatedImage(src) {
     img.src = placeholderImage;
   };
 
-  img.addEventListener("click", e => {
-    window.open(src, "_blank");
-  })
-
   return img;
 }
 function isImageUrl(url) {
