@@ -17,6 +17,7 @@ import (
 var MigrationFiles embed.FS
 
 func main() {
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
