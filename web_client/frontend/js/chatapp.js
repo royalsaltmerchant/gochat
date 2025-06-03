@@ -82,6 +82,7 @@ class ChatBoxComponent {
     this.domComponent.innerHTML = "";
     // render
     this.domComponent.append(
+      createElement("div", { class: "chatapp-channel-title" }, this.channel.name),
       this.chatBoxMessagesComponent.domComponent,
       this.renderVoiceChatComponent(),
       createElement("div", { class: "chat-box-form" }, [
