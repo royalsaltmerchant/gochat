@@ -6,15 +6,98 @@
     <title>Parch</title>
     <link rel="stylesheet" href="/static/style.css" />
   </head>
+  <style>
+    main {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      line-height: 1.8;
+    }
+    main p {
+      max-width: 800px;
+      text-align: center;
+    }
+    main div {
+      max-width: 700px;
+    }
+  </style>
   <body>
     <main>
+      <img height="200" src="/static/parchclient_icon.webp" alt="" />
       <h1>Parch</h1>
-      <hr />
-      <h2>Downloads</h2>
-      <div>- Parch Client Windows</div>
-      <div>- Parch Client Mac</div>
-      <div>- Parch Host Windows</div>
-      <div>- Parch Client Mac</div>
+      <small
+        ><i>The user-hosted messenger and voice chat application.</i></small
+      >
+      <hr style="width: 50%" />
+      <p>
+        Parch <b>provides two applications</b> that interact via a relay service
+        for real time communication.
+      </p>
+      <div>
+        <p>
+          - A client (the main chat application) which can connect to multiple
+          hosts.
+        </p>
+        <p>
+          - A host service (with a SQLite database) that allows clients to
+          connect and store data.
+        </p>
+      </div>
+      <br />
+      <p>
+        To <b>get started</b>, if you already have a host key from a host
+        provider, you can download and run the client application. Users invite
+        one another to "spaces" which are available through the host and they
+        chat within "channels" provided by the "space" creator.
+      </p>
+      <br />
+      <p>
+        To <b>Host</b> you can simply download and run the host application
+        which will prompt you for a name. The application will register your
+        host name with the relay service and provide you with a
+        <b>Host Key</b> that you can share with client users.
+      </p>
+      <br>
+      <b>More Info will be available soon!</b>
+      <br>
+      <h2>Downloads (Beta)</h2>
+      <div>
+        <div>
+          -
+          <a
+            href="https://github.com/royalsaltmerchant/gochat/releases/download/testing_mac_signed_client/Parch.dmg"
+            >Parch Client (MacOS)</a
+          >
+        </div>
+        <div>
+          -
+          <a
+            href="https://github.com/royalsaltmerchant/gochat/releases/download/testing_mac_signed_host/ParchHost.dmg"
+            >Parch Host (MacOS)</a
+          >
+        </div>
+        <div>
+          -
+          <a
+            href="https://github.com/royalsaltmerchant/gochat/releases/download/testing_win_unsigned_client/ParchClientInstaller.exe"
+            >Parch Client (Windows)</a
+          >
+        </div>
+        <div>
+          -
+          <a
+            href="https://github.com/royalsaltmerchant/gochat/releases/download/testing_win_unsigned_host/parchhost_installer.exe"
+            >Parch Host (Windows)</a
+          >
+        </div>
+      </div>
+      <br />
+      <br />
+      <h2>Contact</h2>
+      <a href="mailto:parchchat@gmail.com">parchchat@gmail.com</a>
+      <a href="https://github.com/royalsaltmerchant/gochat">Github Repo</a>
+      <small style="margin-top: 50px;">©ParchChat.com 2025</small>
     </main>
   </body>
 </html>
