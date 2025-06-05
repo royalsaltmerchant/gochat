@@ -94,9 +94,12 @@ func HandleGetUserByEmail(c *gin.Context) {
 		return
 	}
 
+	// ensure email is lowercase
+	lowerEmail := strings.ToLower(req.Email)
+
 	var user DashDataUser
 	query := `SELECT id, username FROM users WHERE email = ?`
-	err := db.HostDB.QueryRow(query, req.Email).Scan(&user.ID, &user.Username)
+	err := db.HostDB.QueryRow(query, lowerEmail).Scan(&user.ID, &user.Username)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			log.Println("User not found by email")
