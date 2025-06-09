@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -45,6 +46,9 @@ func handleRegisterUser(client *Client, conn *websocket.Conn, wsMsg *WSMessage) 
 		return
 	}
 
+	// ensure email is lowercase
+	lowerEmail := strings.ToLower(data.Email)
+
 	var userData UserData
 
 	query := `
@@ -53,7 +57,7 @@ func handleRegisterUser(client *Client, conn *websocket.Conn, wsMsg *WSMessage) 
 	RETURNING id, username, email, password
 `
 
-	err = db.HostDB.QueryRow(query, data.Username, data.Email, hashedPassword).
+	err = db.HostDB.QueryRow(query, data.Username, lowerEmail, hashedPassword).
 		Scan(&userData.ID, &userData.Username, &userData.Email, &userData.Password)
 
 	if err != nil {
