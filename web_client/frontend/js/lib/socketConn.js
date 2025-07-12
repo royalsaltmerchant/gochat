@@ -230,6 +230,10 @@ export default class SocketConn {
             console.error("An error message from socket:", data);
             window.go.main.App.Alert(data.data.error);
             break;
+          case "authentication-error":
+            console.error("Authentication error", data);
+            this.openDashModal({ type: "login" });
+            break;
           case "author_error":
             console.error("An error message from socket:", data);
             window.go.main.App.Alert(

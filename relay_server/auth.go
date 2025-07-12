@@ -171,7 +171,7 @@ func handleLoginByToken(client *Client, conn *websocket.Conn, wsMsg *WSMessage) 
 
 	if err != nil || !token.Valid {
 		SendToClient(client.HostUUID, client.ClientUUID, WSMessage{
-			Type: "error",
+			Type: "authentication-error",
 			Data: ChatError{
 				Content: "Failed to parse token",
 			},
