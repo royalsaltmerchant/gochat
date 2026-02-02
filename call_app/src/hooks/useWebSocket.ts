@@ -35,6 +35,7 @@ export interface UseWebSocketReturn {
   joinRoom: (roomId: string, displayName: string, streamId: string) => void;
   leaveRoom: (roomId: string) => void;
   updateMedia: (roomId: string, isAudioOn: boolean, isVideoOn: boolean) => void;
+  updateStreamId: (roomId: string, streamId: string) => void;
 }
 
 export function useWebSocket(): UseWebSocketReturn {
@@ -118,6 +119,21 @@ export function useWebSocket(): UseWebSocketReturn {
         );
         break;
       }
+      case 'call_stream_id_updated': {
+        const data = msg.data as {
+          room_id: string;
+          participant_id: string;
+          stream_id: string;
+        };
+        setParticipants(prev =>
+          prev.map(p =>
+            p.id === data.participant_id
+              ? { ...p, stream_id: data.stream_id }
+              : p
+          )
+        );
+        break;
+      }
       case 'voice_credentials': {
         const creds = msg.data as VoiceCredentials;
         console.log('Received voice credentials for room:', creds.channel_uuid);
@@ -174,6 +190,16 @@ export function useWebSocket(): UseWebSocketReturn {
     });
   }, [sendMessage]);
 
+  const updateStreamId = useCallback((roomId: string, streamId: string) => {
+    sendMessage({
+      type: 'update_call_stream_id',
+      data: {
+        room_id: roomId,
+        stream_id: streamId,
+      },
+    });
+  }, [sendMessage]);
+
   return {
     isConnected,
     participantId,
@@ -182,5 +208,6 @@ export function useWebSocket(): UseWebSocketReturn {
     joinRoom,
     leaveRoom,
     updateMedia,
+    updateStreamId,
   };
 }

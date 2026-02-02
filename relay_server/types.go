@@ -579,3 +579,14 @@ type CallMediaUpdated struct {
 	IsAudioOn     bool   `json:"is_audio_on"`
 	IsVideoOn     bool   `json:"is_video_on"`
 }
+
+type UpdateCallStreamIDClient struct {
+	RoomID   string `json:"room_id"`
+	StreamID string `json:"stream_id"`
+}
+
+type CallStreamIDUpdated struct {
+	RoomID        string `json:"room_id"`
+	ParticipantID string `json:"participant_id"`
+	StreamID      string `json:"stream_id"`
+}

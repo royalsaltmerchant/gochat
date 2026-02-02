@@ -977,6 +977,8 @@ func dispatchCallRoomMessage(conn *websocket.Conn, wsMsg WSMessage) {
 		handleLeaveCallRoom(conn, &wsMsg)
 	case "update_call_media":
 		handleUpdateCallMedia(conn, &wsMsg)
+	case "update_call_stream_id":
+		handleUpdateCallStreamID(conn, &wsMsg)
 	default:
 		log.Println("Unknown call room message type:", wsMsg.Type)
 	}
@@ -1154,6 +1156,43 @@ func handleUpdateCallMedia(conn *websocket.Conn, wsMsg *WSMessage) {
 			ParticipantID: participantID,
 			IsAudioOn:     data.IsAudioOn,
 			IsVideoOn:     data.IsVideoOn,
+		},
+	})
+}
+
+func handleUpdateCallStreamID(conn *websocket.Conn, wsMsg *WSMessage) {
+	data, err := decodeData[UpdateCallStreamIDClient](wsMsg.Data)
+	if err != nil {
+		conn.WriteJSON(WSMessage{Type: "error", Data: ChatError{Content: "Invalid update call stream ID data"}})
+		return
+	}
+
+	callRoomsMu.Lock()
+	room, exists := CallRooms[data.RoomID]
+	callRoomsMu.Unlock()
+
+	if !exists {
+		return
+	}
+
+	room.mu.Lock()
+	participant, ok := room.Participants[conn]
+	if !ok {
+		room.mu.Unlock()
+		return
+	}
+
+	participant.StreamID = data.StreamID
+	participantID := participant.ID
+	room.mu.Unlock()
+
+	// Broadcast stream ID update to other participants (not the sender)
+	broadcastToCallRoom(room, conn, WSMessage{
+		Type: "call_stream_id_updated",
+		Data: CallStreamIDUpdated{
+			RoomID:        data.RoomID,
+			ParticipantID: participantID,
+			StreamID:      data.StreamID,
 		},
 	})
 }
