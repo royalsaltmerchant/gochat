@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export interface UseLocalStreamReturn {
   localStream: MediaStream | null;
@@ -22,7 +22,14 @@ export function useLocalStream(): UseLocalStreamReturn {
     try {
       setError(null);
       const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
+        audio: {
+          channelCount: 1,
+          sampleRate: 48000,
+
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
         video: {
           width: { ideal: 1280 },
           height: { ideal: 720 },
@@ -36,16 +43,19 @@ export function useLocalStream(): UseLocalStreamReturn {
       setIsVideoEnabled(true);
       return stream;
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to access camera/microphone';
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Failed to access camera/microphone";
       setError(message);
-      console.error('Failed to get user media:', err);
+      console.error("Failed to get user media:", err);
       return null;
     }
   }, []);
 
   const stopStream = useCallback(() => {
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
       setLocalStream(null);
     }
@@ -55,7 +65,7 @@ export function useLocalStream(): UseLocalStreamReturn {
     if (streamRef.current) {
       const audioTracks = streamRef.current.getAudioTracks();
       const newState = !isAudioEnabled;
-      audioTracks.forEach(track => {
+      audioTracks.forEach((track) => {
         track.enabled = newState;
       });
       setIsAudioEnabled(newState);
@@ -66,7 +76,7 @@ export function useLocalStream(): UseLocalStreamReturn {
     if (streamRef.current) {
       const videoTracks = streamRef.current.getVideoTracks();
       const newState = !isVideoEnabled;
-      videoTracks.forEach(track => {
+      videoTracks.forEach((track) => {
         track.enabled = newState;
       });
       setIsVideoEnabled(newState);
@@ -77,7 +87,7 @@ export function useLocalStream(): UseLocalStreamReturn {
   useEffect(() => {
     return () => {
       if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current.getTracks().forEach((track) => track.stop());
       }
     };
   }, []);
