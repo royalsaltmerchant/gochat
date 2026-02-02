@@ -85,6 +85,9 @@ func main() {
 	r.GET("/api/turn_credentials", HandleGetTurnCredentials)
 	r.POST("/api/request_reset_email", HandlePasswordResetRequest)
 	r.POST("/api/reset_password", HandlePasswordReset)
+	// Internal validation endpoints (for Caddy/proxy auth)
+	r.GET("/internal/validate-ip", HandleValidateIP)
+	r.GET("/internal/validate-sfu-token", HandleValidateSFUToken)
 	// Static
 	r.GET("/", func(c *gin.Context) {
 		c.File("/root/relay_server/static/index.html")

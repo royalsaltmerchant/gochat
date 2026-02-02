@@ -43,13 +43,15 @@ type Space struct {
 }
 
 type Client struct {
-	Conn       *websocket.Conn
-	Username   string
-	UserID     int
-	HostUUID   string
-	ClientUUID string
-	SendQueue  chan WSMessage // queue for outbound messages
-	Done       chan struct{}  // to signal shutdown
+	Conn            *websocket.Conn
+	Username        string
+	UserID          int
+	HostUUID        string
+	ClientUUID      string
+	IP              string         // Client's IP address for session tracking
+	IsAuthenticated bool           // Whether this client has logged in
+	SendQueue       chan WSMessage // queue for outbound messages
+	Done            chan struct{}  // to signal shutdown
 }
 
 type VoiceClient struct {
