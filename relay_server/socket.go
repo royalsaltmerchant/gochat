@@ -122,7 +122,7 @@ func HandleSocket(c *gin.Context) {
 		}
 
 		// Handle call room messages (standalone video calls)
-		if wsMsg.Type == "join_call_room" || wsMsg.Type == "leave_call_room" || wsMsg.Type == "update_call_media" {
+		if wsMsg.Type == "join_call_room" || wsMsg.Type == "leave_call_room" || wsMsg.Type == "update_call_media" || wsMsg.Type == "update_call_stream_id" {
 			dispatchCallRoomMessage(conn, wsMsg)
 			continue
 		}
