@@ -22,6 +22,45 @@ var hostsMu sync.Mutex
 var voiceClients = map[string]*VoiceClient{}
 var voiceClientsMu sync.Mutex
 
+// Call Rooms (standalone video calls without host authentication)
+var CallRooms = map[string]*CallRoom{}
+var callRoomsMu sync.Mutex
+
+type CallRoom struct {
+	ID           string
+	Participants map[*websocket.Conn]*CallRoomParticipant
+	mu           sync.Mutex
+}
+
+type CallRoomParticipant struct {
+	ID          string
+	DisplayName string
+	StreamID    string
+	IsAudioOn   bool
+	IsVideoOn   bool
+	Conn        *websocket.Conn
+	SendQueue   chan WSMessage
+	Done        chan struct{}
+}
+
+func (p *CallRoomParticipant) WritePump() {
+	defer p.Conn.Close()
+	for {
+		select {
+		case msg, ok := <-p.SendQueue:
+			if !ok {
+				return
+			}
+			if err := p.Conn.WriteJSON(msg); err != nil {
+				log.Println("CallRoomParticipant WritePump error:", err)
+				return
+			}
+		case <-p.Done:
+			return
+		}
+	}
+}
+
 // Helper to decode WSMessage.Data into a typed struct
 func decodeData[T any](raw interface{}) (T, error) {
 	var data T
@@ -82,7 +121,13 @@ func HandleSocket(c *gin.Context) {
 			continue
 		}
 
-		// All other messages
+		// Handle call room messages (standalone video calls)
+		if wsMsg.Type == "join_call_room" || wsMsg.Type == "leave_call_room" || wsMsg.Type == "update_call_media" {
+			dispatchCallRoomMessage(conn, wsMsg)
+			continue
+		}
+
+		// All other messages require a host client
 		if client == nil {
 			conn.WriteJSON(WSMessage{
 				Type: "error",
@@ -97,6 +142,9 @@ func HandleSocket(c *gin.Context) {
 	if client != nil {
 		cleanupClient(client)
 	}
+
+	// Clean up any call room participation
+	cleanupCallRoomParticipant(conn)
 }
 
 func cleanupClient(client *Client) {

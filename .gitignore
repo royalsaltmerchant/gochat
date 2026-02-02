@@ -7,3 +7,7 @@ web_client/build
 host_client_dist
 relay_server_dist
 host_cli_dist
+
+# Call app (React)
+call_app/node_modules
+relay_server/static/call

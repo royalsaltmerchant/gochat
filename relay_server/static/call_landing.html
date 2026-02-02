@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Call - Parch</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+    <div class="max-w-md w-full">
+        <!-- Logo/Title -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-white mb-2">Video Call</h1>
+            <p class="text-gray-400">Start or join a video call instantly</p>
+        </div>
+
+        <!-- Main Card -->
+        <div class="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-8 shadow-2xl border border-gray-700/50">
+            <!-- Start New Call -->
+            <div class="mb-8">
+                <button
+                    id="startCallBtn"
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 flex items-center justify-center gap-3 shadow-lg hover:shadow-blue-600/25"
+                >
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                    </svg>
+                    Start New Call
+                </button>
+            </div>
+
+            <!-- Divider -->
+            <div class="relative mb-8">
+                <div class="absolute inset-0 flex items-center">
+                    <div class="w-full border-t border-gray-600"></div>
+                </div>
+                <div class="relative flex justify-center text-sm">
+                    <span class="px-4 bg-gray-800/50 text-gray-400">or join existing</span>
+                </div>
+            </div>
+
+            <!-- Join Call -->
+            <div>
+                <label class="block text-gray-300 text-sm font-medium mb-2">
+                    Enter call link or ID
+                </label>
+                <div class="flex gap-3">
+                    <input
+                        type="text"
+                        id="joinInput"
+                        placeholder="Paste link or enter room ID"
+                        class="flex-1 bg-gray-700/50 border border-gray-600 text-white placeholder-gray-400 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    >
+                    <button
+                        id="joinCallBtn"
+                        class="bg-gray-600 hover:bg-gray-500 text-white font-semibold px-6 py-3 rounded-xl transition-all duration-200"
+                    >
+                        Join
+                    </button>
+                </div>
+                <p id="errorMsg" class="text-red-400 text-sm mt-2 hidden">Please enter a valid call link or ID</p>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <p class="text-center text-gray-500 text-sm mt-6">
+            No account required. Calls are peer-to-peer encrypted.
+        </p>
+    </div>
+
+    <script>
+        function generateUUID() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0;
+                const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
+        function extractRoomId(input) {
+            input = input.trim();
+            if (!input) return null;
+
+            // Check if it's a full URL
+            try {
+                const url = new URL(input);
+                const id = url.searchParams.get('id');
+                if (id) return id;
+            } catch (e) {
+                // Not a valid URL, treat as room ID
+            }
+
+            // Check if it looks like a UUID
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+            if (uuidRegex.test(input)) {
+                return input;
+            }
+
+            // Accept any non-empty string as a room ID
+            if (input.length > 0) {
+                return input;
+            }
+
+            return null;
+        }
+
+        function openCallRoom(roomId) {
+            const baseUrl = window.location.origin;
+            const roomUrl = `${baseUrl}/call/room?id=${encodeURIComponent(roomId)}`;
+            window.open(roomUrl, '_blank');
+        }
+
+        // Start New Call
+        document.getElementById('startCallBtn').addEventListener('click', function() {
+            const roomId = generateUUID();
+            openCallRoom(roomId);
+        });
+
+        // Join Call
+        document.getElementById('joinCallBtn').addEventListener('click', function() {
+            const input = document.getElementById('joinInput').value;
+            const roomId = extractRoomId(input);
+            const errorMsg = document.getElementById('errorMsg');
+
+            if (roomId) {
+                errorMsg.classList.add('hidden');
+                openCallRoom(roomId);
+            } else {
+                errorMsg.classList.remove('hidden');
+            }
+        });
+
+        // Handle Enter key in input
+        document.getElementById('joinInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                document.getElementById('joinCallBtn').click();
+            }
+        });
+
+        // Clear error on input
+        document.getElementById('joinInput').addEventListener('input', function() {
+            document.getElementById('errorMsg').classList.add('hidden');
+        });
+    </script>
+</body>
+</html>

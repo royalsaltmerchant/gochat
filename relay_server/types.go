@@ -531,3 +531,51 @@ type JoinedOrLeftVoiceChannel struct {
 	ChannelUUID string     `json:"channel_uuid"`
 	VoiceSubs   []VoiceSub `json:"voice_subs"`
 }
+
+// Call Room Types (for standalone video calls without authentication)
+
+type CallParticipant struct {
+	ID          string `json:"id"`
+	DisplayName string `json:"display_name"`
+	StreamID    string `json:"stream_id"`
+	IsAudioOn   bool   `json:"is_audio_on"`
+	IsVideoOn   bool   `json:"is_video_on"`
+}
+
+type CallRoomState struct {
+	RoomID       string            `json:"room_id"`
+	Participants []CallParticipant `json:"participants"`
+}
+
+type JoinCallRoomClient struct {
+	RoomID      string `json:"room_id"`
+	DisplayName string `json:"display_name"`
+	StreamID    string `json:"stream_id"`
+}
+
+type LeaveCallRoomClient struct {
+	RoomID string `json:"room_id"`
+}
+
+type CallParticipantJoined struct {
+	RoomID      string          `json:"room_id"`
+	Participant CallParticipant `json:"participant"`
+}
+
+type CallParticipantLeft struct {
+	RoomID        string `json:"room_id"`
+	ParticipantID string `json:"participant_id"`
+}
+
+type UpdateCallMediaClient struct {
+	RoomID    string `json:"room_id"`
+	IsAudioOn bool   `json:"is_audio_on"`
+	IsVideoOn bool   `json:"is_video_on"`
+}
+
+type CallMediaUpdated struct {
+	RoomID        string `json:"room_id"`
+	ParticipantID string `json:"participant_id"`
+	IsAudioOn     bool   `json:"is_audio_on"`
+	IsVideoOn     bool   `json:"is_video_on"`
+}
