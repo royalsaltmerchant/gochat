@@ -10,8 +10,14 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/sqlite"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
-	_ "github.com/mattn/go-sqlite3"
+	sqlite3 "modernc.org/sqlite"
 )
+
+func init() {
+	// Register modernc.org/sqlite under the "sqlite3" name for compatibility
+	// with golang-migrate and existing code
+	sql.Register("sqlite3", &sqlite3.Driver{})
+}
 
 var ChatDB *sql.DB
 var HostDB *sql.DB

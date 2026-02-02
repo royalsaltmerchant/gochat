@@ -8,8 +8,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-
-	"github.com/andlabs/ui"
 )
 
 type HostConfig struct {
@@ -35,79 +33,48 @@ func getAppSupportPathFor(filename string) (string, error) {
 	return configPath, nil
 }
 
-func LoadOrInitHostConfigGUI(onDone func(*HostConfig)) {
-	go func() {
-		configPath, err := getAppSupportPathFor(configFileName)
-		if err != nil {
-			showErrorAndQuit("Failed to resolve config path: " + err.Error())
-			return
-		}
-		dbPath, err := getAppSupportPathFor(dbName)
-		if err != nil {
-			showErrorAndQuit("Failed to resolve DB path: " + err.Error())
-			return
-		}
+func loadExistingConfig() (*HostConfig, error) {
+	configPath, err := getAppSupportPathFor(configFileName)
+	if err != nil {
+		return nil, err
+	}
 
-		if data, err := os.ReadFile(configPath); err == nil {
-			var cfg HostConfig
-			if json.Unmarshal(data, &cfg) == nil && cfg.UUID != "" {
-				ui.QueueMain(func() { onDone(&cfg) })
-				return
-			}
-		}
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return nil, err
+	}
 
-		// No valid config: show prompt
-		ui.QueueMain(func() {
-			input := ui.NewEntry()
-			window := ui.NewWindow("Enter Host Name", 300, 100, false)
-			box := ui.NewVerticalBox()
-			box.Append(ui.NewLabel("Name for this host:"), false)
-			box.Append(input, false)
+	var cfg HostConfig
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return nil, err
+	}
 
-			submit := ui.NewButton("Submit")
-			box.Append(submit, false)
+	if cfg.UUID == "" {
+		return nil, fmt.Errorf("invalid config: missing UUID")
+	}
 
-			submit.OnClicked(func(*ui.Button) {
-				name := input.Text()
-				if name == "" {
-					ui.MsgBoxError(window, "Error", "Host name cannot be empty")
-					return
-				}
+	// Update DB path to current location
+	dbPath, err := getAppSupportPathFor(dbName)
+	if err != nil {
+		return nil, err
+	}
+	cfg.DBFile = dbPath
 
-				go func() {
-					uuid, authorID, err := registerHostWithRelay(name)
-					if err != nil {
-						ui.QueueMain(func() {
-							ui.MsgBoxError(window, "Error", "Failed to register host: "+err.Error())
-						})
-						return
-					}
+	return &cfg, nil
+}
 
-					cfg := &HostConfig{
-						UUID:     uuid,
-						AuthorID: authorID,
-						Name:     name,
-						DBFile:   dbPath,
-					}
-					data, _ := json.MarshalIndent(cfg, "", "  ")
-					_ = os.WriteFile(configPath, data, 0644)
+func saveConfig(cfg *HostConfig) error {
+	configPath, err := getAppSupportPathFor(configFileName)
+	if err != nil {
+		return err
+	}
 
-					ui.QueueMain(func() {
-						window.Hide()
-						onDone(cfg)
-					})
-				}()
-			})
+	data, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return err
+	}
 
-			window.SetChild(box)
-			window.OnClosing(func(*ui.Window) bool {
-				ui.Quit()
-				return true
-			})
-			window.Show()
-			bringToFront()
-		})
-	}()
+	return os.WriteFile(configPath, data, 0644)
 }
 
 func registerHostWithRelay(name string) (uuid string, authorID string, err error) {
