@@ -4,7 +4,9 @@ import SidebarComponent from "./components/sidebar.js";
 import MainContentComponent from "./components/mainContent.js";
 import SocketConn from "./lib/socketConn.js";
 import voiceElemContainer from "./components/voiceElemContainer.js";
+import videoContainer from "./components/videoContainer.js";
 import voiceManager from "./lib/voiceManager.js";
+import "./components/mediaElemControl.js"; // Initialize media control
 
 export default class DashboardApp {
   constructor(props) {
@@ -422,6 +424,7 @@ export default class DashboardApp {
       this.sidebar.domComponent,
       this.mainContent.domComponent,
       voiceElemContainer.domComponent,
+      videoContainer.domComponent,
       this.dashModal.domComponent
     );
   }

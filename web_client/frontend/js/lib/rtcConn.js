@@ -8,6 +8,9 @@ export default class RTCConnUsingIon {
     this.socketConn = props.socketConn;
     this.room = props.room;
     this.userID = props.userID;
+    this.enableVideo = props.enableVideo ?? false;
+    this.enableAudio = props.enableAudio ?? true;
+    this.onLocalStream = props.onLocalStream ?? null; // Callback when local stream is ready
 
     this.sfuUrl = sfuBaseURLWS;
     this.peerConfig = null;
@@ -59,18 +62,31 @@ export default class RTCConnUsingIon {
       console.log("🔗 Signal connection open, joining room:", this.room);
       await this.client.join(this.room, String(this.userID));
 
+      // Build media constraints
+      const constraints = {
+        audio: this.enableAudio,
+        video: this.enableVideo ? {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          frameRate: { ideal: 30 }
+        } : false,
+      };
+
       // Using LocalStream to get the local media
-      this.localStream = await LocalStream.getUserMedia({
-        audio: true,
-        video: false,
-      }); // Request audio/video
-      this.client.publish(this.localStream); // Publish local stream using ion-sdk-js's client
-      console.log("📤 Local stream published", this.localStream);
+      this.localStream = await LocalStream.getUserMedia(constraints);
+
+      // Publish the stream (simulcast can be added later if needed)
+      this.client.publish(this.localStream);
+
+      console.log("📤 Local stream published", this.localStream, "video:", this.enableVideo);
+
+      // Notify that local stream is ready (for UI preview)
+      if (this.onLocalStream) {
+        this.onLocalStream(this.localStream);
+      }
+
       // Send local stream ID with user ID so we can find their info later
       this.socketConn.joinVoiceChannel(this.localStream.id);
-
-      // Optional: Simulcast setup if required for video
-      // await this.client.publish(localStream, { simulcast: true });
     };
   };
 

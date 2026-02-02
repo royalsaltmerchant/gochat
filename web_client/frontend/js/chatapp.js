@@ -3,6 +3,8 @@ import isoDateFormat from "./lib/isoDateFormat.js";
 import { isImageUrl, createValidatedImage } from "./lib/imageValidation.js";
 import voiceManager from "./lib/voiceManager.js";
 import voiceElemContainer from "./components/voiceElemContainer.js";
+import videoContainer from "./components/videoContainer.js";
+import mediaElemControl from "./components/mediaElemControl.js";
 
 class ChatApp {
   constructor(props) {
@@ -321,26 +323,46 @@ class VoiceChatComponent {
         }),
       ]);
     } else {
-      return createElement(
-        "button",
-        {
-          class: "chat-box-btn",
-        },
-        "🔊 Join Voice",
-        {
-          type: "click",
-          event: async () => {
-            await voiceManager.leaveVoice();
-            await voiceManager.joinVoice({
-              channelUUID: this.channelUUID,
-              userID: this.user.id,
-            });
-
-            this.render();
-            voiceElemContainer.open();
-          },
-        }
-      );
+      return createElement("div", { class: "join-call-buttons" }, [
+        createElement(
+          "button",
+          { class: "chat-box-btn" },
+          "🔊 Voice",
+          {
+            type: "click",
+            event: async () => {
+              await voiceManager.leaveVoice();
+              mediaElemControl.removeAllStreams();
+              await voiceManager.joinVoice({
+                channelUUID: this.channelUUID,
+                userID: this.user.id,
+                enableVideo: false,
+              });
+              this.render();
+              voiceElemContainer.open();
+            },
+          }
+        ),
+        createElement(
+          "button",
+          { class: "chat-box-btn video-btn" },
+          "📹 Video",
+          {
+            type: "click",
+            event: async () => {
+              await voiceManager.leaveVoice();
+              mediaElemControl.removeAllStreams();
+              await voiceManager.joinVoice({
+                channelUUID: this.channelUUID,
+                userID: this.user.id,
+                enableVideo: true,
+              });
+              this.render();
+              videoContainer.open();
+            },
+          }
+        ),
+      ]);
     }
   };
 

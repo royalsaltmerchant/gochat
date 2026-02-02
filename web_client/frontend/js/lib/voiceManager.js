@@ -5,26 +5,44 @@ class VoiceManager {
     this.socketConn = null;
     this.currentRTCConn = null;
 
-    this.onStreamAdded = null; // Setup by voiceControl
-    this.onStreamRemoved = null; // Setup by voiceControl
+    this.onStreamAdded = null; // Setup by mediaControl
+    this.onStreamRemoved = null; // Setup by mediaControl
+    this.onLocalStream = null; // Callback when local stream is ready
 
     this.currentChannelUUID = null;
     this.remoteStreams = new Map();
     this.voiceSubscriptions = [];
+    this.videoEnabled = false;
   }
 
-  joinVoice = async ({ channelUUID, userID }) => {
-
+  joinVoice = async ({ channelUUID, userID, enableVideo = false }) => {
     this.currentChannelUUID = channelUUID;
+    this.videoEnabled = enableVideo;
 
     this.currentRTCConn = new RTCConn({
       room: this.currentChannelUUID,
       userID: userID,
       socketConn: this.socketConn,
+      enableVideo: enableVideo,
+      enableAudio: true,
+      onLocalStream: (stream) => {
+        // Notify UI of local stream for preview
+        if (this.onLocalStream) {
+          this.onLocalStream(stream);
+        }
+      },
     });
 
     await this.currentRTCConn.init();
-    await this.currentRTCConn.start(); // Connects to SFU and joins room, sets local stream
+    await this.currentRTCConn.start();
+  };
+
+  getLocalStream = () => {
+    return this.currentRTCConn?.localStream || null;
+  };
+
+  isVideoEnabled = () => {
+    return this.videoEnabled;
   };
 
   addRemoteStream = (stream) => {
