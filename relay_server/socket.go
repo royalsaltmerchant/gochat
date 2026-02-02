@@ -41,6 +41,9 @@ func HandleSocket(c *gin.Context) {
 	}
 	defer conn.Close()
 
+	// Capture client IP at connection time
+	clientIP := c.ClientIP()
+
 	var client *Client
 
 	for {
@@ -75,7 +78,7 @@ func HandleSocket(c *gin.Context) {
 				})
 				continue
 			}
-			client = registerClient(host, conn)
+			client = registerClient(host, conn, clientIP)
 			continue
 		}
 
@@ -108,6 +111,11 @@ func cleanupClient(client *Client) {
 		delete(voiceClients, client.ClientUUID)
 	}
 	voiceClientsMu.Unlock()
+
+	// Unregister authenticated IP session
+	if client.IsAuthenticated {
+		UnregisterAuthenticatedIP(client.IP)
+	}
 
 	host, exists := GetHost(client.HostUUID)
 	if !exists {

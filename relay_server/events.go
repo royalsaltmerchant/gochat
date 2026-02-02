@@ -3,6 +3,7 @@ package main
 import (
 	"gochat/db"
 	"log"
+	"os"
 	"time"
 
 	"github.com/google/uuid"
@@ -46,10 +47,14 @@ func registerOrCreateHost(hostUUID, potentialAuthorID string, conn *websocket.Co
 	return host, nil
 }
 
-func registerClient(host *Host, conn *websocket.Conn) *Client {
+func registerClient(host *Host, conn *websocket.Conn, clientIP string) *Client {
 	host.mu.Lock()
 
 	if oldClient, ok := host.ClientsByConn[conn]; ok {
+		// If old client was authenticated, unregister their IP
+		if oldClient.IsAuthenticated {
+			UnregisterAuthenticatedIP(oldClient.IP)
+		}
 		delete(host.ClientConnsByUUID, oldClient.ClientUUID)
 		delete(host.ClientsByUserID, oldClient.UserID)
 		delete(host.ClientsByConn, conn)
@@ -59,11 +64,13 @@ func registerClient(host *Host, conn *websocket.Conn) *Client {
 
 	clientUUID := uuid.New().String()
 	client := &Client{
-		Conn:       conn,
-		HostUUID:   host.UUID,
-		ClientUUID: clientUUID,
-		SendQueue:  make(chan WSMessage, 64),
-		Done:       make(chan struct{}),
+		Conn:            conn,
+		HostUUID:        host.UUID,
+		ClientUUID:      clientUUID,
+		IP:              clientIP,
+		IsAuthenticated: false,
+		SendQueue:       make(chan WSMessage, 64),
+		Done:            make(chan struct{}),
 	}
 
 	host.ClientsByConn[conn] = client
@@ -850,11 +857,52 @@ func handleJoinVoiceChannel(client *Client, conn *websocket.Conn, wsMsg *WSMessa
 
 	host.mu.Unlock()
 
+	// Send voice credentials to the joining client (for future client updates)
+	sendVoiceCredentials(client, channelUUID)
+
 	BroadcastToChannel(client.HostUUID, channelUUID, WSMessage{
 		Type: "joined_voice_channel",
 		Data: JoinedOrLeftVoiceChannel{
 			ChannelUUID: channelUUID,
 			VoiceSubs:   voiceSubs,
+		},
+	})
+}
+
+// sendVoiceCredentials sends TURN credentials and SFU token to a client joining voice
+func sendVoiceCredentials(client *Client, channelUUID string) {
+	turnURL := os.Getenv("TURN_URL")
+	turnSecret := os.Getenv("TURN_SECRET")
+	sfuSecret := os.Getenv("SFU_SECRET")
+
+	// Skip if secrets not configured
+	if turnURL == "" || turnSecret == "" {
+		log.Println("TURN credentials not configured, skipping voice_credentials")
+		return
+	}
+
+	// Generate TURN credentials
+	ttl := int64(8 * 3600) // 8 hours
+	turnUsername, turnCredential := generateTurnCredentials(turnSecret, ttl)
+
+	// Generate SFU token (if SFU_SECRET is configured)
+	var sfuToken string
+	if sfuSecret != "" {
+		var err error
+		sfuToken, err = GenerateSFUToken(client.UserID, client.Username, channelUUID, sfuSecret, 8*time.Hour)
+		if err != nil {
+			log.Printf("Failed to generate SFU token: %v", err)
+		}
+	}
+
+	SendToClient(client.HostUUID, client.ClientUUID, WSMessage{
+		Type: "voice_credentials",
+		Data: VoiceCredentials{
+			TurnURL:        turnURL,
+			TurnUsername:   turnUsername,
+			TurnCredential: turnCredential,
+			SFUToken:       sfuToken,
+			ChannelUUID:    channelUUID,
 		},
 	})
 }

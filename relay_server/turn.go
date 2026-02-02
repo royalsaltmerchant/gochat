@@ -23,6 +23,36 @@ func generateTurnCredentials(secret string, ttlSeconds int64) (username string, 
 }
 
 func HandleGetTurnCredentials(c *gin.Context) {
+	// Check authentication - either API key or authenticated IP session
+	apiKey := c.GetHeader("X-API-Key")
+	expectedAPIKey := os.Getenv("TURN_API_KEY")
+	clientIP := c.ClientIP()
+
+	isAuthorized := false
+
+	// Method 1: API key authentication (for third-party services)
+	if apiKey != "" && expectedAPIKey != "" && apiKey == expectedAPIKey {
+		isAuthorized = true
+	}
+
+	// Method 2: IP session authentication (for existing clients via relay WebSocket)
+	if !isAuthorized && IsIPAuthenticated(clientIP) {
+		isAuthorized = true
+	}
+
+	// If TURN_API_KEY is not set, allow unauthenticated access (backwards compatibility)
+	// Remove this block once all clients are updated
+	if !isAuthorized && expectedAPIKey == "" {
+		isAuthorized = true
+	}
+
+	if !isAuthorized {
+		c.JSON(401, gin.H{
+			"error": "Unauthorized: valid API key or authenticated session required",
+		})
+		return
+	}
+
 	url := os.Getenv("TURN_URL")
 	secret := os.Getenv("TURN_SECRET") // must match coturn config
 	ttl := int64(8 * 3600)             // 8 hours

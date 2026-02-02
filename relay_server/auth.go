@@ -223,6 +223,12 @@ func handleLoginApproved(client *Client, conn *websocket.Conn, userID int, usern
 	host.ClientsByConn[clientConn].Username = username
 	host.ClientsByUserID[userID] = host.ClientsByConn[clientConn]
 
+	// Register this IP as having an authenticated session
+	if !host.ClientsByConn[clientConn].IsAuthenticated {
+		host.ClientsByConn[clientConn].IsAuthenticated = true
+		RegisterAuthenticatedIP(host.ClientsByConn[clientConn].IP)
+	}
+
 	SendToClient(client.HostUUID, client.ClientUUID, WSMessage{
 		Type: "login_user_success",
 		Data: LoginUserToken{
