@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { VideoGrid } from './VideoGrid';
 import { ControlBar } from './ControlBar';
 import { ShareLink } from './ShareLink';
@@ -40,11 +40,13 @@ export function CallRoom({ roomId }: CallRoomProps) {
 
   const {
     isConnected: wsConnected,
+    participantId,
     participants,
     voiceCredentials,
     joinRoom,
     leaveRoom,
     updateMedia,
+    updateStreamId,
   } = useWebSocket();
 
   const {
@@ -56,6 +58,12 @@ export function CallRoom({ roomId }: CallRoomProps) {
     setAudioEnabled,
     setVideoEnabled,
   } = useRTCConnection();
+
+  // Filter out the local user from participants list (should not be included, but filter as safety)
+  const remoteParticipants = useMemo(() => {
+    if (!participantId) return participants;
+    return participants.filter(p => p.id !== participantId);
+  }, [participants, participantId]);
 
   // Start preview stream on mount
   useEffect(() => {
@@ -80,6 +88,8 @@ export function CallRoom({ roomId }: CallRoomProps) {
         .then((rtcStreamId) => {
           if (rtcStreamId) {
             console.log('RTC connected with stream:', rtcStreamId);
+            // Update the server with the actual RTC stream ID so other participants can match streams
+            updateStreamId(roomId, rtcStreamId);
             setCallState('connected');
           } else {
             console.error('Failed to connect RTC');
@@ -91,7 +101,7 @@ export function CallRoom({ roomId }: CallRoomProps) {
           setCallState('preview');
         });
     }
-  }, [voiceCredentials, callState, roomId, previewStream, previewAudioEnabled, previewVideoEnabled, connectRTC]);
+  }, [voiceCredentials, callState, roomId, previewStream, previewAudioEnabled, previewVideoEnabled, connectRTC, updateStreamId]);
 
   const handleJoin = useCallback((name: string) => {
     if (!wsConnected) {
@@ -193,7 +203,7 @@ export function CallRoom({ roomId }: CallRoomProps) {
           localDisplayName={displayName}
           localIsAudioOn={isAudioEnabled}
           localIsVideoOn={isVideoEnabled}
-          participants={participants}
+          participants={remoteParticipants}
           remoteStreams={remoteStreams}
         />
       </div>
