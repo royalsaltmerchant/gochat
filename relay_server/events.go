@@ -964,3 +964,285 @@ func handleLeaveVoiceChannel(client *Client) {
 		},
 	})
 }
+
+// ============================================================================
+// Call Room Handlers (Standalone Video Calls)
+// ============================================================================
+
+func dispatchCallRoomMessage(conn *websocket.Conn, wsMsg WSMessage) {
+	switch wsMsg.Type {
+	case "join_call_room":
+		handleJoinCallRoom(conn, &wsMsg)
+	case "leave_call_room":
+		handleLeaveCallRoom(conn, &wsMsg)
+	case "update_call_media":
+		handleUpdateCallMedia(conn, &wsMsg)
+	default:
+		log.Println("Unknown call room message type:", wsMsg.Type)
+	}
+}
+
+func handleJoinCallRoom(conn *websocket.Conn, wsMsg *WSMessage) {
+	data, err := decodeData[JoinCallRoomClient](wsMsg.Data)
+	if err != nil {
+		conn.WriteJSON(WSMessage{Type: "error", Data: ChatError{Content: "Invalid join call room data"}})
+		return
+	}
+
+	callRoomsMu.Lock()
+	room, exists := CallRooms[data.RoomID]
+	if !exists {
+		room = &CallRoom{
+			ID:           data.RoomID,
+			Participants: make(map[*websocket.Conn]*CallRoomParticipant),
+		}
+		CallRooms[data.RoomID] = room
+	}
+	callRoomsMu.Unlock()
+
+	participantID := uuid.New().String()
+	participant := &CallRoomParticipant{
+		ID:          participantID,
+		DisplayName: data.DisplayName,
+		StreamID:    data.StreamID,
+		IsAudioOn:   true,
+		IsVideoOn:   true,
+		Conn:        conn,
+		SendQueue:   make(chan WSMessage, 64),
+		Done:        make(chan struct{}),
+	}
+
+	room.mu.Lock()
+
+	// Build current participant list for the new joiner
+	currentParticipants := []CallParticipant{}
+	for _, p := range room.Participants {
+		currentParticipants = append(currentParticipants, CallParticipant{
+			ID:          p.ID,
+			DisplayName: p.DisplayName,
+			StreamID:    p.StreamID,
+			IsAudioOn:   p.IsAudioOn,
+			IsVideoOn:   p.IsVideoOn,
+		})
+	}
+
+	// Add the new participant
+	room.Participants[conn] = participant
+	room.mu.Unlock()
+
+	// Start the write pump
+	go participant.WritePump()
+
+	// Send room state to the new participant
+	participant.SendQueue <- WSMessage{
+		Type: "call_room_state",
+		Data: CallRoomState{
+			RoomID:       data.RoomID,
+			Participants: currentParticipants,
+		},
+	}
+
+	// Send join acknowledgment with their participant ID
+	participant.SendQueue <- WSMessage{
+		Type: "call_room_joined",
+		Data: map[string]string{
+			"room_id":        data.RoomID,
+			"participant_id": participantID,
+		},
+	}
+
+	// Send TURN credentials
+	sendCallRoomVoiceCredentials(participant, data.RoomID)
+
+	// Broadcast to other participants that someone joined
+	newParticipant := CallParticipant{
+		ID:          participantID,
+		DisplayName: data.DisplayName,
+		StreamID:    data.StreamID,
+		IsAudioOn:   true,
+		IsVideoOn:   true,
+	}
+
+	broadcastToCallRoom(room, conn, WSMessage{
+		Type: "call_participant_joined",
+		Data: CallParticipantJoined{
+			RoomID:      data.RoomID,
+			Participant: newParticipant,
+		},
+	})
+}
+
+func handleLeaveCallRoom(conn *websocket.Conn, wsMsg *WSMessage) {
+	data, err := decodeData[LeaveCallRoomClient](wsMsg.Data)
+	if err != nil {
+		conn.WriteJSON(WSMessage{Type: "error", Data: ChatError{Content: "Invalid leave call room data"}})
+		return
+	}
+
+	callRoomsMu.Lock()
+	room, exists := CallRooms[data.RoomID]
+	callRoomsMu.Unlock()
+
+	if !exists {
+		return
+	}
+
+	room.mu.Lock()
+	participant, ok := room.Participants[conn]
+	if !ok {
+		room.mu.Unlock()
+		return
+	}
+
+	participantID := participant.ID
+	delete(room.Participants, conn)
+
+	// Clean up empty room
+	if len(room.Participants) == 0 {
+		callRoomsMu.Lock()
+		delete(CallRooms, data.RoomID)
+		callRoomsMu.Unlock()
+	}
+	room.mu.Unlock()
+
+	// Close the participant's channels
+	close(participant.SendQueue)
+	close(participant.Done)
+
+	// Broadcast to remaining participants
+	broadcastToCallRoom(room, nil, WSMessage{
+		Type: "call_participant_left",
+		Data: CallParticipantLeft{
+			RoomID:        data.RoomID,
+			ParticipantID: participantID,
+		},
+	})
+}
+
+func handleUpdateCallMedia(conn *websocket.Conn, wsMsg *WSMessage) {
+	data, err := decodeData[UpdateCallMediaClient](wsMsg.Data)
+	if err != nil {
+		conn.WriteJSON(WSMessage{Type: "error", Data: ChatError{Content: "Invalid update call media data"}})
+		return
+	}
+
+	callRoomsMu.Lock()
+	room, exists := CallRooms[data.RoomID]
+	callRoomsMu.Unlock()
+
+	if !exists {
+		return
+	}
+
+	room.mu.Lock()
+	participant, ok := room.Participants[conn]
+	if !ok {
+		room.mu.Unlock()
+		return
+	}
+
+	participant.IsAudioOn = data.IsAudioOn
+	participant.IsVideoOn = data.IsVideoOn
+	participantID := participant.ID
+	room.mu.Unlock()
+
+	// Broadcast media state update to all participants
+	broadcastToCallRoom(room, nil, WSMessage{
+		Type: "call_media_updated",
+		Data: CallMediaUpdated{
+			RoomID:        data.RoomID,
+			ParticipantID: participantID,
+			IsAudioOn:     data.IsAudioOn,
+			IsVideoOn:     data.IsVideoOn,
+		},
+	})
+}
+
+func broadcastToCallRoom(room *CallRoom, exclude *websocket.Conn, msg WSMessage) {
+	room.mu.Lock()
+	defer room.mu.Unlock()
+
+	for conn, participant := range room.Participants {
+		if conn == exclude {
+			continue
+		}
+		select {
+		case participant.SendQueue <- msg:
+		default:
+			log.Printf("broadcastToCallRoom: send queue full for participant %s", participant.ID)
+		}
+	}
+}
+
+func cleanupCallRoomParticipant(conn *websocket.Conn) {
+	callRoomsMu.Lock()
+	defer callRoomsMu.Unlock()
+
+	for roomID, room := range CallRooms {
+		room.mu.Lock()
+		participant, ok := room.Participants[conn]
+		if ok {
+			participantID := participant.ID
+			delete(room.Participants, conn)
+
+			// Close channels
+			close(participant.SendQueue)
+			close(participant.Done)
+
+			// Broadcast departure
+			for _, p := range room.Participants {
+				select {
+				case p.SendQueue <- WSMessage{
+					Type: "call_participant_left",
+					Data: CallParticipantLeft{
+						RoomID:        roomID,
+						ParticipantID: participantID,
+					},
+				}:
+				default:
+				}
+			}
+
+			// Clean up empty room
+			if len(room.Participants) == 0 {
+				delete(CallRooms, roomID)
+			}
+		}
+		room.mu.Unlock()
+	}
+}
+
+// sendCallRoomVoiceCredentials sends TURN credentials to a call room participant
+func sendCallRoomVoiceCredentials(participant *CallRoomParticipant, roomID string) {
+	turnURL := os.Getenv("TURN_URL")
+	turnSecret := os.Getenv("TURN_SECRET")
+	sfuSecret := os.Getenv("SFU_SECRET")
+
+	if turnURL == "" || turnSecret == "" {
+		log.Println("TURN credentials not configured, skipping voice_credentials for call room")
+		return
+	}
+
+	ttl := int64(8 * 3600)
+	turnUsername, turnCredential := generateTurnCredentials(turnSecret, ttl)
+
+	var sfuToken string
+	if sfuSecret != "" {
+		var err error
+		sfuToken, err = GenerateSFUToken(0, participant.DisplayName, roomID, sfuSecret, 8*time.Hour)
+		if err != nil {
+			log.Printf("Failed to generate SFU token for call room: %v", err)
+		}
+	}
+
+	participant.SendQueue <- WSMessage{
+		Type: "voice_credentials",
+		Data: VoiceCredentials{
+			TurnURL:        turnURL,
+			TurnUsername:   turnUsername,
+			TurnCredential: turnCredential,
+			SFUToken:       sfuToken,
+			ChannelUUID:    roomID,
+		},
+	}
+}

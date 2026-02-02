@@ -97,6 +97,15 @@ func main() {
 		c.File("/root/relay_server/static/reset_password.html")
 	})
 	r.Static("/static", "/root/relay_server/static")
+	// Call landing page
+	r.GET("/call", func(c *gin.Context) {
+		c.File("/root/relay_server/static/call_landing.html")
+	})
+	// React call room app
+	r.GET("/call/room", func(c *gin.Context) {
+		c.File("/root/relay_server/static/call/index.html")
+	})
+	r.Static("/call/assets", "/root/relay_server/static/call/assets")
 
 	// Create HTTP server manually so we can shut it down
 	server := &http.Server{
