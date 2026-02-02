@@ -8,108 +8,132 @@ Parch is a real-time chat and voice platform built around decentralization and s
 
 ## Architecture
 
-Parch consists of multiple cooperating components:
+```
+┌─────────────────┐                       ┌─────────────────┐
+│  Desktop Client │                       │    Call App     │
+│     (Wails)     │                       │  (React/Vite)   │
+└────────┬────────┘                       └────────┬────────┘
+         │                                         │
+         └────────────────┬────────────────────────┘
+                          │
+             ┌────────────▼────────────┐
+             │      Relay Server       │
+             │         (Go)            │
+             └────────────┬────────────┘
+                          │
+           ┌──────────────┼──────────────┐
+           │              │              │
+  ┌────────▼────────┐ ┌───▼───┐ ┌────────▼────────┐
+  │   Host Client   │ │  SFU  │ │   TURN Server   │
+  │  (Go + SQLite)  │ │(Pion) │ │    (coturn)     │
+  └─────────────────┘ └───────┘ └─────────────────┘
+```
 
-- **Relay Server**  
-  A central Go service responsible for handling host and user registrations. It acts as a lightweight signal relay between clients and hosts, facilitating connection setup.
+### Components
 
-- **Host Application**  
-  A desktop application that stores chat data locally using SQLite. It manages *spaces*, *channels*, and message storage. Hosts register with the relay and provide a **Host Key** to clients for access.  
-  (Currently uses `andlabs/ui` for Windows and macOS interfaces.)
-
-- **Client Application**  
-  The main user-facing chat app. Users connect to hosts using Host Keys and participate in channel-based communication within user-created spaces.
-
-- **SFU (Selective Forwarding Unit)**  
-  A Pion-based media server that routes voice streams between participants without mixing them, improving performance for group audio.
-
-- **TURN Server**  
-  Enables NAT traversal for clients behind restrictive firewalls, ensuring reliable peer-to-peer and media connections over WebRTC.
+| Component | Description |
+|-----------|-------------|
+| **Relay Server** | Central Go service for host/user registration, WebSocket signaling, and connection relay |
+| **Host Client** | Desktop app that stores chat data locally (SQLite). Manages spaces, channels, and messages |
+| **Desktop Client** | Wails-based desktop chat application for end users |
+| **Call App** | React web app for standalone video/voice calls (no authentication required) |
+| **SFU** | Pion-based Selective Forwarding Unit for routing voice/video streams |
+| **TURN Server** | coturn server for NAT traversal in WebRTC connections |
 
 ---
 
-## Getting Started
+## Environment Variables
 
-### 📦 Download Binaries
-
-Beta builds are available for macOS and Windows on the [landing page](https://github.com/royalsaltmerchant/gochat):
-
-- **Parch Client** (macOS & Windows)
-- **Parch Host** (macOS & Windows)
-
----
-
-##  Local Development
-
-Ensure you have Go installed and available in your environment.
-
-### Install Dependencies
+Create a `.env` file in `relay_server/`:
 
 ```bash
+# Server
+RELAY_PORT=8000
+HOST_DB_FILE=./relay.db
+
+# Authentication
+JWT_SECRET=your-jwt-secret-key
+
+# TURN Server (coturn)
+TURN_URL=turn:your-turn-server:3478
+TURN_SECRET=your-coturn-static-auth-secret
+TURN_API_KEY=optional-api-key-for-turn-endpoint
+
+# SFU
+SFU_SECRET=your-sfu-jwt-secret
+
+# Email (password reset)
+EMAIL=your-email@gmail.com
+EMAIL_PASSWORD=your-app-password
+```
+
+---
+
+## Local Development
+
+### Prerequisites
+- Go 1.21+
+- Node.js 18+
+- npm or yarn
+
+### Relay Server
+
+```bash
+cd relay_server
 go mod tidy
+go run .
 ```
 
-### Start the Relay Server
+### Call App (Video Calls)
 
 ```bash
-go run ./relay_server
+cd call_app
+npm install
+npm run dev      # Development server at http://localhost:5173
+npm run build    # Build to relay_server/static/call/
 ```
 
-### Run the Host Application
-
-```bash
-go run ./host_client
+**Note:** For local development against production servers, edit `src/config/endpoints.ts`:
+```typescript
+const isDev = false; // Set to false to use production endpoints
 ```
 
-### Run the Web Client (Wails)
+### Desktop Client (Wails)
 
+wails
 ```bash
 cd web_client
 wails dev
 ```
-
-To build the frontend:
-
+vite build
 ```bash
-cd frontend
-npm run build
+cd web_client/frontend
+npm run build    # Build to watch (It's weird I know)
 ```
 
 ---
 
-## ⚙️ Database Migrations (Host)
+## Database Migrations
 
-Parch Host uses SQLite for data storage and `golang-migrate` for schema evolution.
-
-### Create a New Migration
+### Host Client (SQLite)
 
 ```bash
+# Create migration
 migrate create -ext sql -dir ./migrations <name>
-```
 
-### Apply Migrations
-
-```bash
+# Apply migrations
 migrate -path ./migrations -database "sqlite3://chat.db?_foreign_keys=on" up
-```
 
-### Rollback Migrations
-
-```bash
+# Rollback
 migrate -path ./migrations -database "sqlite3://chat.db?_foreign_keys=on" down
 ```
 
-### Troubleshooting
+### Relay Server (SQLite)
 
-If you encounter SQLite build errors:
-
-```bash
-go install -tags 'sqlite3' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
-```
+Migrations are embedded and run automatically on startup.
 
 ---
 
 ## Contact
 
 [parchchat@gmail.com](mailto:parchchat@gmail.com)
-
