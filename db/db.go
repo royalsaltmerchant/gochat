@@ -23,9 +23,14 @@ var ChatDB *sql.DB
 var HostDB *sql.DB
 
 func InitDB(databaseName string, migrations embed.FS, migrationPath string) (*sql.DB, error) {
-	db, err := sql.Open("sqlite3", databaseName+"?_foreign_keys=1")
+	db, err := sql.Open("sqlite3", databaseName)
 	if err != nil {
 		return nil, err
+	}
+
+	// Enable foreign keys - modernc.org/sqlite requires explicit PRAGMA execution
+	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
+		return nil, fmt.Errorf("error enabling foreign keys: %v", err)
 	}
 
 	var enabled int
