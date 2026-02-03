@@ -3,104 +3,443 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Parch</title>
+    <title>Parch - Decentralized Messaging & Voice</title>
     <link rel="stylesheet" href="/static/style.css" />
   </head>
   <style>
-    main {
+    body {
+      min-height: 100vh;
+      background: linear-gradient(145deg, var(--main-dark) 0%, var(--second-dark) 40%, var(--black) 100%);
+    }
+
+    /* Subtle noise texture */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+      opacity: 0.02;
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    .landing-main {
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      line-height: 1.8;
+      padding: 40px 20px 60px;
+      max-width: 1000px;
+      margin: 0 auto;
     }
-    main p {
-      max-width: 800px;
+
+    /* Hero Section */
+    .hero {
       text-align: center;
+      margin-bottom: 50px;
     }
-    main div {
+
+    .hero-logo {
+      width: 140px;
+      height: 140px;
+      margin-bottom: 20px;
+      filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.4));
+    }
+
+    .hero h1 {
+      font-size: 3rem;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, var(--bright-white) 0%, var(--a-blue) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-tagline {
+      font-size: 1.1rem;
+      color: var(--main-gray);
+      font-style: italic;
+      margin-bottom: 24px;
+    }
+
+    .hero-desc {
+      max-width: 600px;
+      color: var(--main-white);
+      line-height: 1.7;
+      margin: 0 auto;
+    }
+
+    /* Cards Section */
+    .cards-section {
+      width: 100%;
+      margin-bottom: 50px;
+    }
+
+    .section-title {
+      text-align: center;
+      font-size: 1.5rem;
+      color: var(--bright-white);
+      margin-bottom: 24px;
+      position: relative;
+    }
+
+    .section-title::after {
+      content: '';
+      display: block;
+      width: 60px;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--light-blue), transparent);
+      margin: 12px auto 0;
+    }
+
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+    }
+
+    .card {
+      background: linear-gradient(160deg, var(--dark-blue) 0%, var(--second-dark) 100%);
+      border: 1px solid var(--main-gray);
+      border-radius: 8px;
+      padding: 24px;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    .card-icon {
+      width: 48px;
+      height: 48px;
+      background: var(--light-blue);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 16px;
+      border-left: 1px solid var(--main-gray);
+      border-top: 1px solid var(--main-gray);
+      border-right: 1px solid var(--black);
+      border-bottom: 1px solid var(--black);
+    }
+
+    .card-icon svg {
+      width: 24px;
+      height: 24px;
+      stroke: var(--bright-white);
+    }
+
+    .card h3 {
+      color: var(--bright-white);
+      font-size: 1.2rem;
+      margin-bottom: 10px;
+    }
+
+    .card p {
+      color: var(--main-white);
+      line-height: 1.6;
+      font-size: 0.95rem;
+    }
+
+    .card a {
+      display: inline-block;
+      margin-top: 12px;
+      color: var(--a-blue);
+      font-size: 0.9rem;
+    }
+
+    /* Getting Started Section */
+    .info-section {
+      width: 100%;
       max-width: 700px;
+      margin-bottom: 50px;
+    }
+
+    .info-block {
+      background: linear-gradient(160deg, var(--dark-blue) 0%, var(--second-dark) 100%);
+      border: 1px solid var(--main-gray);
+      border-radius: 8px;
+      padding: 24px;
+      margin-bottom: 16px;
+    }
+
+    .info-block h3 {
+      color: var(--a-blue);
+      font-size: 1.1rem;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .info-block h3::before {
+      content: '';
+      width: 8px;
+      height: 8px;
+      background: var(--light-green);
+      border-radius: 50%;
+    }
+
+    .info-block p {
+      color: var(--main-white);
+      line-height: 1.7;
+    }
+
+    /* Downloads Section */
+    .downloads-section {
+      width: 100%;
+      max-width: 600px;
+      margin-bottom: 50px;
+    }
+
+    .downloads-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+
+    @media (max-width: 500px) {
+      .downloads-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .download-btn {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 18px;
+      background: var(--light-blue);
+      color: var(--bright-white);
+      text-decoration: none;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      transition: all 0.15s ease;
+      border-left: 1px solid var(--main-gray);
+      border-top: 1px solid var(--main-gray);
+      border-right: 1px solid var(--black);
+      border-bottom: 1px solid var(--black);
+    }
+
+    .download-btn:hover {
+      filter: brightness(1.1);
+      text-decoration: none;
+    }
+
+    .download-btn:active {
+      border-left: 1px solid var(--black);
+      border-top: 1px solid var(--black);
+      border-right: 1px solid var(--main-gray);
+      border-bottom: 1px solid var(--main-gray);
+    }
+
+    .download-btn svg {
+      width: 20px;
+      height: 20px;
+      flex-shrink: 0;
+    }
+
+    .download-btn .dl-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .download-btn .dl-name {
+      font-weight: 600;
+    }
+
+    .download-btn .dl-platform {
+      font-size: 0.75rem;
+      opacity: 0.8;
+    }
+
+    .beta-badge {
+      display: inline-block;
+      background: var(--light-yellow);
+      color: var(--black);
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-left: 10px;
+      vertical-align: middle;
+    }
+
+    /* Footer */
+    .landing-footer {
+      text-align: center;
+      padding-top: 30px;
+      border-top: 1px solid var(--main-gray);
+      width: 100%;
+      max-width: 400px;
+    }
+
+    .footer-links {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      margin-bottom: 20px;
+    }
+
+    .footer-links a {
+      color: var(--a-blue);
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .footer-links svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .copyright {
+      color: var(--main-gray);
+      font-size: 0.8rem;
     }
   </style>
   <body>
-    <main>
-      <img height="200" src="/static/parchclient_icon.webp" alt="" />
-      <h1>Parch</h1>
-      <small
-        ><i>Messaging, voice and video applications.</i></small
-      >
-      <hr style="width: 50%" />
-      <p>
-        Parch <b>provides three applications</b> that interact via a relay service
-        for real time communication.
-      </p>
-      <div>
-        <p>
-          - A client (the main chat application) which can connect to multiple
-          hosts.
+    <main class="landing-main">
+      <!-- Hero Section -->
+      <section class="hero">
+        <img class="hero-logo" src="/static/parchclient_icon.webp" alt="Parch Logo" />
+        <h1>Parch</h1>
+        <p class="hero-tagline">Decentralized messaging, voice & video</p>
+        <p class="hero-desc">
+          A suite of applications for real-time communication via a relay service.
+          User-hosted, privacy-focused, and completely free.
         </p>
-        <p>
-          - A host service (with a SQLite database) that allows clients to
-          connect and store data.
-        </p>
-        <p>
-          - An on-demand web service for free voice + video conferencing. Visit <a href="https://parchchat.com/call">https://parchchat.com/call</a>
-        </p>
-      </div>
-      <br />
-      <p>
-        To <b>get started</b>, if you already have a host key from a host
-        provider, you can download and run the client application. Users invite
-        one another to "spaces" which are available through the host and they
-        chat within "channels" provided by the "space" creator.
-      </p>
-      <br />
-      <p>
-        To <b>Host</b> you can simply download and run the host application
-        which will prompt you for a name. The application will register your
-        host name with the relay service and provide you with a
-        <b>Host Key</b> that you can share with client users.
-      </p>
-      <br>
-      <b>More Info will be available soon!</b>
-      <br>
-      <h2>Downloads (Beta)</h2>
-      <div>
-        <div>
-          -
-          <a
-            href="https://github.com/royalsaltmerchant/gochat/releases/download/testing_mac_signed_client/Parch.dmg"
-            >Parch Client (MacOS)</a
-          >
+      </section>
+
+      <!-- Three Applications -->
+      <section class="cards-section">
+        <h2 class="section-title">Three Applications</h2>
+        <div class="cards-grid">
+          <!-- Client Card -->
+          <div class="card">
+            <div class="card-icon">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+            </div>
+            <h3>Parch Client</h3>
+            <p>The main chat application. Connect to multiple hosts, join spaces, and communicate through channels.</p>
+          </div>
+
+          <!-- Host Card -->
+          <div class="card">
+            <div class="card-icon">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
+              </svg>
+            </div>
+            <h3>Parch Host</h3>
+            <p>Run your own server with SQLite storage. Generate a Host Key to share with users who want to connect.</p>
+          </div>
+
+          <!-- On-Demand Card -->
+          <div class="card">
+            <div class="card-icon">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <h3>Parch On-Demand</h3>
+            <p>Free voice and video conferencing in your browser. No downloads or accounts required.</p>
+            <a href="/call">Start a call →</a>
+          </div>
         </div>
-        <div>
-          -
-          <a
-            href="https://github.com/royalsaltmerchant/gochat/releases/download/testing_mac_signed_host/ParchHost.dmg"
-            >Parch Host (MacOS)</a
-          >
+      </section>
+
+      <!-- Getting Started -->
+      <section class="info-section">
+        <h2 class="section-title">Getting Started</h2>
+
+        <div class="info-block">
+          <h3>Join as a Client</h3>
+          <p>
+            If you have a <b>Host Key</b> from a host provider, download the Client application below.
+            You'll be invited to "spaces" where you can chat in channels created by the space owner.
+          </p>
         </div>
-        <div>
-          -
-          <a
-            href="https://github.com/royalsaltmerchant/gochat/releases/download/testing_win_unsigned_client/ParchClientInstaller.exe"
-            >Parch Client (Windows)</a
-          >
+
+        <div class="info-block">
+          <h3>Run Your Own Host</h3>
+          <p>
+            Download the Host application and run it to register with the relay service.
+            You'll receive a <b>Host Key</b> to share with anyone you want to connect.
+          </p>
         </div>
-        <div>
-          -
-          <a
-            href="https://github.com/royalsaltmerchant/gochat/releases/download/testing_win_unsigned_host/parchhost_installer.exe"
-            >Parch Host (Windows)</a
-          >
+      </section>
+
+      <!-- Downloads -->
+      <section class="downloads-section">
+        <h2 class="section-title">Downloads <span class="beta-badge">BETA</span></h2>
+        <div class="downloads-grid">
+          <a href="https://github.com/royalsaltmerchant/gochat/releases/download/testing_mac_signed_client/Parch.dmg" class="download-btn">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
+            </svg>
+            <span class="dl-info">
+              <span class="dl-name">Parch Client</span>
+              <span class="dl-platform">macOS</span>
+            </span>
+          </a>
+
+          <a href="https://github.com/royalsaltmerchant/gochat/releases/download/testing_mac_signed_host/ParchHost.dmg" class="download-btn">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
+            </svg>
+            <span class="dl-info">
+              <span class="dl-name">Parch Host</span>
+              <span class="dl-platform">macOS</span>
+            </span>
+          </a>
+
+          <a href="https://github.com/royalsaltmerchant/gochat/releases/download/testing_win_unsigned_client/ParchClientInstaller.exe" class="download-btn">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M3 12V6.75L9 5.43V11.91L3 12M20 3V11.75L10 11.9V5.21L20 3M3 13L9 13.09V19.9L3 18.75V13M20 13.25V22L10 20.09V13.1L20 13.25Z"/>
+            </svg>
+            <span class="dl-info">
+              <span class="dl-name">Parch Client</span>
+              <span class="dl-platform">Windows</span>
+            </span>
+          </a>
+
+          <a href="https://github.com/royalsaltmerchant/gochat/releases/download/testing_win_unsigned_host/parchhost_installer.exe" class="download-btn">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M3 12V6.75L9 5.43V11.91L3 12M20 3V11.75L10 11.9V5.21L20 3M3 13L9 13.09V19.9L3 18.75V13M20 13.25V22L10 20.09V13.1L20 13.25Z"/>
+            </svg>
+            <span class="dl-info">
+              <span class="dl-name">Parch Host</span>
+              <span class="dl-platform">Windows</span>
+            </span>
+          </a>
         </div>
-      </div>
-      <br />
-      <br />
-      <h2>Contact</h2>
-      <a href="mailto:parchchat@gmail.com">parchchat@gmail.com</a>
-      <a href="https://github.com/royalsaltmerchant/gochat">Github Repo</a>
-      <small style="margin-top: 50px;">©ParchChat.com 2025</small>
+      </section>
+
+      <!-- Footer -->
+      <footer class="landing-footer">
+        <div class="footer-links">
+          <a href="mailto:parchchat@gmail.com">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+            Email
+          </a>
+          <a href="https://github.com/royalsaltmerchant/gochat">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+            </svg>
+            GitHub
+          </a>
+        </div>
+        <p class="copyright">© ParchChat.com 2025</p>
+      </footer>
     </main>
   </body>
 </html>

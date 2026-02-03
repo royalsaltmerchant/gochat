@@ -1,0 +1,203 @@
+/*
+ * PARCH DESIGN SYSTEM - Core Tokens & Components
+ * ================================================
+ * This is the single source of truth for Parch styling.
+ *
+ * Usage:
+ * - Static HTML: <link rel="stylesheet" href="/static/parch-core.css">
+ * - call_app: Variables are mirrored in tailwind.config.js
+ * - web_client: Keep frontend/style.css in sync (embedded in Wails binary)
+ */
+
+/* ============================================
+   DESIGN TOKENS - Colors
+   ============================================ */
+:root {
+  /* Neutral Palette */
+  --parch-white: rgb(235, 235, 235);
+  --parch-bright-white: rgb(245, 245, 245);
+  --parch-dark: rgb(25, 29, 37);
+  --parch-second-dark: rgb(21, 24, 31);
+  --parch-black: rgb(19, 20, 24);
+
+  /* Blue Palette (Interactive) */
+  --parch-light-blue: rgb(66, 85, 119);
+  --parch-second-blue: rgb(55, 71, 99);
+  --parch-dark-blue: rgb(38, 44, 57);
+  --parch-accent-blue: rgb(157, 179, 211);
+
+  /* Neutral Accent */
+  --parch-gray: rgb(89, 96, 117);
+
+  /* Status Colors */
+  --parch-light-red: rgb(209, 102, 124);
+  --parch-dark-red: rgb(152, 74, 90);
+  --parch-yellow: rgb(255, 250, 155);
+  --parch-green: rgb(119, 167, 77);
+
+  /* Legacy aliases (for backward compatibility with web_client) */
+  --main-white: var(--parch-white);
+  --bright-white: var(--parch-bright-white);
+  --main-dark: var(--parch-dark);
+  --second-dark: var(--parch-second-dark);
+  --black: var(--parch-black);
+  --light-blue: var(--parch-light-blue);
+  --second-blue: var(--parch-second-blue);
+  --dark-blue: var(--parch-dark-blue);
+  --a-blue: var(--parch-accent-blue);
+  --main-gray: var(--parch-gray);
+  --light-red: var(--parch-light-red);
+  --dark-red: var(--parch-dark-red);
+  --light-yellow: var(--parch-yellow);
+  --light-green: var(--parch-green);
+
+  /* Spacing */
+  --parch-space-unit: 10px;
+  --main-distance: var(--parch-space-unit);
+
+  /* Typography */
+  --parch-font-serif: Georgia, Cambria, "Times New Roman", Times, serif;
+  --parch-letter-spacing: 0.8px;
+  --parch-line-height: 1.4;
+}
+
+/* ============================================
+   BASE STYLES
+   ============================================ */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+/* ============================================
+   COMPONENT: Buttons
+   ============================================ */
+.parch-btn {
+  font-family: var(--parch-font-serif);
+  letter-spacing: var(--parch-letter-spacing);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border-left: 1px solid var(--parch-gray);
+  border-top: 1px solid var(--parch-gray);
+  border-right: 1px solid var(--parch-black);
+  border-bottom: 1px solid var(--parch-black);
+}
+
+.parch-btn:hover {
+  filter: brightness(1.1);
+}
+
+.parch-btn:active {
+  border-left: 1px solid var(--parch-black);
+  border-top: 1px solid var(--parch-black);
+  border-right: 1px solid var(--parch-gray);
+  border-bottom: 1px solid var(--parch-gray);
+}
+
+.parch-btn:focus {
+  outline: 1px solid var(--parch-light-blue);
+  outline-offset: 1px;
+}
+
+/* Button variants */
+.parch-btn-primary {
+  background-color: var(--parch-light-blue);
+  color: var(--parch-bright-white);
+}
+
+.parch-btn-secondary {
+  background-color: var(--parch-second-blue);
+  color: var(--parch-bright-white);
+}
+
+.parch-btn-danger {
+  background-color: var(--parch-light-red);
+  color: var(--parch-bright-white);
+}
+
+/* ============================================
+   COMPONENT: Inputs
+   ============================================ */
+.parch-input {
+  font-family: inherit;
+  letter-spacing: var(--parch-letter-spacing);
+  color: var(--parch-white);
+  background-color: var(--parch-second-dark);
+  border-left: 1px solid var(--parch-gray);
+  border-top: 1px solid var(--parch-gray);
+  border-right: 1px solid var(--parch-black);
+  border-bottom: 1px solid var(--parch-black);
+  transition: outline 0.15s ease;
+}
+
+.parch-input::placeholder {
+  color: var(--parch-gray);
+  opacity: 0.7;
+}
+
+.parch-input:focus {
+  outline: 1px solid var(--parch-light-blue);
+  outline-offset: 1px;
+}
+
+/* ============================================
+   COMPONENT: Cards
+   ============================================ */
+.parch-card {
+  background: linear-gradient(160deg, var(--parch-dark-blue) 0%, var(--parch-second-dark) 100%);
+  border: 1px solid var(--parch-gray);
+}
+
+/* ============================================
+   UTILITY: Backgrounds
+   ============================================ */
+.parch-bg-gradient {
+  background: linear-gradient(145deg, var(--parch-dark) 0%, var(--parch-second-dark) 40%, var(--parch-black) 100%);
+}
+
+/* Subtle noise texture overlay */
+.parch-noise::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  opacity: 0.02;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* ============================================
+   UTILITY: Typography
+   ============================================ */
+.parch-text {
+  color: var(--parch-white);
+  letter-spacing: var(--parch-letter-spacing);
+  line-height: var(--parch-line-height);
+}
+
+.parch-heading {
+  font-family: var(--parch-font-serif);
+  color: var(--parch-bright-white);
+  letter-spacing: var(--parch-letter-spacing);
+}
+
+.parch-link {
+  color: var(--parch-accent-blue);
+  text-decoration: none;
+}
+
+.parch-link:hover {
+  text-decoration: underline;
+}
+
+/* ============================================
+   UTILITY: Status Colors
+   ============================================ */
+.parch-success { color: var(--parch-green); }
+.parch-warning { color: var(--parch-yellow); }
+.parch-error { color: var(--parch-light-red); }
+.parch-info { color: var(--parch-accent-blue); }
+
+.parch-bg-success { background-color: var(--parch-green); }
+.parch-bg-warning { background-color: var(--parch-yellow); }
+.parch-bg-error { background-color: var(--parch-light-red); }
+.parch-bg-info { background-color: var(--parch-accent-blue); }

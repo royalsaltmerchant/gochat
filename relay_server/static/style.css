@@ -1,25 +1,13 @@
-:root {
-  --main-white: rgb(235, 235, 235);
-  --bright-white: rgb(245, 245, 245);
-  --main-dark: rgb(25, 29, 37);
-  --second-dark: rgb(21, 24, 31);
-  --black: rgb(19, 20, 24);
-  --light-blue: rgb(66, 85, 119);
-  --second-blue: rgb(55, 71, 99);
-  --dark-blue: rgb(38, 44, 57);
-  --a-blue: rgb(157, 179, 211);
-  --main-gray: rgb(89, 96, 117);
-  --light-red: rgb(209, 102, 124);
-  --dark-red: rgb(152, 74, 90);
-  --light-yellow: rgb(255, 250, 155);
-  --light-green: rgb(119, 167, 77);
-  --main-distance: 10px;
-}
+/*
+ * Relay Server Styles
+ * Design tokens are imported from parch-core.css
+ * This file contains relay-server-specific component styles
+ */
+@import url('parch-core.css');
 
 * {
   margin: 0;
   padding: 0;
-  box-sizing: border-box;
 }
 
 body {
