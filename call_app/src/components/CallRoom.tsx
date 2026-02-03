@@ -173,11 +173,13 @@ export function CallRoom({ roomId }: CallRoomProps) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-white mb-4">Call ended</h1>
-          <p className="text-gray-400 mb-6">You have left the call</p>
+          <h1 className="text-2xl sm:text-3xl font-serif font-bold text-parch-bright-white mb-4 tracking-parch">
+            Call ended
+          </h1>
+          <p className="text-parch-gray mb-6 tracking-parch">You have left the call</p>
           <button
             onClick={() => window.close()}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200"
+            className="parch-btn bg-parch-light-blue text-parch-bright-white font-serif font-semibold py-3 px-6 rounded-lg transition-all duration-150 tracking-parch"
           >
             Close window
           </button>
@@ -188,10 +190,10 @@ export function CallRoom({ roomId }: CallRoomProps) {
 
   // Show connected state
   return (
-    <div className="h-screen flex flex-col bg-gray-900">
+    <div className="h-screen flex flex-col bg-parch-dark">
       {/* Connection status indicator */}
       {connectionState !== 'connected' && (
-        <div className="bg-yellow-500/20 text-yellow-400 px-4 py-2 text-center text-sm">
+        <div className="bg-parch-yellow/15 text-parch-yellow px-4 py-2 text-center text-sm tracking-parch border-b border-parch-yellow/20">
           {connectionState === 'connecting' ? 'Connecting...' : 'Connection issue'}
         </div>
       )}

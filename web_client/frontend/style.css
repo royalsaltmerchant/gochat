@@ -1,19 +1,57 @@
+/*
+ * PARCH DESIGN TOKENS - Web Client
+ * ============================================
+ * Source of truth: relay_server/static/parch-core.css
+ *
+ * This file is embedded in the Wails binary, so it cannot
+ * @import from an external URL. Keep these values in sync
+ * with parch-core.css when updating the design system.
+ *
+ * Variable naming convention:
+ * - Legacy names (--main-*, --light-*, etc.) are kept for compatibility
+ * - New code should use --parch-* names where available
+ */
 :root {
+  /* Neutral Palette */
   --main-white: rgb(235, 235, 235);
   --bright-white: rgb(245, 245, 245);
   --main-dark: rgb(25, 29, 37);
   --second-dark: rgb(21, 24, 31);
   --black: rgb(19, 20, 24);
+
+  /* Blue Palette (Interactive) */
   --light-blue: rgb(66, 85, 119);
   --second-blue: rgb(55, 71, 99);
   --dark-blue: rgb(38, 44, 57);
   --a-blue: rgb(157, 179, 211);
+
+  /* Neutral Accent */
   --main-gray: rgb(89, 96, 117);
+
+  /* Status Colors */
   --light-red: rgb(209, 102, 124);
   --dark-red: rgb(152, 74, 90);
   --light-yellow: rgb(255, 250, 155);
   --light-green: rgb(119, 167, 77);
+
+  /* Spacing */
   --main-distance: 10px;
+
+  /* New naming convention aliases (for future migration) */
+  --parch-white: var(--main-white);
+  --parch-bright-white: var(--bright-white);
+  --parch-dark: var(--main-dark);
+  --parch-second-dark: var(--second-dark);
+  --parch-black: var(--black);
+  --parch-light-blue: var(--light-blue);
+  --parch-second-blue: var(--second-blue);
+  --parch-dark-blue: var(--dark-blue);
+  --parch-accent-blue: var(--a-blue);
+  --parch-gray: var(--main-gray);
+  --parch-light-red: var(--light-red);
+  --parch-dark-red: var(--dark-red);
+  --parch-yellow: var(--light-yellow);
+  --parch-green: var(--light-green);
 }
 
 * {
