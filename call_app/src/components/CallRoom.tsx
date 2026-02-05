@@ -28,10 +28,16 @@ export function CallRoom({ roomId }: CallRoomProps) {
     isAudioEnabled: previewAudioEnabled,
     isVideoEnabled: previewVideoEnabled,
     error: mediaError,
+    audioDevices,
+    videoDevices,
+    selectedAudioDeviceId,
+    selectedVideoDeviceId,
     startStream,
     stopStream,
     toggleAudio,
     toggleVideo,
+    selectAudioDevice,
+    selectVideoDevice,
   } = useLocalStream();
 
   // Use preview state when in preview, connected state when connected
@@ -164,6 +170,13 @@ export function CallRoom({ roomId }: CallRoomProps) {
         onToggleVideo={handleToggleVideo}
         onJoin={handleJoin}
         error={mediaError}
+        isJoining={callState === 'joining'}
+        audioDevices={audioDevices}
+        videoDevices={videoDevices}
+        selectedAudioDeviceId={selectedAudioDeviceId}
+        selectedVideoDeviceId={selectedVideoDeviceId}
+        onSelectAudioDevice={selectAudioDevice}
+        onSelectVideoDevice={selectVideoDevice}
       />
     );
   }
