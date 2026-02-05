@@ -4,6 +4,51 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Parch - Decentralized Messaging & Voice</title>
+
+    <!-- SEO -->
+    <meta name="description" content="Parch - Decentralized messaging, voice and video. User-hosted, privacy-focused communication with no accounts required. Available for macOS and Windows." />
+    <meta name="keywords" content="decentralized messaging, private chat, voice chat, video conferencing, self-hosted, privacy, encrypted chat, peer to peer" />
+    <link rel="canonical" href="https://parchchat.com/" />
+    <meta name="robots" content="index, follow" />
+
+    <!-- Open Graph (Facebook, LinkedIn, etc.) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://parchchat.com/" />
+    <meta property="og:title" content="Parch - Decentralized Messaging & Voice" />
+    <meta property="og:description" content="User-hosted, privacy-focused messaging, voice and video. No accounts required." />
+    <meta property="og:image" content="https://parchchat.com/static/parchclient_icon.webp" />
+    <meta property="og:site_name" content="Parch" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Parch - Decentralized Messaging & Voice" />
+    <meta name="twitter:description" content="User-hosted, privacy-focused messaging, voice and video. No accounts required." />
+    <meta name="twitter:image" content="https://parchchat.com/static/parchclient_icon.webp" />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/webp" href="/static/parchclient_icon.webp" />
+    <link rel="apple-touch-icon" href="/static/parchclient_icon.webp" />
+
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Parch",
+      "applicationCategory": "CommunicationApplication",
+      "operatingSystem": "macOS, Windows",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "description": "Decentralized messaging, voice and video application. User-hosted and privacy-focused.",
+      "url": "https://parchchat.com",
+      "downloadUrl": "https://parchchat.com/#downloads",
+      "screenshot": "https://parchchat.com/static/parchclient_icon.webp"
+    }
+    </script>
+
     <link rel="stylesheet" href="/static/style.css" />
   </head>
   <style>
@@ -306,13 +351,13 @@
     <main class="landing-main">
       <!-- Hero Section -->
       <section class="hero">
-        <img class="hero-logo" src="/static/parchclient_icon.webp" alt="Parch Logo" />
+        <img class="hero-logo" src="/static/parchclient_icon.webp" alt="Parch - Decentralized messaging, voice and video application" />
         <h1>Parch</h1>
         <p class="hero-tagline">Decentralized messaging, voice & video</p>
         <br>
         <p class="hero-desc">
           A suite of applications for real-time communication via a relay service.
-          User-hosted, privacy-focused, and completely free.
+          User-hosted, privacy-focused.
         </p>
       </section>
 
@@ -378,7 +423,7 @@
       </section>
 
       <!-- Downloads -->
-      <section class="downloads-section">
+      <section id="downloads" class="downloads-section">
         <h2 class="section-title">Downloads <span class="beta-badge">BETA</span></h2>
         <div class="downloads-grid">
           <a href="https://github.com/royalsaltmerchant/gochat/releases/download/testing_mac_signed_client/Parch.dmg" class="download-btn">

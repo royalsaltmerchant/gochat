@@ -97,6 +97,13 @@ func main() {
 		c.File("/root/relay_server/static/reset_password.html")
 	})
 	r.Static("/static", "/root/relay_server/static")
+	// SEO files
+	r.GET("/robots.txt", func(c *gin.Context) {
+		c.File("/root/relay_server/static/robots.txt")
+	})
+	r.GET("/sitemap.xml", func(c *gin.Context) {
+		c.File("/root/relay_server/static/sitemap.xml")
+	})
 	// Call landing page
 	r.GET("/call", func(c *gin.Context) {
 		c.File("/root/relay_server/static/call_landing.html")
