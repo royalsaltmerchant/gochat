@@ -43,7 +43,7 @@ export default class RTCService {
     this.sfuUrl = `${sfuBaseURLWS}?token=${encodeURIComponent(credentials.sfu_token)}`;
 
     this.peerConfig = {
-      codec: 'vp9',
+      codec: 'vp8',
       iceServers: [
         {
           urls: credentials.turn_url,
@@ -91,16 +91,16 @@ export default class RTCService {
           if (existingStream) {
             // Create LocalStream from existing MediaStream
             const constraints: Constraints = {
-              resolution: 'fhd',
-              codec: 'vp9',
+              resolution: 'hd',
+              codec: 'vp8',
               audio: true,
               video: true,
             };
             this.localStream = new LocalStream(existingStream, constraints);
           } else {
             this.localStream = await LocalStream.getUserMedia({
-              resolution: 'fhd',
-              codec: 'vp9',
+              resolution: 'hd',
+              codec: 'vp8',
               audio: true,
               video: true,
             });

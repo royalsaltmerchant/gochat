@@ -15,7 +15,6 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
-	"github.com/pion/webrtc/v3"
 )
 
 //go:embed relay-migrations/*.sql
@@ -64,9 +63,6 @@ func main() {
 
 	// CORS
 	r.Use(cors.Default())
-
-	m := &webrtc.MediaEngine{}
-	_ = m.RegisterDefaultCodecs()
 
 	// WebSocket route
 	r.GET("/ws", func(c *gin.Context) {
