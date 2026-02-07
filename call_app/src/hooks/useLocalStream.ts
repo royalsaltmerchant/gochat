@@ -80,7 +80,7 @@ export function useLocalStream(): UseLocalStreamReturn {
             deviceId: videoDeviceId ? { exact: videoDeviceId } : undefined,
             width: { ideal: 1920 },
             height: { ideal: 1080 },
-            frameRate: { ideal: 60 },
+            frameRate: { ideal: 30 },
           },
         });
 
