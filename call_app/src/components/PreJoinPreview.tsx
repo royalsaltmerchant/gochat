@@ -44,9 +44,14 @@ export function PreJoinPreview({
     }
   }, [localStream]);
 
+  const makeGuestName = () => {
+    const suffix = Math.floor(1000 + Math.random() * 9000);
+    return `Guest ${suffix}`;
+  };
+
   const handleJoin = () => {
     if (isJoining) return;
-    const name = displayName.trim() || 'Guest';
+    const name = displayName.trim() || makeGuestName();
     onJoin(name);
   };
 

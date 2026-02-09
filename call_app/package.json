@@ -10,9 +10,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
+    "ion-sdk-js": "^1.8.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "ion-sdk-js": "^1.8.0"
+    "react-dom": "^18.2.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.43",

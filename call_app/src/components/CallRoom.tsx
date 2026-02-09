@@ -18,6 +18,8 @@ export function CallRoom({ roomId }: CallRoomProps) {
   const [displayName, setDisplayName] = useState('');
   const [showShareLink, setShowShareLink] = useState(false);
   const pendingJoinRef = useRef<{ name: string; streamId: string } | null>(null);
+  const hideControlsTimeoutRef = useRef<number | null>(null);
+  const [showControls, setShowControls] = useState(true);
 
   // Separate state for when connected (RTC controls the actual stream)
   const [connectedAudioEnabled, setConnectedAudioEnabled] = useState(true);
@@ -133,6 +135,16 @@ export function CallRoom({ roomId }: CallRoomProps) {
     setCallState('ended');
   }, [roomId, leaveRoom, disconnectRTC]);
 
+  const handleUserActivity = useCallback(() => {
+    setShowControls(true);
+    if (hideControlsTimeoutRef.current !== null) {
+      window.clearTimeout(hideControlsTimeoutRef.current);
+    }
+    hideControlsTimeoutRef.current = window.setTimeout(() => {
+      setShowControls(false);
+    }, 3000);
+  }, []);
+
   const handleToggleAudio = useCallback(async () => {
     const newState = !isAudioEnabled;
     if (callState === 'connected') {
@@ -158,6 +170,17 @@ export function CallRoom({ roomId }: CallRoomProps) {
       toggleVideo();
     }
   }, [toggleVideo, setVideoEnabled, isAudioEnabled, isVideoEnabled, callState, roomId, updateMedia]);
+
+  // Auto-hide controls while connected
+  useEffect(() => {
+    if (callState !== 'connected') return;
+    handleUserActivity();
+    return () => {
+      if (hideControlsTimeoutRef.current !== null) {
+        window.clearTimeout(hideControlsTimeoutRef.current);
+      }
+    };
+  }, [callState, handleUserActivity]);
 
   // Show preview state
   if (callState === 'preview' || callState === 'joining') {
@@ -203,7 +226,11 @@ export function CallRoom({ roomId }: CallRoomProps) {
 
   // Show connected state
   return (
-    <div className="h-screen flex flex-col bg-parch-dark">
+    <div
+      className="h-screen flex flex-col bg-parch-dark relative overflow-hidden"
+      onMouseMove={handleUserActivity}
+      onTouchStart={handleUserActivity}
+    >
       {/* Connection status indicator */}
       {connectionState !== 'connected' && (
         <div className="bg-parch-yellow/15 text-parch-yellow px-4 py-2 text-center text-sm tracking-parch border-b border-parch-yellow/20">
@@ -212,7 +239,7 @@ export function CallRoom({ roomId }: CallRoomProps) {
       )}
 
       {/* Video grid area */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 min-h-0">
         <VideoGrid
           localStream={rtcLocalStream || previewStream}
           localDisplayName={displayName}
@@ -223,15 +250,21 @@ export function CallRoom({ roomId }: CallRoomProps) {
         />
       </div>
 
-      {/* Control bar */}
-      <ControlBar
-        isAudioOn={isAudioEnabled}
-        isVideoOn={isVideoEnabled}
-        onToggleAudio={handleToggleAudio}
-        onToggleVideo={handleToggleVideo}
-        onLeave={handleLeave}
-        onShareLink={() => setShowShareLink(true)}
-      />
+      {/* Control bar (auto-hides) */}
+      <div
+        className={`absolute bottom-0 left-0 right-0 transition-opacity duration-200 ${
+          showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        }`}
+      >
+        <ControlBar
+          isAudioOn={isAudioEnabled}
+          isVideoOn={isVideoEnabled}
+          onToggleAudio={handleToggleAudio}
+          onToggleVideo={handleToggleVideo}
+          onLeave={handleLeave}
+          onShareLink={() => setShowShareLink(true)}
+        />
+      </div>
 
       {/* Share link modal */}
       {showShareLink && (
