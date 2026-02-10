@@ -5,10 +5,9 @@ import type { ReactNode } from 'react';
 interface SortableVideoTileProps {
   id: string;
   children: ReactNode;
-  tileWrapper: string;
 }
 
-export function SortableVideoTile({ id, children, tileWrapper }: SortableVideoTileProps) {
+export function SortableVideoTile({ id, children }: SortableVideoTileProps) {
   const {
     attributes,
     listeners,
@@ -28,7 +27,7 @@ export function SortableVideoTile({ id, children, tileWrapper }: SortableVideoTi
     <div
       ref={setNodeRef}
       style={style}
-      className={`${tileWrapper} cursor-grab active:cursor-grabbing`}
+      className="cursor-grab active:cursor-grabbing"
       {...attributes}
       {...listeners}
     >
