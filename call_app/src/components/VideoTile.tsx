@@ -15,11 +15,8 @@ export function VideoTile({ stream, displayName, isAudioOn, isVideoOn, isLocal =
   const [volume, setVolume] = useState(1.0);
   const [showVolumeSlider, setShowVolumeSlider] = useState(false);
 
-  // Audio level meter for local stream
+  // Audio level meter for local stream (uses its own independent mic capture)
   const [audioLevel, setAudioLevel] = useState(0);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const animationFrameRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (videoRef.current && stream) {
@@ -34,49 +31,49 @@ export function VideoTile({ stream, displayName, isAudioOn, isVideoOn, isLocal =
     }
   }, [volume, isLocal, isMuted]);
 
-  // Audio level meter for local stream
+  // Audio level meter — owns a separate mic capture so mute/unmute never affects it
   useEffect(() => {
-    if (!isLocal || !stream || !isAudioOn) {
-      setAudioLevel(0);
-      return;
-    }
+    if (!isLocal) return;
 
-    // Create audio context and analyser
-    const audioContext = new AudioContext();
-    const analyser = audioContext.createAnalyser();
-    analyser.fftSize = 256;
-    analyser.smoothingTimeConstant = 0.8;
+    let monitorStream: MediaStream | null = null;
+    let audioContext: AudioContext | null = null;
+    let animId: number | null = null;
+    let cancelled = false;
 
-    const source = audioContext.createMediaStreamSource(stream);
-    source.connect(analyser);
-
-    audioContextRef.current = audioContext;
-    analyserRef.current = analyser;
-
-    const dataArray = new Uint8Array(analyser.frequencyBinCount);
-
-    const updateLevel = () => {
-      if (analyserRef.current) {
-        analyserRef.current.getByteFrequencyData(dataArray);
-        // Calculate average level
-        const average = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
-        // Normalize to 0-1 range
-        setAudioLevel(Math.min(average / 128, 1));
+    navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+      if (cancelled) {
+        stream.getTracks().forEach((t) => t.stop());
+        return;
       }
-      animationFrameRef.current = requestAnimationFrame(updateLevel);
-    };
 
-    updateLevel();
+      monitorStream = stream;
+      audioContext = new AudioContext();
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.8;
+
+      const source = audioContext.createMediaStreamSource(stream);
+      source.connect(analyser);
+
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+      const update = () => {
+        analyser.getByteFrequencyData(dataArray);
+        const avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
+        setAudioLevel(Math.min(avg / 128, 1));
+        animId = requestAnimationFrame(update);
+      };
+
+      update();
+    }).catch(() => {});
 
     return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-      if (audioContextRef.current) {
-        audioContextRef.current.close();
-      }
+      cancelled = true;
+      if (animId) cancelAnimationFrame(animId);
+      if (audioContext) audioContext.close();
+      if (monitorStream) monitorStream.getTracks().forEach((t) => t.stop());
     };
-  }, [isLocal, stream, isAudioOn]);
+  }, [isLocal]);
 
   const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setVolume(parseFloat(e.target.value));
@@ -108,75 +105,76 @@ export function VideoTile({ stream, displayName, isAudioOn, isVideoOn, isLocal =
         </div>
       )}
 
+      {/* Top-left indicators */}
+      <div className="absolute top-0 left-0 p-2 flex items-center gap-1.5 z-[2]">
+        {/* Audio level meter (local only, always shown) */}
+        {isLocal && (
+          <div className="flex items-center gap-0.5 h-4" title="Mic level">
+            {[0, 1, 2, 3, 4].map((i) => (
+              <div
+                key={i}
+                className={`w-0.5 sm:w-1 rounded-full transition-all duration-75 ${
+                  audioLevel > i * 0.2
+                    ? i < 3
+                      ? 'bg-parch-green'
+                      : i < 4
+                      ? 'bg-parch-yellow'
+                      : 'bg-parch-light-red'
+                    : 'bg-parch-gray/50'
+                }`}
+                style={{
+                  height: `${40 + i * 15}%`,
+                }}
+              />
+            ))}
+          </div>
+        )}
+        {/* Volume control button for remote participants */}
+        {!isLocal && !isMuted && (
+          <button
+            onClick={() => setShowVolumeSlider(!showVolumeSlider)}
+            onPointerDown={(e) => e.stopPropagation()}
+            className="bg-parch-dark-blue/80 hover:bg-parch-light-blue/60 rounded p-1 transition-colors border border-parch-gray/30"
+            title="Adjust volume"
+          >
+            {volume === 0 ? (
+              <svg className="w-3.5 h-3.5 text-parch-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+              </svg>
+            ) : volume < 0.5 ? (
+              <svg className="w-3.5 h-3.5 text-parch-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+              </svg>
+            ) : (
+              <svg className="w-3.5 h-3.5 text-parch-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+              </svg>
+            )}
+          </button>
+        )}
+        {!isAudioOn && (
+          <div className="bg-parch-light-red/90 rounded p-1">
+            <svg className="w-3.5 h-3.5 text-parch-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+            </svg>
+          </div>
+        )}
+        {!isVideoOn && (
+          <div className="bg-parch-light-red/90 rounded p-1">
+            <svg className="w-3.5 h-3.5 text-parch-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+            </svg>
+          </div>
+        )}
+      </div>
+
       {/* Name overlay */}
       <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-parch-black/80 via-parch-black/40 to-transparent p-2 sm:p-3">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-parch-white text-xs sm:text-sm font-medium truncate tracking-parch">
-            {displayName} {isLocal && <span className="text-parch-accent-blue">(You)</span>}
-          </span>
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            {/* Audio level meter for local */}
-            {isLocal && isAudioOn && (
-              <div className="flex items-center gap-0.5 h-4" title="Mic level">
-                {[0, 1, 2, 3, 4].map((i) => (
-                  <div
-                    key={i}
-                    className={`w-0.5 sm:w-1 rounded-full transition-all duration-75 ${
-                      audioLevel > i * 0.2
-                        ? i < 3
-                          ? 'bg-parch-green'
-                          : i < 4
-                          ? 'bg-parch-yellow'
-                          : 'bg-parch-light-red'
-                        : 'bg-parch-gray/50'
-                    }`}
-                    style={{
-                      height: `${40 + i * 15}%`,
-                    }}
-                  />
-                ))}
-              </div>
-            )}
-            {/* Volume control button for remote participants */}
-            {!isLocal && !isMuted && (
-              <button
-                onClick={() => setShowVolumeSlider(!showVolumeSlider)}
-                className="bg-parch-dark-blue/80 hover:bg-parch-light-blue/60 rounded p-1 transition-colors border border-parch-gray/30"
-                title="Adjust volume"
-              >
-                {volume === 0 ? (
-                  <svg className="w-3.5 h-3.5 text-parch-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
-                  </svg>
-                ) : volume < 0.5 ? (
-                  <svg className="w-3.5 h-3.5 text-parch-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                  </svg>
-                ) : (
-                  <svg className="w-3.5 h-3.5 text-parch-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                  </svg>
-                )}
-              </button>
-            )}
-            {!isAudioOn && (
-              <div className="bg-parch-light-red/90 rounded p-1">
-                <svg className="w-3.5 h-3.5 text-parch-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
-                </svg>
-              </div>
-            )}
-            {!isVideoOn && (
-              <div className="bg-parch-light-red/90 rounded p-1">
-                <svg className="w-3.5 h-3.5 text-parch-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                </svg>
-              </div>
-            )}
-          </div>
-        </div>
+        <span className="text-parch-white text-xs sm:text-sm font-medium truncate tracking-parch">
+          {displayName} {isLocal && <span className="text-parch-accent-blue">(You)</span>}
+        </span>
       </div>
 
       {/* Volume control modal overlay (remote only) */}
@@ -184,6 +182,7 @@ export function VideoTile({ stream, displayName, isAudioOn, isVideoOn, isLocal =
         <div
           className="absolute inset-0 bg-parch-black/70 backdrop-blur-sm flex flex-col items-center justify-center rounded-lg z-10"
           onClick={() => setShowVolumeSlider(false)}
+          onPointerDown={(e) => e.stopPropagation()}
         >
           <div
             className="parch-card rounded-lg p-4 sm:p-6 shadow-xl"
