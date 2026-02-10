@@ -83,7 +83,7 @@ export function VideoTile({ stream, displayName, isAudioOn, isVideoOn, isLocal =
   }, []);
 
   return (
-    <div className="relative bg-parch-dark-blue rounded-lg overflow-hidden aspect-video border border-parch-gray/30 shadow-lg shadow-black/20">
+    <div className="relative bg-parch-dark-blue rounded-lg overflow-hidden h-full border border-parch-gray/30 shadow-lg shadow-black/20">
       {/* Subtle inner glow for depth */}
       <div className="absolute inset-0 rounded-lg shadow-[inset_0_1px_0_0_rgba(157,179,211,0.1)] pointer-events-none z-[1]" />
 
