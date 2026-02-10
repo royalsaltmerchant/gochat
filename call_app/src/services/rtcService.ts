@@ -91,7 +91,7 @@ export default class RTCService {
           if (existingStream) {
             // Create LocalStream from existing MediaStream
             const constraints: Constraints = {
-              resolution: 'hd',
+              resolution: 'fhd',
               codec: 'vp8',
               audio: true,
               video: true,
@@ -99,7 +99,7 @@ export default class RTCService {
             this.localStream = new LocalStream(existingStream, constraints);
           } else {
             this.localStream = await LocalStream.getUserMedia({
-              resolution: 'hd',
+              resolution: 'fhd',
               codec: 'vp8',
               audio: true,
               video: true,
