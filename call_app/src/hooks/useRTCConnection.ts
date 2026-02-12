@@ -15,8 +15,10 @@ export interface UseRTCConnectionReturn {
   remoteStreams: Map<string, RemoteStreamInfo>;
   connect: (roomId: string, participantId: string, credentials: VoiceCredentials, existingStream?: MediaStream) => Promise<string | null>;
   disconnect: () => Promise<void>;
-  setAudioEnabled: (enabled: boolean) => void;
-  setVideoEnabled: (enabled: boolean) => void;
+  setAudioEnabled: (enabled: boolean) => Promise<void>;
+  setVideoEnabled: (enabled: boolean) => Promise<void>;
+  switchAudioDevice: (deviceId: string) => Promise<void>;
+  switchVideoDevice: (deviceId: string) => Promise<void>;
 }
 
 export function useRTCConnection(): UseRTCConnectionReturn {
@@ -85,6 +87,14 @@ export function useRTCConnection(): UseRTCConnectionReturn {
     await rtcServiceRef.current?.setVideoEnabled(enabled);
   }, []);
 
+  const switchAudioDevice = useCallback(async (deviceId: string) => {
+    await rtcServiceRef.current?.switchAudioDevice(deviceId);
+  }, []);
+
+  const switchVideoDevice = useCallback(async (deviceId: string) => {
+    await rtcServiceRef.current?.switchVideoDevice(deviceId);
+  }, []);
+
   return {
     connectionState,
     localStream,
@@ -93,5 +103,7 @@ export function useRTCConnection(): UseRTCConnectionReturn {
     disconnect,
     setAudioEnabled,
     setVideoEnabled,
+    switchAudioDevice,
+    switchVideoDevice,
   };
 }

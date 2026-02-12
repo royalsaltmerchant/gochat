@@ -67,6 +67,7 @@ interface VideoGridProps {
   localDisplayName: string;
   localIsAudioOn: boolean;
   localIsVideoOn: boolean;
+  localAudioDeviceId?: string | null;
   participants: CallParticipant[];
   remoteStreams: Map<string, RemoteStreamInfo>;
 }
@@ -76,6 +77,7 @@ export function VideoGrid({
   localDisplayName,
   localIsAudioOn,
   localIsVideoOn,
+  localAudioDeviceId,
   participants,
   remoteStreams,
 }: VideoGridProps) {
@@ -86,10 +88,17 @@ export function VideoGrid({
 
   const totalParticipants = participants.length + 1;
 
-  // Measure container
+  // Measure container and rebind when the rendered container node changes
+  // (e.g. 1-tile layout -> sortable grid).
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
+
+    setContainerSize({
+      width: el.clientWidth,
+      height: el.clientHeight,
+    });
+
     const observer = new ResizeObserver(([entry]) => {
       setContainerSize({
         width: entry.contentRect.width,
@@ -98,7 +107,7 @@ export function VideoGrid({
     });
     observer.observe(el);
     return () => observer.disconnect();
-  }, []);
+  }, [totalParticipants]);
 
   // Sync tileOrder when participants join or leave
   useEffect(() => {
@@ -179,6 +188,7 @@ export function VideoGrid({
           isAudioOn={localIsAudioOn}
           isVideoOn={localIsVideoOn}
           isLocal={true}
+          localAudioDeviceId={localAudioDeviceId}
         />
       </div>
     );
@@ -205,6 +215,7 @@ export function VideoGrid({
                     isAudioOn={localIsAudioOn}
                     isVideoOn={localIsVideoOn}
                     isLocal={true}
+                    localAudioDeviceId={localAudioDeviceId}
                   />
                 </SortableVideoTile>
               );
