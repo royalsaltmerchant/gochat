@@ -6,6 +6,11 @@ import { PreJoinPreview } from './PreJoinPreview';
 import { useLocalStream } from '../hooks/useLocalStream';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useRTCConnection } from '../hooks/useRTCConnection';
+import {
+  AUDIO_DEVICE_STORAGE_KEY,
+  VIDEO_DEVICE_STORAGE_KEY,
+  setStoredDeviceId,
+} from '../config/mediaStorage';
 
 interface CallRoomProps {
   roomId: string;
@@ -24,6 +29,8 @@ export function CallRoom({ roomId }: CallRoomProps) {
   // Separate state for when connected (RTC controls the actual stream)
   const [connectedAudioEnabled, setConnectedAudioEnabled] = useState(true);
   const [connectedVideoEnabled, setConnectedVideoEnabled] = useState(true);
+  const [connectedSelectedAudioDeviceId, setConnectedSelectedAudioDeviceId] = useState<string | null>(null);
+  const [connectedSelectedVideoDeviceId, setConnectedSelectedVideoDeviceId] = useState<string | null>(null);
 
   const {
     localStream: previewStream,
@@ -65,6 +72,8 @@ export function CallRoom({ roomId }: CallRoomProps) {
     disconnect: disconnectRTC,
     setAudioEnabled,
     setVideoEnabled,
+    switchAudioDevice,
+    switchVideoDevice,
   } = useRTCConnection();
 
   // Filter out the local user from participants list (should not be included, but filter as safety)
@@ -90,6 +99,8 @@ export function CallRoom({ roomId }: CallRoomProps) {
       // Initialize connected state from preview state
       setConnectedAudioEnabled(previewAudioEnabled);
       setConnectedVideoEnabled(previewVideoEnabled);
+      setConnectedSelectedAudioDeviceId(selectedAudioDeviceId);
+      setConnectedSelectedVideoDeviceId(selectedVideoDeviceId);
 
       // Now connect RTC with the credentials
       connectRTC(roomId, name, voiceCredentials, previewStream || undefined)
@@ -109,7 +120,7 @@ export function CallRoom({ roomId }: CallRoomProps) {
           setCallState('preview');
         });
     }
-  }, [voiceCredentials, callState, roomId, previewStream, previewAudioEnabled, previewVideoEnabled, connectRTC, updateStreamId]);
+  }, [voiceCredentials, callState, roomId, previewStream, previewAudioEnabled, previewVideoEnabled, selectedAudioDeviceId, selectedVideoDeviceId, connectRTC, updateStreamId]);
 
   const handleJoin = useCallback((name: string) => {
     if (!wsConnected) {
@@ -171,6 +182,49 @@ export function CallRoom({ roomId }: CallRoomProps) {
     }
   }, [toggleVideo, setVideoEnabled, isAudioEnabled, isVideoEnabled, callState, roomId, updateMedia]);
 
+  const handleSelectAudioDevice = useCallback(
+    async (deviceId: string) => {
+      try {
+        if (callState === 'connected') {
+          await switchAudioDevice(deviceId);
+          setConnectedSelectedAudioDeviceId(deviceId);
+          setStoredDeviceId(AUDIO_DEVICE_STORAGE_KEY, deviceId);
+          return;
+        }
+        await selectAudioDevice(deviceId);
+      } catch (err) {
+        console.error('Failed to switch audio device:', err);
+      }
+    },
+    [callState, selectAudioDevice, switchAudioDevice]
+  );
+
+  const handleSelectVideoDevice = useCallback(
+    async (deviceId: string) => {
+      try {
+        if (callState === 'connected') {
+          await switchVideoDevice(deviceId);
+          setConnectedSelectedVideoDeviceId(deviceId);
+          setStoredDeviceId(VIDEO_DEVICE_STORAGE_KEY, deviceId);
+          return;
+        }
+        await selectVideoDevice(deviceId);
+      } catch (err) {
+        console.error('Failed to switch video device:', err);
+      }
+    },
+    [callState, selectVideoDevice, switchVideoDevice]
+  );
+
+  const activeSelectedAudioDeviceId =
+    callState === 'connected'
+      ? (connectedSelectedAudioDeviceId ?? selectedAudioDeviceId)
+      : selectedAudioDeviceId;
+  const activeSelectedVideoDeviceId =
+    callState === 'connected'
+      ? (connectedSelectedVideoDeviceId ?? selectedVideoDeviceId)
+      : selectedVideoDeviceId;
+
   // Auto-hide controls while connected
   useEffect(() => {
     if (callState !== 'connected') return;
@@ -198,8 +252,8 @@ export function CallRoom({ roomId }: CallRoomProps) {
         videoDevices={videoDevices}
         selectedAudioDeviceId={selectedAudioDeviceId}
         selectedVideoDeviceId={selectedVideoDeviceId}
-        onSelectAudioDevice={selectAudioDevice}
-        onSelectVideoDevice={selectVideoDevice}
+        onSelectAudioDevice={handleSelectAudioDevice}
+        onSelectVideoDevice={handleSelectVideoDevice}
       />
     );
   }
@@ -245,6 +299,7 @@ export function CallRoom({ roomId }: CallRoomProps) {
           localDisplayName={displayName}
           localIsAudioOn={isAudioEnabled}
           localIsVideoOn={isVideoEnabled}
+          localAudioDeviceId={activeSelectedAudioDeviceId}
           participants={remoteParticipants}
           remoteStreams={remoteStreams}
         />
@@ -263,6 +318,12 @@ export function CallRoom({ roomId }: CallRoomProps) {
           onToggleVideo={handleToggleVideo}
           onLeave={handleLeave}
           onShareLink={() => setShowShareLink(true)}
+          audioDevices={audioDevices}
+          videoDevices={videoDevices}
+          selectedAudioDeviceId={activeSelectedAudioDeviceId}
+          selectedVideoDeviceId={activeSelectedVideoDeviceId}
+          onSelectAudioDevice={handleSelectAudioDevice}
+          onSelectVideoDevice={handleSelectVideoDevice}
         />
       </div>
 

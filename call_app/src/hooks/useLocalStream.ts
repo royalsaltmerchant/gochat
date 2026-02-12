@@ -1,4 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  AUDIO_DEVICE_STORAGE_KEY,
+  VIDEO_DEVICE_STORAGE_KEY,
+  getStoredDeviceId,
+  setStoredDeviceId,
+} from "../config/mediaStorage";
 
 export interface MediaDeviceInfo {
   deviceId: string;
@@ -30,8 +36,12 @@ export function useLocalStream(): UseLocalStreamReturn {
   const [error, setError] = useState<string | null>(null);
   const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
   const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([]);
-  const [selectedAudioDeviceId, setSelectedAudioDeviceId] = useState<string | null>(null);
-  const [selectedVideoDeviceId, setSelectedVideoDeviceId] = useState<string | null>(null);
+  const [selectedAudioDeviceId, setSelectedAudioDeviceId] = useState<string | null>(() =>
+    getStoredDeviceId(AUDIO_DEVICE_STORAGE_KEY)
+  );
+  const [selectedVideoDeviceId, setSelectedVideoDeviceId] = useState<string | null>(() =>
+    getStoredDeviceId(VIDEO_DEVICE_STORAGE_KEY)
+  );
   const streamRef = useRef<MediaStream | null>(null);
 
   const enumerateDevices = useCallback(async () => {
@@ -58,6 +68,15 @@ export function useLocalStream(): UseLocalStreamReturn {
 
       setAudioDevices(audio);
       setVideoDevices(video);
+
+      setSelectedAudioDeviceId((prev) => {
+        if (prev && audio.some((d) => d.deviceId === prev)) return prev;
+        return audio[0]?.deviceId ?? null;
+      });
+      setSelectedVideoDeviceId((prev) => {
+        if (prev && video.some((d) => d.deviceId === prev)) return prev;
+        return video[0]?.deviceId ?? null;
+      });
     } catch (err) {
       console.error("Failed to enumerate devices:", err);
     }
@@ -65,24 +84,38 @@ export function useLocalStream(): UseLocalStreamReturn {
 
   const getStreamWithDevices = useCallback(
     async (audioDeviceId?: string, videoDeviceId?: string): Promise<MediaStream | null> => {
+      const constraintsFor = (audioId?: string, videoId?: string): MediaStreamConstraints => ({
+        audio: {
+          deviceId: audioId ? { exact: audioId } : undefined,
+          channelCount: 1,
+          sampleRate: 48000,
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+        video: {
+          deviceId: videoId ? { exact: videoId } : undefined,
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+          frameRate: { ideal: 30 },
+        },
+      });
+
       try {
         setError(null);
-        const stream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            deviceId: audioDeviceId ? { exact: audioDeviceId } : undefined,
-            channelCount: 1,
-            sampleRate: 48000,
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-          },
-          video: {
-            deviceId: videoDeviceId ? { exact: videoDeviceId } : undefined,
-            width: { ideal: 1920 },
-            height: { ideal: 1080 },
-            frameRate: { ideal: 30 },
-          },
-        });
+        let stream: MediaStream;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia(
+            constraintsFor(audioDeviceId, videoDeviceId)
+          );
+        } catch (firstErr) {
+          // Saved device may no longer exist; retry with browser default devices.
+          if (!audioDeviceId && !videoDeviceId) {
+            throw firstErr;
+          }
+          console.warn("Saved media device unavailable, falling back to defaults:", firstErr);
+          stream = await navigator.mediaDevices.getUserMedia(constraintsFor());
+        }
 
         // Get actual device IDs from the stream tracks
         const audioTrack = stream.getAudioTracks()[0];
@@ -117,7 +150,10 @@ export function useLocalStream(): UseLocalStreamReturn {
   );
 
   const startStream = useCallback(async (): Promise<MediaStream | null> => {
-    const stream = await getStreamWithDevices();
+    const stream = await getStreamWithDevices(
+      selectedAudioDeviceId || undefined,
+      selectedVideoDeviceId || undefined
+    );
     if (stream) {
       streamRef.current = stream;
       setLocalStream(stream);
@@ -127,7 +163,7 @@ export function useLocalStream(): UseLocalStreamReturn {
       await enumerateDevices();
     }
     return stream;
-  }, [getStreamWithDevices, enumerateDevices]);
+  }, [getStreamWithDevices, enumerateDevices, selectedAudioDeviceId, selectedVideoDeviceId]);
 
   const stopStream = useCallback(() => {
     if (streamRef.current) {
@@ -231,6 +267,14 @@ export function useLocalStream(): UseLocalStreamReturn {
       }
     };
   }, []);
+
+  useEffect(() => {
+    setStoredDeviceId(AUDIO_DEVICE_STORAGE_KEY, selectedAudioDeviceId);
+  }, [selectedAudioDeviceId]);
+
+  useEffect(() => {
+    setStoredDeviceId(VIDEO_DEVICE_STORAGE_KEY, selectedVideoDeviceId);
+  }, [selectedVideoDeviceId]);
 
   return {
     localStream,

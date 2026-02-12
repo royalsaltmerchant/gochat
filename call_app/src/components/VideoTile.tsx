@@ -7,9 +7,18 @@ interface VideoTileProps {
   isVideoOn: boolean;
   isLocal?: boolean;
   isMuted?: boolean;
+  localAudioDeviceId?: string | null;
 }
 
-export function VideoTile({ stream, displayName, isAudioOn, isVideoOn, isLocal = false, isMuted = false }: VideoTileProps) {
+export function VideoTile({
+  stream,
+  displayName,
+  isAudioOn,
+  isVideoOn,
+  isLocal = false,
+  isMuted = false,
+  localAudioDeviceId,
+}: VideoTileProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   // Volume control only for remote participants (local is always muted to avoid echo)
   const [volume, setVolume] = useState(1.0);
@@ -40,19 +49,43 @@ export function VideoTile({ stream, displayName, isAudioOn, isVideoOn, isLocal =
     let animId: number | null = null;
     let cancelled = false;
 
-    navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
-      if (cancelled) {
-        stream.getTracks().forEach((t) => t.stop());
-        return;
+    const startMonitor = async () => {
+      try {
+        const stream = localAudioDeviceId
+          ? await navigator.mediaDevices.getUserMedia({
+              audio: { deviceId: { exact: localAudioDeviceId } },
+            })
+          : await navigator.mediaDevices.getUserMedia({ audio: true });
+
+        if (cancelled) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+
+        monitorStream = stream;
+      } catch {
+        // Fallback to default input if the selected one is unavailable.
+        try {
+          const fallbackStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          if (cancelled) {
+            fallbackStream.getTracks().forEach((t) => t.stop());
+            return;
+          }
+          monitorStream = fallbackStream;
+        } catch {
+          setAudioLevel(0);
+          return;
+        }
       }
 
-      monitorStream = stream;
+      if (!monitorStream) return;
+
       audioContext = new AudioContext();
       const analyser = audioContext.createAnalyser();
       analyser.fftSize = 256;
       analyser.smoothingTimeConstant = 0.8;
 
-      const source = audioContext.createMediaStreamSource(stream);
+      const source = audioContext.createMediaStreamSource(monitorStream);
       source.connect(analyser);
 
       const dataArray = new Uint8Array(analyser.frequencyBinCount);
@@ -65,7 +98,9 @@ export function VideoTile({ stream, displayName, isAudioOn, isVideoOn, isLocal =
       };
 
       update();
-    }).catch(() => {});
+    };
+
+    startMonitor();
 
     return () => {
       cancelled = true;
@@ -73,7 +108,7 @@ export function VideoTile({ stream, displayName, isAudioOn, isVideoOn, isLocal =
       if (audioContext) audioContext.close();
       if (monitorStream) monitorStream.getTracks().forEach((t) => t.stop());
     };
-  }, [isLocal]);
+  }, [isLocal, localAudioDeviceId]);
 
   const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setVolume(parseFloat(e.target.value));

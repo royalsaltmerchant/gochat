@@ -3,6 +3,11 @@ import type { Constraints } from "ion-sdk-js/lib/stream";
 import { Configuration } from "ion-sdk-js/lib/client";
 import { IonSFUJSONRPCSignal } from "ion-sdk-js/lib/signal/json-rpc-impl";
 import { sfuBaseURLWS } from "../config/endpoints";
+import {
+  AUDIO_DEVICE_STORAGE_KEY,
+  VIDEO_DEVICE_STORAGE_KEY,
+  getStoredDeviceId,
+} from "../config/mediaStorage";
 
 export interface RTCServiceCallbacks {
   onRemoteStream: (stream: RemoteStream) => void;
@@ -33,6 +38,15 @@ export default class RTCService {
     this.userId = userId;
     this.callbacks = callbacks;
     this.sfuUrl = sfuBaseURLWS;
+  }
+
+  private getTrackDeviceId(track?: MediaStreamTrack): string | null {
+    return track?.getSettings().deviceId ?? null;
+  }
+
+  private mediaConstraintForDevice(deviceId: string | null): boolean | MediaTrackConstraints {
+    if (!deviceId) return true;
+    return { deviceId: { exact: deviceId } };
   }
 
   /**
@@ -89,20 +103,30 @@ export default class RTCService {
 
           // Use existing stream or get new one with video
           if (existingStream) {
+            const audioDeviceId =
+              this.getTrackDeviceId(existingStream.getAudioTracks()[0]) ||
+              getStoredDeviceId(AUDIO_DEVICE_STORAGE_KEY);
+            const videoDeviceId =
+              this.getTrackDeviceId(existingStream.getVideoTracks()[0]) ||
+              getStoredDeviceId(VIDEO_DEVICE_STORAGE_KEY);
+
             // Create LocalStream from existing MediaStream
             const constraints: Constraints = {
               resolution: 'fhd',
               codec: 'vp8',
-              audio: true,
-              video: true,
+              audio: this.mediaConstraintForDevice(audioDeviceId),
+              video: this.mediaConstraintForDevice(videoDeviceId),
             };
             this.localStream = new LocalStream(existingStream, constraints);
           } else {
+            const storedAudioDeviceId = getStoredDeviceId(AUDIO_DEVICE_STORAGE_KEY);
+            const storedVideoDeviceId = getStoredDeviceId(VIDEO_DEVICE_STORAGE_KEY);
+
             this.localStream = await LocalStream.getUserMedia({
               resolution: 'fhd',
               codec: 'vp8',
-              audio: true,
-              video: true,
+              audio: this.mediaConstraintForDevice(storedAudioDeviceId),
+              video: this.mediaConstraintForDevice(storedVideoDeviceId),
             });
           }
 
@@ -149,6 +173,73 @@ export default class RTCService {
       } else {
         this.localStream.mute('video');
       }
+    }
+  }
+
+  async switchAudioDevice(deviceId: string): Promise<void> {
+    await this.switchDeviceTrack('audio', deviceId);
+  }
+
+  async switchVideoDevice(deviceId: string): Promise<void> {
+    await this.switchDeviceTrack('video', deviceId);
+  }
+
+  private async switchDeviceTrack(kind: 'audio' | 'video', deviceId: string): Promise<void> {
+    if (this.localStream) {
+      const currentTrack =
+        kind === 'audio'
+          ? this.localStream.getAudioTracks()[0]
+          : this.localStream.getVideoTracks()[0];
+      const wasLive = currentTrack?.readyState === 'live';
+      const wasEnabled = currentTrack?.enabled ?? true;
+
+      const mediaConstraints: MediaStreamConstraints =
+        kind === 'audio'
+          ? { audio: { deviceId: { exact: deviceId } }, video: false }
+          : { video: { deviceId: { exact: deviceId } }, audio: false };
+
+      const newTrackStream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
+      const newTrack =
+        kind === 'audio'
+          ? newTrackStream.getAudioTracks()[0]
+          : newTrackStream.getVideoTracks()[0];
+
+      if (!newTrack) {
+        throw new Error(`No ${kind} track returned for selected device`);
+      }
+
+      // Preserve mute/off state if the previous track was not live or disabled.
+      if (!wasLive || !wasEnabled) {
+        newTrack.enabled = false;
+      }
+
+      this.localStream.addTrack(newTrack);
+
+      if (currentTrack) {
+        this.localStream.removeTrack(currentTrack);
+      }
+
+      if (this.localStream.pc) {
+        const sender = this.localStream.pc
+          .getSenders()
+          .find((s) => s.track?.kind === kind);
+        await sender?.replaceTrack(newTrack);
+      }
+
+      if (currentTrack) {
+        currentTrack.stop();
+      }
+
+      this.localStream.constraints = {
+        ...this.localStream.constraints,
+        [kind]:
+          this.localStream.constraints[kind] instanceof Object
+            ? {
+                ...this.localStream.constraints[kind],
+                deviceId: { exact: deviceId },
+              }
+            : { deviceId: { exact: deviceId } },
+      } as Constraints;
     }
   }
 
