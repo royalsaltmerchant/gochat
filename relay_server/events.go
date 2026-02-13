@@ -30,6 +30,7 @@ func registerOrCreateHost(hostUUID, potentialAuthorID string, conn *websocket.Co
 			ClientsByUserID:      make(map[int]*Client),
 			ConnByAuthorID:       make(map[string]*websocket.Conn),
 			Channels:             make(map[string]*Channel),
+			ChannelToSpace:       make(map[string]string),
 			Spaces:               make(map[string]*Space),
 			ChannelSubscriptions: make(map[*websocket.Conn]string),
 			SpaceSubscriptions:   make(map[*websocket.Conn][]string),
@@ -119,6 +120,20 @@ func handleGetDashDatRes(client *Client, conn *websocket.Conn, wsMsg *WSMessage)
 		return
 	}
 
+	if err := SyncUserSpaceMemberships(client.HostUUID, data.User.ID, data.Spaces); err != nil {
+		log.Printf("failed to sync user-space memberships host=%s user=%d: %v", client.HostUUID, data.User.ID, err)
+	}
+
+	if host, exists := GetHost(client.HostUUID); exists {
+		host.mu.Lock()
+		for _, space := range data.Spaces {
+			for _, channel := range space.Channels {
+				host.ChannelToSpace[channel.UUID] = space.UUID
+			}
+		}
+		host.mu.Unlock()
+	}
+
 	SendToClient(client.HostUUID, data.ClientUUID, WSMessage{
 		Type: "dash_data_payload",
 		Data: GetDashDataSuccess{
@@ -174,6 +189,17 @@ func handleCreateSpaceRes(client *Client, conn *websocket.Conn, wsMsg *WSMessage
 	host.mu.Unlock()
 
 	joinSpace(joinClient, data.Space.UUID)
+
+	userIDs := make([]int, 0, len(data.Space.Users))
+	for _, user := range data.Space.Users {
+		userIDs = append(userIDs, user.ID)
+	}
+	if len(userIDs) == 0 && joinClient.UserID > 0 {
+		userIDs = append(userIDs, joinClient.UserID)
+	}
+	if err := UpsertUsersInSpace(client.HostUUID, data.Space.UUID, userIDs); err != nil {
+		log.Printf("failed to upsert space memberships host=%s space=%s: %v", client.HostUUID, data.Space.UUID, err)
+	}
 
 	SendToClient(client.HostUUID, data.ClientUUID, WSMessage{
 		Type: "create_space_success",
@@ -239,6 +265,12 @@ func handleCreateChannelRes(client *Client, conn *websocket.Conn, wsMsg *WSMessa
 		return
 	}
 
+	if host, exists := GetHost(client.HostUUID); exists {
+		host.mu.Lock()
+		host.ChannelToSpace[data.Channel.UUID] = data.SpaceUUID
+		host.mu.Unlock()
+	}
+
 	SendToClient(client.HostUUID, data.ClientUUID, WSMessage{
 		Type: "create_channel_success",
 		Data: CreateChannelSuccess{
@@ -277,6 +309,12 @@ func handleDeleteChannelRes(client *Client, conn *websocket.Conn, wsMsg *WSMessa
 	if err != nil {
 		safeSend(client, conn, WSMessage{Type: "error", Data: ChatError{Content: "Invalid delete channel success data"}})
 		return
+	}
+
+	if host, exists := GetHost(client.HostUUID); exists {
+		host.mu.Lock()
+		delete(host.ChannelToSpace, data.UUID)
+		host.mu.Unlock()
 	}
 
 	SendToClient(client.HostUUID, data.ClientUUID, WSMessage{
@@ -323,6 +361,13 @@ func handleInviteUserRes(client *Client, conn *websocket.Conn, wsMsg *WSMessage)
 			Email: data.Email,
 		},
 	})
+
+	go func() {
+		err := sendSpaceInviteEmail(data.UserID, data.Email, client.HostUUID, data.Invite.Name, client.Username)
+		if err != nil {
+			log.Printf("failed to send invite email to user=%d email=%s: %v", data.UserID, data.Email, err)
+		}
+	}()
 
 	// send to invitee
 	host, exists := GetHost(client.HostUUID)
@@ -393,6 +438,17 @@ func handleAcceptInviteRes(client *Client, conn *websocket.Conn, wsMsg *WSMessag
 	host.mu.Unlock()
 
 	joinSpace(joinClient, data.Space.UUID)
+
+	userIDs := make([]int, 0, len(data.Space.Users)+1)
+	for _, user := range data.Space.Users {
+		userIDs = append(userIDs, user.ID)
+	}
+	if data.User.ID > 0 {
+		userIDs = append(userIDs, data.User.ID)
+	}
+	if err := UpsertUsersInSpace(client.HostUUID, data.Space.UUID, userIDs); err != nil {
+		log.Printf("failed to upsert accepted invite membership host=%s space=%s user=%d: %v", client.HostUUID, data.Space.UUID, data.User.ID, err)
+	}
 
 	// send to invited client
 	SendToClient(client.HostUUID, joinClient.ClientUUID, WSMessage{
@@ -492,6 +548,10 @@ func handleLeaveSpaceRes(client *Client, conn *websocket.Conn, wsMsg *WSMessage)
 	}
 
 	leaveSpace(host, client, data.SpaceUUID)
+
+	if err := MarkUserLeftSpace(client.HostUUID, data.SpaceUUID, data.UserID); err != nil {
+		log.Printf("failed to mark user left space host=%s space=%s user=%d: %v", client.HostUUID, data.SpaceUUID, data.UserID, err)
+	}
 }
 
 func joinChannel(client *Client, channelUUID string) {
@@ -630,23 +690,20 @@ func handleRemoveSpaceUserRes(client *Client, conn *websocket.Conn, wsMsg *WSMes
 
 	host.mu.Lock()
 	removeClient, ok := host.ClientsByUserID[data.UserID]
-	if !ok {
-		host.mu.Unlock()
-		SendToClient(client.HostUUID, client.ClientUUID, WSMessage{
-			Type: "author_error",
-			Data: ChatError{Content: "Failed to connect to the host"},
-		})
-		return
-	}
 	host.mu.Unlock()
 
-	// tell user to leave
-	SendToClient(client.HostUUID, removeClient.ClientUUID, WSMessage{
-		Type: "leave_space_success",
-		Data: "",
-	})
+	if ok {
+		// tell connected user to leave
+		SendToClient(client.HostUUID, removeClient.ClientUUID, WSMessage{
+			Type: "leave_space_success",
+			Data: "",
+		})
+		leaveSpace(host, removeClient, data.SpaceUUID)
+	}
 
-	leaveSpace(host, removeClient, data.SpaceUUID)
+	if err := MarkUserLeftSpace(client.HostUUID, data.SpaceUUID, data.UserID); err != nil {
+		log.Printf("failed to mark removed user left space host=%s space=%s user=%d: %v", client.HostUUID, data.SpaceUUID, data.UserID, err)
+	}
 }
 
 func handleChatMessage(client *Client, conn *websocket.Conn, wsMsg *WSMessage) {
@@ -670,6 +727,10 @@ func handleChatMessage(client *Client, conn *websocket.Conn, wsMsg *WSMessage) {
 
 	host.mu.Lock()
 	channelUUID, ok := host.ChannelSubscriptions[conn]
+	spaceUUID := ""
+	if ok {
+		spaceUUID = host.ChannelToSpace[channelUUID]
+	}
 	host.mu.Unlock()
 	if !ok {
 		SendToClient(client.HostUUID, client.ClientUUID, WSMessage{
@@ -689,6 +750,22 @@ func handleChatMessage(client *Client, conn *websocket.Conn, wsMsg *WSMessage) {
 			},
 		})
 	}
+
+	connectedUserIDs := make(map[int]struct{})
+	host.mu.Lock()
+	for userID := range host.ClientsByUserID {
+		connectedUserIDs[userID] = struct{}{}
+	}
+	host.mu.Unlock()
+	go func() {
+		if spaceUUID == "" {
+			return
+		}
+		if err := TrackOfflineMessageActivity(client.HostUUID, spaceUUID, client.UserID, connectedUserIDs); err != nil {
+			log.Printf("failed to track message activity host=%s space=%s sender=%d: %v", client.HostUUID, spaceUUID, client.UserID, err)
+		}
+	}()
+
 	// save message to db
 	SendToAuthor(client, WSMessage{
 		Type: "save_chat_message_request",

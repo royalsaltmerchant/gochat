@@ -66,7 +66,37 @@ SFU_SECRET=your-sfu-jwt-secret
 # Email (password reset)
 EMAIL=your-email@gmail.com
 EMAIL_PASSWORD=your-app-password
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+EMAIL_FROM=optional-from-address
+FEEDBACK_EMAIL=optional-feedback-address
+PUBLIC_BASE_URL=https://parchchat.com
+
+# Optional email notification tuning
+EMAIL_ACTIVITY_THRESHOLD=20
+EMAIL_ACTIVITY_COOLDOWN_MINUTES=720
+EMAIL_ACTIVITY_CHECK_MINUTES=10
+EMAIL_WEEKLY_INTERVAL_DAYS=7
+EMAIL_WEEKLY_CHECK_HOURS=24
 ```
+
+### Email Notifications
+
+Relay now supports:
+- space invite emails
+- high-activity message digest emails
+- weekly product/feedback emails
+
+Activity digest scope and privacy:
+- digest counters are space-scoped (only spaces the user belongs to)
+- relay does not store message content for digest emails (counts/timestamps only)
+
+Every email includes unsubscribe links:
+- per-category unsubscribe (`invite`, `activity`, `weekly`)
+- global unsubscribe (`all`)
+
+Unsubscribe endpoint:
+- `GET /unsubscribe?token=<token>&type=invite|activity|weekly|all`
 
 ---
 

@@ -110,6 +110,8 @@ func main() {
 	// Internal validation endpoints (for Caddy/proxy auth)
 	r.GET("/internal/validate-ip", HandleValidateIP)
 	r.GET("/internal/validate-sfu-token", HandleValidateSFUToken)
+	// Email preference/unsubscribe
+	r.GET("/unsubscribe", HandleUnsubscribe)
 	// Static
 	r.GET("/", func(c *gin.Context) {
 		c.File(filepath.Join(staticDir, "index.html"))
@@ -160,11 +162,16 @@ func main() {
 		}
 	}()
 
+	notificationCtx, cancelNotifications := context.WithCancel(context.Background())
+	defer cancelNotifications()
+	go StartEmailNotificationScheduler(notificationCtx)
+
 	// Wait for SIGINT or SIGTERM
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	log.Println("Shutting down server...")
+	cancelNotifications()
 
 	// Gracefully shut down HTTP server
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
