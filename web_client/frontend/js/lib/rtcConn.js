@@ -2,6 +2,7 @@ import { Client, LocalStream, RemoteStream } from "ion-sdk-js";
 import { IonSFUJSONRPCSignal } from "ion-sdk-js/lib/signal/json-rpc-impl";
 import { relayBaseURL, sfuBaseURLWS } from "./config.js";
 import voiceManager from "./voiceManager.js";
+import platform from "../platform/index.js";
 
 export default class RTCConnUsingIon {
   constructor(props) {
@@ -40,7 +41,7 @@ export default class RTCConnUsingIon {
       } else throw new Error("Failed to fetch credentials for TURN server");
     } catch (err) {
       console.log(err);
-      window.go.main.App.Alert("Failed to fetch credentials for TURN server");
+      platform.alert("Failed to fetch credentials for TURN server");
     }
   };
 

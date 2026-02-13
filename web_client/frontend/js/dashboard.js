@@ -5,6 +5,7 @@ import MainContentComponent from "./components/mainContent.js";
 import SocketConn from "./lib/socketConn.js";
 import voiceElemContainer from "./components/voiceElemContainer.js";
 import voiceManager from "./lib/voiceManager.js";
+import platform from "./platform/index.js";
 
 export default class DashboardApp {
   constructor(props) {
@@ -93,7 +94,7 @@ export default class DashboardApp {
 
   updateAccountUsername = (data, hostUUID) => {
     this.data.user.username = data.data.username;
-    window.go.main.App.SaveAuthToken(data.data.token);
+    platform.saveAuthToken(data.data.token);
     this.sidebar.userAccountComponent.render();
     this.openDashModal({ type: "account", data: { user: this.data.user } });
   };
@@ -156,7 +157,7 @@ export default class DashboardApp {
   };
 
   handleInviteUser = (data) => {
-    window.go.main.App.Alert(
+    platform.alert(
       `Successfully invited user by email: ${data.data.email}`
     );
   };

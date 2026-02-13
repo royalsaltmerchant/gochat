@@ -1,15 +1,5 @@
-// dev
-// const relayHost = "99.36.161.96:8000"
-// const relayBaseURL = "http://" + relayHost;
-// const relayBaseURLWS = "ws://" + relayHost + "/ws";
-
-// prod
-const relayHost = "parchchat.com";
-const relayBaseURL = "https://" + relayHost;
-const relayBaseURLWS = "wss://" + relayHost + "/ws";
-
-const sfuHost = "sfu.parchchat.com";
-
-const sfuBaseURLWS = "wss://" + sfuHost + "/ws";
+const relayBaseURL = import.meta.env.VITE_RELAY_BASE_URL || "https://parchchat.com";
+const relayBaseURLWS = import.meta.env.VITE_RELAY_BASE_URL_WS || "wss://parchchat.com/ws";
+const sfuBaseURLWS = import.meta.env.VITE_SFU_BASE_URL_WS || "wss://sfu.parchchat.com/ws";
 
 export { relayBaseURL, relayBaseURLWS, sfuBaseURLWS };

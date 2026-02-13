@@ -10,8 +10,12 @@
     "vite": "^6.3.5"
   },
   "scripts": {
-    "dev": "vite",
-    "build": "vite build --watch"
+    "dev": "vite --mode web",
+    "dev:web": "vite --mode web",
+    "build": "npm run build:web",
+    "build:web": "vite build --mode web",
+    "dev:desktop-assets": "vite build --mode desktop --watch",
+    "build:desktop": "vite build --mode desktop"
   },
   "keywords": [],
   "author": "",

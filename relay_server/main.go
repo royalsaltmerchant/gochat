@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"runtime"
 	"syscall"
 	"time"
 
@@ -28,6 +30,30 @@ func rateLimiterrorHandler(c *gin.Context, info ratelimit.Info) {
 	c.String(429, "Too many requests. Try again in "+time.Until(info.ResetTime).String())
 }
 
+func resolveStaticDir() string {
+	if staticDir := os.Getenv("STATIC_DIR"); staticDir != "" {
+		return staticDir
+	}
+
+	// Common local/dev path when running from relay_server/
+	if _, err := os.Stat("./static"); err == nil {
+		return "./static"
+	}
+
+	// Common local/dev path when running from repo root
+	if _, err := os.Stat("./relay_server/static"); err == nil {
+		return "./relay_server/static"
+	}
+
+	// Fallback to source-relative directory when available
+	if _, currentFile, _, ok := runtime.Caller(0); ok {
+		return filepath.Join(filepath.Dir(currentFile), "static")
+	}
+
+	// Deployment fallback used previously
+	return "/root/relay_server/static"
+}
+
 func main() {
 	// Load .env
 	if err := godotenv.Load(); err != nil {
@@ -39,6 +65,8 @@ func main() {
 		port = "8000"
 	}
 	dbName := os.Getenv("HOST_DB_FILE")
+	staticDir := resolveStaticDir()
+	log.Printf("Using static directory: %s", staticDir)
 
 	// Init DB
 	var err error
@@ -84,31 +112,39 @@ func main() {
 	r.GET("/internal/validate-sfu-token", HandleValidateSFUToken)
 	// Static
 	r.GET("/", func(c *gin.Context) {
-		c.File("/root/relay_server/static/index.html")
+		c.File(filepath.Join(staticDir, "index.html"))
 	})
 	r.GET("/forgot_password", func(c *gin.Context) {
-		c.File("/root/relay_server/static/forgot_password.html")
+		c.File(filepath.Join(staticDir, "forgot_password.html"))
 	})
 	r.GET("/reset_password", func(c *gin.Context) {
-		c.File("/root/relay_server/static/reset_password.html")
+		c.File(filepath.Join(staticDir, "reset_password.html"))
 	})
-	r.Static("/static", "/root/relay_server/static")
+	r.Static("/static", staticDir)
 	// SEO files
 	r.GET("/robots.txt", func(c *gin.Context) {
-		c.File("/root/relay_server/static/robots.txt")
+		c.File(filepath.Join(staticDir, "robots.txt"))
 	})
 	r.GET("/sitemap.xml", func(c *gin.Context) {
-		c.File("/root/relay_server/static/sitemap.xml")
+		c.File(filepath.Join(staticDir, "sitemap.xml"))
 	})
 	// Call landing page
 	r.GET("/call", func(c *gin.Context) {
-		c.File("/root/relay_server/static/call_landing.html")
+		c.File(filepath.Join(staticDir, "call_landing.html"))
 	})
 	// React call room app
 	r.GET("/call/room", func(c *gin.Context) {
-		c.File("/root/relay_server/static/call/index.html")
+		c.File(filepath.Join(staticDir, "call", "index.html"))
 	})
-	r.Static("/call/assets", "/root/relay_server/static/call/assets")
+	r.Static("/call/assets", filepath.Join(staticDir, "call", "assets"))
+	// Web chat client app
+	r.GET("/client", func(c *gin.Context) {
+		c.File(filepath.Join(staticDir, "client", "index.html"))
+	})
+	r.GET("/client/", func(c *gin.Context) {
+		c.File(filepath.Join(staticDir, "client", "index.html"))
+	})
+	r.Static("/client/assets", filepath.Join(staticDir, "client", "assets"))
 
 	// Create HTTP server manually so we can shut it down
 	server := &http.Server{

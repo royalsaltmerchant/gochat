@@ -6,7 +6,7 @@
     <title>Parch - Decentralized Messaging & Voice</title>
 
     <!-- SEO -->
-    <meta name="description" content="Parch - Decentralized messaging, voice and video. User-hosted, privacy-focused communication with no accounts required. Available for macOS and Windows." />
+    <meta name="description" content="Parch - User-hosted messaging and voice. Use the web client in your browser or install desktop apps for macOS and Windows." />
     <meta name="keywords" content="decentralized messaging, private chat, voice chat, video conferencing, self-hosted, privacy, encrypted chat, peer to peer" />
     <link rel="canonical" href="https://parchchat.com/" />
     <meta name="robots" content="index, follow" />
@@ -36,15 +36,15 @@
       "@type": "SoftwareApplication",
       "name": "Parch",
       "applicationCategory": "CommunicationApplication",
-      "operatingSystem": "macOS, Windows",
+      "operatingSystem": "Web Browser, macOS, Windows",
       "offers": {
         "@type": "Offer",
         "price": "0",
         "priceCurrency": "USD"
       },
-      "description": "Decentralized messaging, voice and video application. User-hosted and privacy-focused.",
+      "description": "User-hosted messaging and voice application with browser and desktop clients.",
       "url": "https://parchchat.com",
-      "downloadUrl": "https://parchchat.com/#downloads",
+      "downloadUrl": "https://parchchat.com/client",
       "screenshot": "https://parchchat.com/static/parchclient_icon.webp"
     }
     </script>
@@ -111,6 +111,37 @@
       color: var(--main-white);
       line-height: 1.7;
       margin: 0 auto;
+    }
+
+    .hero-actions {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 20px;
+    }
+
+    .hero-action {
+      display: inline-block;
+      padding: 10px 14px;
+      border-radius: 6px;
+      border-left: 1px solid var(--main-gray);
+      border-top: 1px solid var(--main-gray);
+      border-right: 1px solid var(--black);
+      border-bottom: 1px solid var(--black);
+      background: var(--light-blue);
+      color: var(--bright-white);
+      font-size: 0.9rem;
+      text-decoration: none;
+    }
+
+    .hero-action.secondary {
+      background: var(--dark-blue);
+    }
+
+    .hero-action:hover {
+      filter: brightness(1.1);
+      text-decoration: none;
     }
 
     /* Cards Section */
@@ -359,11 +390,15 @@
           A suite of applications for real-time communication via a relay service.
           User-hosted, privacy-focused.
         </p>
+        <div class="hero-actions">
+          <a class="hero-action" href="/client">Open Web Client</a>
+          <a class="hero-action secondary" href="/call">Start On-Demand Call</a>
+        </div>
       </section>
 
-      <!-- Three Applications -->
+      <!-- Four Applications -->
       <section class="cards-section">
-        <h2 class="section-title">Three Applications</h2>
+        <h2 class="section-title">Four Applications</h2>
         <div class="cards-grid">
           <!-- Client Card -->
           <div class="card">
@@ -372,8 +407,21 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
               </svg>
             </div>
-            <h3>Parch Client</h3>
-            <p>The main chat application. Connect to multiple hosts, join spaces, and communicate through channels.</p>
+            <h3>Parch Desktop Client</h3>
+            <p>The installable desktop chat app. Connect to multiple hosts, join spaces, and communicate through channels.</p>
+            <a href="#downloads">Download desktop client →</a>
+          </div>
+
+          <!-- Web Client Card -->
+          <div class="card">
+            <div class="card-icon">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 5h18M3 12h18M3 19h18" />
+              </svg>
+            </div>
+            <h3>Parch Web Client</h3>
+            <p>The same client experience in your browser. No install required. Connect with your Host Key.</p>
+            <a href="/client">Open web client →</a>
           </div>
 
           <!-- Host Card -->
@@ -408,7 +456,8 @@
         <div class="info-block">
           <h3>Join as a Client</h3>
           <p>
-            If you have a <b>Host Key</b> from a host provider, download the Client application below.
+            If you have a <b>Host Key</b> from a host provider, you can use the
+            <a href="/client">Web Client</a> immediately or download the Desktop Client below.
             You'll be invited to "spaces" where you can chat in channels created by the space owner.
           </p>
         </div>
@@ -424,7 +473,7 @@
 
       <!-- Downloads -->
       <section id="downloads" class="downloads-section">
-        <h2 class="section-title">Downloads <span class="beta-badge">BETA</span></h2>
+        <h2 class="section-title">Desktop Downloads <span class="beta-badge">BETA</span></h2>
         <div class="downloads-grid">
           <a href="https://github.com/royalsaltmerchant/gochat/releases/download/testing_mac_signed_client/Parch.dmg" class="download-btn">
             <svg viewBox="0 0 24 24" fill="currentColor">
@@ -489,4 +538,3 @@
     </main>
   </body>
 </html>
-<!-- test push -->

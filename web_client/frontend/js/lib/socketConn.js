@@ -1,5 +1,6 @@
 import voiceManager from "./voiceManager";
 import { relayBaseURLWS } from "./config.js";
+import platform from "../platform/index.js";
 
 export default class SocketConn {
   constructor(props) {
@@ -40,7 +41,7 @@ export default class SocketConn {
       this.connect();
     } else {
       console.log("Missing host key");
-      window.go.main.App.Alert(
+      platform.alert(
         "App failed to start because of missing HOST KEY"
       );
 
@@ -54,7 +55,7 @@ export default class SocketConn {
     this.retryCount += 1;
     if (this.retryCount > this.maxRetries) {
       console.log("Max WebSocket reconnection attempts exceeded.");
-      window.go.main.App.Alert(
+      platform.alert(
         "Unable to reconnect to host. Returning to home."
       );
       this.returnToHostList(); // or your fallback route
@@ -120,7 +121,7 @@ export default class SocketConn {
           case "join_ack":
             console.log("Joining Result", data);
             // try to login user with JWT
-            window.go.main.App.LoadAuthToken().then((token) => {
+            platform.loadAuthToken().then((token) => {
               if (token) {
                 this.loginUserByToken({ token });
               } else {
@@ -131,10 +132,10 @@ export default class SocketConn {
             break;
           case "join_error":
             console.log("Joining Result", data);
-            window.go.main.App.Alert(data.data.error);
+            platform.alert(data.data.error);
           case "login_user_success":
             console.log("Login user success", data);
-            window.go.main.App.SaveAuthToken(data.data.token);
+            platform.saveAuthToken(data.data.token);
             this.closeDashModal();
             this.getDashboardData();
             break;
@@ -228,7 +229,7 @@ export default class SocketConn {
           case "error":
             // TODO: handle certain types of errors for login and registration
             console.error("An error message from socket:", data);
-            window.go.main.App.Alert(data.data.error);
+            platform.alert(data.data.error);
             break;
           case "authentication-error":
             console.error("Authentication error", data);
@@ -236,7 +237,7 @@ export default class SocketConn {
             break;
           case "author_error":
             console.error("An error message from socket:", data);
-            window.go.main.App.Alert(
+            platform.alert(
               "Failed to connect to Host. Host is not currently connected to the relay server."
             );
             this.returnToHostList();
