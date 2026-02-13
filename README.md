@@ -9,12 +9,12 @@ Parch is a real-time chat and voice platform built around decentralization and s
 ## Architecture
 
 ```
-┌─────────────────┐                       ┌─────────────────┐
-│  Desktop Client │                       │    Call App     │
-│     (Wails)     │                       │  (React/Vite)   │
-└────────┬────────┘                       └────────┬────────┘
-         │                                         │
-         └────────────────┬────────────────────────┘
+┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
+│  Desktop Client │  │   Web Client    │  │    Call App     │
+│     (Wails)     │  │  (Vite/Browser) │  │  (React/Vite)   │
+└────────┬────────┘  └────────┬────────┘  └────────┬────────┘
+         │                    │                    │
+         └────────────────────┼────────────────────┘
                           │
              ┌────────────▼────────────┐
              │      Relay Server       │
@@ -36,6 +36,7 @@ Parch is a real-time chat and voice platform built around decentralization and s
 | **Relay Server** | Central Go service for host/user registration, WebSocket signaling, and connection relay |
 | **Host Client** | Desktop app that stores chat data locally (SQLite). Manages spaces, channels, and messages |
 | **Desktop Client** | Wails-based desktop chat application for end users |
+| **Web Client** | Browser build of the same frontend client code used by the desktop app |
 | **Call App** | React web app for standalone video/voice calls (no authentication required) |
 | **SFU** | Pion-based Selective Forwarding Unit for routing voice/video streams |
 | **TURN Server** | coturn server for NAT traversal in WebRTC connections |
@@ -83,6 +84,10 @@ cd relay_server
 go mod tidy
 go run .
 ```
+Then open:
+- `http://localhost:8000/` (landing page)
+- `http://localhost:8000/client` (web chat client)
+- `http://localhost:8000/call` (on-demand call landing)
 
 ### Call App (Video Calls)
 
@@ -100,15 +105,24 @@ const isDev = false; // Set to false to use production endpoints
 
 ### Desktop Client (Wails)
 
-wails
+```bash
+cd web_client/frontend
+npm install
+npm run dev:desktop-assets  # Build/watch desktop assets into web_client/frontend/dist
+```
+In another terminal:
 ```bash
 cd web_client
 wails dev
 ```
-vite build
+
+### Web Client (Browser)
+
 ```bash
 cd web_client/frontend
-npm run build    # Build to watch (It's weird I know)
+npm install
+npm run dev:web      # Vite dev server
+npm run build:web    # Build to relay_server/static/client
 ```
 
 ---

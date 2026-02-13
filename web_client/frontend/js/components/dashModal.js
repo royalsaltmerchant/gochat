@@ -1,5 +1,6 @@
 import createElement from "./createElement.js";
 import { relayBaseURL } from "../lib/config.js";
+import platform from "../platform/index.js";
 
 export default class DashModal {
   constructor(app, socketConn) {
@@ -143,7 +144,7 @@ export default class DashModal {
           createElement("button", { class: "btn btn-red" }, "Delete Space", {
             type: "click",
             event: () => {
-              window.go.main.App.Confirm(
+              platform.confirm(
                 "Are you sure you want to delete this space?"
               ).then((confirmed) => {
                 if (confirmed) {
@@ -204,7 +205,7 @@ export default class DashModal {
                   {
                     type: "click",
                     event: () => {
-                      window.go.main.App.Confirm(
+                      platform.confirm(
                         "Are you sure you want to delete this channel?"
                       ).then((confirmed) => {
                         if (confirmed) {
@@ -230,7 +231,7 @@ export default class DashModal {
           createElement("button", { class: "btn btn-red" }, "Leave Space", {
             type: "click",
             event: () => {
-              window.go.main.App.Confirm(
+              platform.confirm(
                 "Are you sure you want to leave this space?"
               ).then((confirmed) => {
                 if (confirmed) {
@@ -319,7 +320,7 @@ export default class DashModal {
           createElement("a", {}, "Forgot Password?", {
             type: "click",
             event: () => {
-              window.go.main.App.OpenInBrowser(
+              platform.openExternal(
                 `${relayBaseURL}/forgot_password`
               );
             },
@@ -467,7 +468,7 @@ export default class DashModal {
           createElement("button", { class: "btn-red" }, "Logout", {
             type: "click",
             event: (e) => {
-              window.go.main.App.RemoveAuthToken().then(() => {
+              platform.removeAuthToken().then(() => {
                 console.log("Token removed for", this.socketConn.hostUUID);
               });
               this.open({

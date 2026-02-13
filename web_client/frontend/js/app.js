@@ -3,10 +3,11 @@ import createElement from "./components/createElement.js";
 import DashboardApp from "./dashboard.js";
 import voiceManager from "./lib/voiceManager.js";
 import voiceElemContainer from "./components/voiceElemContainer.js";
+import platform from "./platform/index.js";
 
 class App {
   constructor() {
-    window.go.main.App.Greet("Hello Parch").then((res) => console.log(res));
+    platform.greet("Hello Parch").then((res) => console.log(res));
 
     this.domComponent = document.getElementById("app");
     this.hostForm = new HostForm(this);
@@ -85,11 +86,11 @@ export default class HostForm {
             type: "click",
             event: (event) => {
               event.stopPropagation();
-              window.go.main.App.Confirm(
+              platform.confirm(
                 "Are you sure you want to remove this host?"
               ).then((confirmed) => {
                 if (confirmed) {
-                  window.go.main.App.RemoveHost(host.uuid);
+                  platform.removeHost(host.uuid);
                   event.target.parentElement.remove();
                 }
               });
@@ -102,7 +103,7 @@ export default class HostForm {
             if (hostOnline) {
               localStorage.setItem("hostUUID", host.uuid);
               this.app.render({ type: "dash" });
-            } else window.go.main.App.Alert("Host is not online");
+            } else platform.alert("Host is not online");
           },
         }
       );
@@ -110,7 +111,7 @@ export default class HostForm {
   };
 
   renderKnownHosts = async () => {
-    const hosts = await window.go.main.App.GetHosts();
+    const hosts = await platform.getHosts();
     const hostUUIDs = hosts.map((host) => host.uuid);
 
     // Get hosts by UUID from relay API
@@ -126,7 +127,7 @@ export default class HostForm {
       hostsData = await res.json();
     } catch (error) {
       console.log(error);
-      window.go.main.App.Alert("Failed to connect to relay server");
+      platform.alert("Failed to connect to relay server");
     }
 
     this.domComponent.append(
@@ -186,12 +187,12 @@ export default class HostForm {
             const hostKey = this.domComponent.querySelector("#hostKey").value;
             if (!hostKey) return false;
 
-            window.go.main.App.VerifyHostKey(hostKey)
+            platform.verifyHostKey(hostKey)
               .then((hostName) => {
                 this.render({ type: "known" });
               })
               .catch((err) => {
-                window.go.main.App.Alert("Invalid host key");
+                platform.alert("Invalid host key");
 
                 console.error(err);
               });

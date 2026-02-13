@@ -1,4 +1,5 @@
 import createElement from "./createElement.js";
+import platform from "../platform/index.js";
 
 export default class SidebarComponent {
   constructor(props) {
@@ -171,7 +172,7 @@ class SpaceUserListComponent {
             this.isAuthor(currentSpace, this.data.user) &&
             this.data.user.id != user.id
           ) {
-            window.go.main.App.Confirm(
+            platform.confirm(
               "Are you sure you want to remove this user?"
             ).then((confirmed) => {
               if (confirmed) {
