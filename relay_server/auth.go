@@ -350,7 +350,11 @@ func HandlePasswordResetRequest(c *gin.Context) {
 	body := fmt.Sprintf("Please follow this link to reset your password: %s", finalURL)
 
 	// Send the reset link via email
-	SendEmail(recipient, subject, body)
+	if err := SendEmail(recipient, subject, body); err != nil {
+		log.Printf("failed to send password reset email: %v", err)
+		c.JSON(500, gin.H{"error": "Failed to send password reset email"})
+		return
+	}
 
 	c.JSON(200, gin.H{"message": "Password reset email sent to: " + userData.Email})
 }

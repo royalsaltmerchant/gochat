@@ -18,6 +18,7 @@ type Host struct {
 	ClientsByUserID      map[int]*Client
 	ConnByAuthorID       map[string]*websocket.Conn
 	Channels             map[string]*Channel
+	ChannelToSpace       map[string]string
 	Spaces               map[string]*Space
 	ChannelSubscriptions map[*websocket.Conn]string
 	SpaceSubscriptions   map[*websocket.Conn][]string
