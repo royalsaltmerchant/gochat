@@ -6,8 +6,10 @@ import (
 	"encoding/base64"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
+	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
 )
 
@@ -20,6 +22,51 @@ func generateTurnCredentials(secret string, ttlSeconds int64) (username string, 
 	password = base64.StdEncoding.EncodeToString(h.Sum(nil))
 
 	return username, password
+}
+
+func isJWTAuthorized(c *gin.Context) bool {
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" {
+		return false
+	}
+
+	const prefix = "Bearer "
+	if !strings.HasPrefix(authHeader, prefix) {
+		return false
+	}
+
+	tokenString := strings.TrimSpace(strings.TrimPrefix(authHeader, prefix))
+	if tokenString == "" {
+		return false
+	}
+
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		return false
+	}
+
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(jwtSecret), nil
+	})
+
+	if err != nil || !token.Valid {
+		return false
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return false
+	}
+
+	expFloat, ok := claims["exp"].(float64)
+	if !ok {
+		return false
+	}
+
+	return time.Now().Unix() <= int64(expFloat)
 }
 
 func HandleGetTurnCredentials(c *gin.Context) {
@@ -37,6 +84,11 @@ func HandleGetTurnCredentials(c *gin.Context) {
 
 	// Method 2: IP session authentication (for existing clients via relay WebSocket)
 	if !isAuthorized && IsIPAuthenticated(clientIP) {
+		isAuthorized = true
+	}
+
+	// Method 3: JWT bearer auth (for browser/mobile clients)
+	if !isAuthorized && isJWTAuthorized(c) {
 		isAuthorized = true
 	}
 
