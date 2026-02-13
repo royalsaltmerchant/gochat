@@ -20,28 +20,46 @@ export default class RTCConnUsingIon {
 
   init = async () => {
     try {
-      const res = await fetch(`${relayBaseURL}/api/turn_credentials`);
-      const data = await res.json();
-      if (res.ok) {
-        this.peerConfig = {
-          iceServers: [
-            {
-              urls: data.url,
-              username: data.username,
-              credential: data.credential,
-              credentialType: "password",
-            },
-            {
-              urls: "stun:stun.l.google.com:19302",
-            },
-          ],
-          iceTransportPolicy: "all",
-        };
-        console.log(this.peerConfig);
-      } else throw new Error("Failed to fetch credentials for TURN server");
+      const token = await platform.loadAuthToken();
+      const headers = {};
+
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      const res = await fetch(`${relayBaseURL}/api/turn_credentials`, {
+        headers,
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(
+          data.error || "Failed to fetch credentials for TURN server"
+        );
+      }
+
+      this.peerConfig = {
+        iceServers: [
+          {
+            urls: data.url,
+            username: data.username,
+            credential: data.credential,
+            credentialType: "password",
+          },
+          {
+            urls: "stun:stun.l.google.com:19302",
+          },
+        ],
+        iceTransportPolicy: "all",
+      };
+
+      console.log(this.peerConfig);
     } catch (err) {
       console.log(err);
-      platform.alert("Failed to fetch credentials for TURN server");
+      platform.alert(
+        err?.message || "Failed to fetch credentials for TURN server"
+      );
     }
   };
 
