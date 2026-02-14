@@ -1,0 +1,11 @@
+[Unit]
+Description=TURN Server for SFU (port 3479)
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/turnserver -c /etc/turnserver_sfu.conf
+Restart=on-failure
+User=turnserver
+
+[Install]
+WantedBy=multi-user.target

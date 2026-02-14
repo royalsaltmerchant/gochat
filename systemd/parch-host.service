@@ -1,0 +1,16 @@
+[Unit]
+Description=Parch Host Client
+After=network.target
+
+[Service]
+Type=simple
+Environment=HOME=/root
+ExecStart=/root/host_client/host_cli
+WorkingDirectory=/root/host_client
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
