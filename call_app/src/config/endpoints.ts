@@ -1,7 +1,6 @@
 // Determine if we're in development or production
 
-// const isDev = import.meta.env.DEV;
-const isDev = false; // Temporary override for testing purposes
+const isDev = import.meta.env.DEV;
 
 // Development endpoints
 const devConfig = {

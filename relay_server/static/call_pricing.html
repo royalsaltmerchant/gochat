@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pricing - Parch On-demand</title>
+    <link rel="stylesheet" href="/static/parch-core.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        parch: {
+                            white: 'rgb(235, 235, 235)',
+                            'bright-white': 'rgb(245, 245, 245)',
+                            dark: 'rgb(25, 29, 37)',
+                            'second-dark': 'rgb(21, 24, 31)',
+                            black: 'rgb(19, 20, 24)',
+                            'light-blue': 'rgb(66, 85, 119)',
+                            'second-blue': 'rgb(55, 71, 99)',
+                            'dark-blue': 'rgb(38, 44, 57)',
+                            'accent-blue': 'rgb(157, 179, 211)',
+                            gray: 'rgb(89, 96, 117)',
+                            'light-red': 'rgb(209, 102, 124)',
+                            'dark-red': 'rgb(152, 74, 90)',
+                            yellow: 'rgb(255, 250, 155)',
+                            green: 'rgb(119, 167, 77)',
+                        },
+                    },
+                    fontFamily: {
+                        serif: ['Georgia', 'Cambria', 'Times New Roman', 'Times', 'serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background: linear-gradient(145deg, var(--parch-dark) 0%, var(--parch-second-dark) 40%, var(--parch-black) 100%);
+            color: var(--parch-white);
+            letter-spacing: 0.5px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+    <div class="max-w-2xl w-full">
+        <!-- Header -->
+        <div class="text-center mb-10">
+            <h1 class="text-3xl sm:text-4xl font-serif font-bold text-parch-bright-white mb-3 tracking-wide">
+                Parch On-demand
+            </h1>
+            <p class="text-parch-gray tracking-wide text-sm sm:text-base max-w-md mx-auto">
+                Instant video calls with no software to install. Start free, upgrade when you need more.
+            </p>
+        </div>
+
+        <!-- Plans grid -->
+        <div class="grid sm:grid-cols-3 gap-4 sm:gap-5 mb-10">
+            <!-- Free tier -->
+            <div class="parch-card rounded-xl p-5 sm:p-6 shadow-2xl">
+                <div class="mb-4">
+                    <h2 class="text-parch-bright-white font-serif font-bold text-lg tracking-wide mb-1">Free</h2>
+                    <p class="text-parch-accent-blue font-serif text-2xl font-bold tracking-wide">$0</p>
+                </div>
+                <ul class="space-y-2.5 text-sm text-parch-gray tracking-wide mb-6">
+                    <li class="flex items-start gap-2">
+                        <span class="text-parch-green mt-0.5">&#10003;</span>
+                        <span>Up to 40 minute calls</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <span class="text-parch-green mt-0.5">&#10003;</span>
+                        <span>Unlimited participants</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <span class="text-parch-green mt-0.5">&#10003;</span>
+                        <span>No account required</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <span class="text-parch-green mt-0.5">&#10003;</span>
+                        <span>Peer-to-peer encrypted</span>
+                    </li>
+                </ul>
+                <a href="/call" class="parch-btn block text-center bg-parch-dark-blue text-parch-bright-white font-serif font-semibold py-2.5 px-4 rounded-lg tracking-wide border border-parch-gray/30">
+                    Start a Call
+                </a>
+            </div>
+
+            <!-- Credit Pack -->
+            <div class="parch-card rounded-xl p-5 sm:p-6 shadow-2xl">
+                <div class="mb-4">
+                    <h2 class="text-parch-bright-white font-serif font-bold text-lg tracking-wide mb-1">Minute Pack</h2>
+                    <p class="text-parch-accent-blue font-serif text-2xl font-bold tracking-wide">Pay once</p>
+                </div>
+                <ul class="space-y-2.5 text-sm text-parch-gray tracking-wide mb-6">
+                    <li class="flex items-start gap-2">
+                        <span class="text-parch-green mt-0.5">&#10003;</span>
+                        <span>Calls up to 6 hours</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <span class="text-parch-green mt-0.5">&#10003;</span>
+                        <span>Unlimited participants</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <span class="text-parch-green mt-0.5">&#10003;</span>
+                        <span>Minutes never expire</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <span class="text-parch-green mt-0.5">&#10003;</span>
+                        <span>Only charged for time used</span>
+                    </li>
+                </ul>
+                <button id="buyMinutesBtn" class="parch-btn w-full bg-parch-second-blue text-parch-bright-white font-serif font-semibold py-2.5 px-4 rounded-lg tracking-wide">
+                    Buy Minutes
+                </button>
+            </div>
+
+            <!-- Subscription -->
+            <div class="parch-card rounded-xl p-5 sm:p-6 shadow-2xl border border-parch-light-blue/30 relative">
+                <div class="absolute -top-3 left-1/2 -translate-x-1/2">
+                    <span class="bg-parch-light-blue text-parch-bright-white text-xs font-serif font-semibold px-3 py-1 rounded-full tracking-wide">
+                        Best value
+                    </span>
+                </div>
+                <div class="mb-4">
+                    <h2 class="text-parch-bright-white font-serif font-bold text-lg tracking-wide mb-1">Subscriber</h2>
+                    <p class="text-parch-accent-blue font-serif text-2xl font-bold tracking-wide">Monthly</p>
+                </div>
+                <ul class="space-y-2.5 text-sm text-parch-gray tracking-wide mb-6">
+                    <li class="flex items-start gap-2">
+                        <span class="text-parch-green mt-0.5">&#10003;</span>
+                        <span>Calls up to 6 hours</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <span class="text-parch-green mt-0.5">&#10003;</span>
+                        <span>Unlimited participants</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <span class="text-parch-green mt-0.5">&#10003;</span>
+                        <span>Unlimited calls</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <span class="text-parch-green mt-0.5">&#10003;</span>
+                        <span>Cancel anytime</span>
+                    </li>
+                </ul>
+                <button id="subscribeBtn" class="parch-btn w-full bg-parch-light-blue text-parch-bright-white font-serif font-semibold py-2.5 px-4 rounded-lg tracking-wide">
+                    Subscribe
+                </button>
+            </div>
+        </div>
+
+        <!-- Account callout -->
+        <div class="parch-card rounded-xl p-5 sm:p-6 shadow-2xl mb-8 text-center">
+            <p class="text-parch-bright-white font-serif font-semibold tracking-wide mb-2">Ready to upgrade?</p>
+            <p class="text-parch-gray text-sm tracking-wide mb-4">Create a free account to buy minutes or subscribe. It only takes a few seconds.</p>
+            <a id="createAccountBtn" href="/call?auth=signup" class="parch-btn inline-block bg-parch-light-blue text-parch-bright-white font-serif font-semibold py-2.5 px-6 rounded-lg tracking-wide">
+                Create Free Account
+            </a>
+            <p id="alreadyLoggedIn" class="hidden text-parch-green text-sm tracking-wide mt-2"></p>
+        </div>
+
+        <!-- How it works -->
+        <div class="parch-card rounded-xl p-6 sm:p-8 shadow-2xl mb-8">
+            <h2 class="text-parch-bright-white font-serif font-bold text-xl mb-5 tracking-wide">How it works</h2>
+            <div class="space-y-4">
+                <div class="flex gap-4">
+                    <div class="w-8 h-8 rounded-full bg-parch-light-blue/15 border border-parch-light-blue/30 flex items-center justify-center flex-shrink-0">
+                        <span class="text-parch-accent-blue font-serif font-bold text-sm">1</span>
+                    </div>
+                    <div>
+                        <h3 class="text-parch-bright-white font-serif font-semibold tracking-wide mb-0.5">Start or join a call</h3>
+                        <p class="text-parch-gray text-sm tracking-wide">Click "Start New Call" to create a room, or paste a link to join an existing one. No downloads needed.</p>
+                    </div>
+                </div>
+                <div class="flex gap-4">
+                    <div class="w-8 h-8 rounded-full bg-parch-light-blue/15 border border-parch-light-blue/30 flex items-center justify-center flex-shrink-0">
+                        <span class="text-parch-accent-blue font-serif font-bold text-sm">2</span>
+                    </div>
+                    <div>
+                        <h3 class="text-parch-bright-white font-serif font-semibold tracking-wide mb-0.5">Share the link</h3>
+                        <p class="text-parch-gray text-sm tracking-wide">Send the call link to anyone. They can join instantly with no account required.</p>
+                    </div>
+                </div>
+                <div class="flex gap-4">
+                    <div class="w-8 h-8 rounded-full bg-parch-light-blue/15 border border-parch-light-blue/30 flex items-center justify-center flex-shrink-0">
+                        <span class="text-parch-accent-blue font-serif font-bold text-sm">3</span>
+                    </div>
+                    <div>
+                        <h3 class="text-parch-bright-white font-serif font-semibold tracking-wide mb-0.5">Upgrade for longer calls</h3>
+                        <p class="text-parch-gray text-sm tracking-wide">Free calls last 40 minutes. Sign up and buy minutes or subscribe for calls up to 6 hours. Credits are only deducted for the time you actually use.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- FAQ -->
+        <div class="parch-card rounded-xl p-6 sm:p-8 shadow-2xl mb-8">
+            <h2 class="text-parch-bright-white font-serif font-bold text-xl mb-5 tracking-wide">Questions</h2>
+            <div class="space-y-5">
+                <div>
+                    <h3 class="text-parch-bright-white font-serif font-semibold tracking-wide mb-1">Do my credits expire?</h3>
+                    <p class="text-parch-gray text-sm tracking-wide">No. Credits you purchase never expire and carry over indefinitely.</p>
+                </div>
+                <div>
+                    <h3 class="text-parch-bright-white font-serif font-semibold tracking-wide mb-1">What happens to my credits if I subscribe?</h3>
+                    <p class="text-parch-gray text-sm tracking-wide">Your credits are saved. While subscribed, calls use your subscription instead of credits. If you cancel your subscription, your remaining credits are still there.</p>
+                </div>
+                <div>
+                    <h3 class="text-parch-bright-white font-serif font-semibold tracking-wide mb-1">Do participants need an account?</h3>
+                    <p class="text-parch-gray text-sm tracking-wide">No. Only the person who starts the call needs an account for premium features. Everyone else joins with just the link.</p>
+                </div>
+                <div>
+                    <h3 class="text-parch-bright-white font-serif font-semibold tracking-wide mb-1">How are credits charged?</h3>
+                    <p class="text-parch-gray text-sm tracking-wide">Credits are deducted based on actual call duration, rounded up to the nearest minute. A 12-minute call uses 12 minutes of credit.</p>
+                </div>
+                <div>
+                    <h3 class="text-parch-bright-white font-serif font-semibold tracking-wide mb-1">Can I cancel my subscription?</h3>
+                    <p class="text-parch-gray text-sm tracking-wide">Yes, anytime. Go to your account page and click "Manage Subscription" to cancel. You'll keep access until the end of your billing period.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center">
+            <a href="/call" class="text-parch-accent-blue font-serif tracking-wide hover:underline text-sm">
+                Start a call
+            </a>
+            <span class="text-parch-gray/40 mx-3">|</span>
+            <a href="/call/account" class="text-parch-accent-blue font-serif tracking-wide hover:underline text-sm">
+                Your account
+            </a>
+        </div>
+    </div>
+
+    <script>
+        const AUTH_TOKEN_KEY = 'call_app:auth_token';
+
+        function isLoggedIn() {
+            return !!localStorage.getItem(AUTH_TOKEN_KEY);
+        }
+
+        function handlePaidAction() {
+            if (isLoggedIn()) {
+                window.location.href = '/call/account';
+            } else {
+                window.location.href = '/call?auth=signup';
+            }
+        }
+
+        document.getElementById('buyMinutesBtn').addEventListener('click', handlePaidAction);
+        document.getElementById('subscribeBtn').addEventListener('click', handlePaidAction);
+
+        // Update callout if already logged in
+        (async function checkSession() {
+            const token = localStorage.getItem(AUTH_TOKEN_KEY);
+            if (!token) return;
+
+            try {
+                const res = await fetch('/call/login-by-token', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token }),
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    const callout = document.getElementById('createAccountBtn');
+                    callout.textContent = 'Go to Account';
+                    callout.href = '/call/account';
+                    const loggedIn = document.getElementById('alreadyLoggedIn');
+                    loggedIn.textContent = `Signed in as ${data.username}`;
+                    loggedIn.classList.remove('hidden');
+                } else {
+                    localStorage.removeItem(AUTH_TOKEN_KEY);
+                }
+            } catch (err) {
+                // ignore
+            }
+        })();
+    </script>
+</body>
+</html>

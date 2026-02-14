@@ -47,7 +47,96 @@
         }
     </style>
 </head>
-<body class="min-h-screen flex items-center justify-center p-4">
+<body class="min-h-screen flex flex-col items-center justify-center p-4">
+    <!-- Auth Header -->
+    <div class="fixed top-0 left-0 right-0 flex justify-end items-center p-4 z-10">
+        <!-- Logged-out state -->
+        <div id="authLoggedOut">
+            <button id="signInBtn" class="text-parch-accent-blue font-serif text-sm tracking-wide hover:text-parch-bright-white transition-colors">
+                Sign In
+            </button>
+        </div>
+        <!-- Logged-in state -->
+        <div id="authLoggedIn" class="hidden flex items-center gap-4">
+            <span id="authUsername" class="text-parch-bright-white font-serif text-sm tracking-wide"></span>
+            <a href="/call/account" class="text-parch-accent-blue font-serif text-sm tracking-wide hover:text-parch-bright-white transition-colors">Account</a>
+            <button id="signOutBtn" class="text-parch-gray font-serif text-sm tracking-wide hover:text-parch-light-red transition-colors">
+                Sign Out
+            </button>
+        </div>
+    </div>
+
+    <!-- Auth Modal Overlay -->
+    <div id="authModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div id="authBackdrop" class="absolute inset-0 bg-black/60"></div>
+        <div class="relative parch-card rounded-xl p-6 sm:p-8 shadow-2xl w-full max-w-sm">
+            <!-- Close button -->
+            <button id="authCloseBtn" class="absolute top-3 right-3 text-parch-gray hover:text-parch-bright-white transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+
+            <!-- Tabs -->
+            <div class="flex gap-6 mb-6 border-b border-parch-gray/30 pb-3">
+                <button id="tabSignIn" class="font-serif text-base tracking-wide text-parch-bright-white font-semibold border-b-2 border-parch-accent-blue pb-1 transition-colors">
+                    Sign In
+                </button>
+                <button id="tabSignUp" class="font-serif text-base tracking-wide text-parch-gray pb-1 border-b-2 border-transparent transition-colors">
+                    Sign Up
+                </button>
+            </div>
+
+            <!-- Sign In Form -->
+            <form id="signInForm" class="space-y-4">
+                <div>
+                    <label class="block text-parch-accent-blue text-sm font-serif font-medium mb-1.5 tracking-wide">Email</label>
+                    <input type="email" id="signInEmail" required
+                        class="parch-input w-full text-parch-white placeholder-parch-gray/60 rounded-lg px-3 sm:px-4 py-2.5 tracking-wide text-sm"
+                        placeholder="you@example.com">
+                </div>
+                <div>
+                    <label class="block text-parch-accent-blue text-sm font-serif font-medium mb-1.5 tracking-wide">Password</label>
+                    <input type="password" id="signInPassword" required
+                        class="parch-input w-full text-parch-white placeholder-parch-gray/60 rounded-lg px-3 sm:px-4 py-2.5 tracking-wide text-sm"
+                        placeholder="Enter password">
+                </div>
+                <p id="signInError" class="text-parch-light-red text-sm tracking-wide hidden"></p>
+                <button type="submit"
+                    class="parch-btn w-full bg-parch-light-blue text-parch-bright-white font-serif font-semibold py-3 rounded-lg tracking-wide text-sm">
+                    Sign In
+                </button>
+            </form>
+
+            <!-- Sign Up Form -->
+            <form id="signUpForm" class="space-y-4 hidden">
+                <div>
+                    <label class="block text-parch-accent-blue text-sm font-serif font-medium mb-1.5 tracking-wide">Username</label>
+                    <input type="text" id="signUpUsername" required
+                        class="parch-input w-full text-parch-white placeholder-parch-gray/60 rounded-lg px-3 sm:px-4 py-2.5 tracking-wide text-sm"
+                        placeholder="Choose a username">
+                </div>
+                <div>
+                    <label class="block text-parch-accent-blue text-sm font-serif font-medium mb-1.5 tracking-wide">Email</label>
+                    <input type="email" id="signUpEmail" required
+                        class="parch-input w-full text-parch-white placeholder-parch-gray/60 rounded-lg px-3 sm:px-4 py-2.5 tracking-wide text-sm"
+                        placeholder="you@example.com">
+                </div>
+                <div>
+                    <label class="block text-parch-accent-blue text-sm font-serif font-medium mb-1.5 tracking-wide">Password</label>
+                    <input type="password" id="signUpPassword" required
+                        class="parch-input w-full text-parch-white placeholder-parch-gray/60 rounded-lg px-3 sm:px-4 py-2.5 tracking-wide text-sm"
+                        placeholder="Choose a password">
+                </div>
+                <p id="signUpError" class="text-parch-light-red text-sm tracking-wide hidden"></p>
+                <button type="submit"
+                    class="parch-btn w-full bg-parch-light-blue text-parch-bright-white font-serif font-semibold py-3 rounded-lg tracking-wide text-sm">
+                    Sign Up
+                </button>
+            </form>
+        </div>
+    </div>
+
     <div class="max-w-md w-full">
         <!-- Logo/Title -->
         <div class="text-center mb-8">
@@ -111,7 +200,8 @@
 
         <!-- Footer -->
         <p class="text-center text-parch-gray/50 text-xs sm:text-sm mt-6 tracking-wide font-serif">
-            No account required. Calls are peer-to-peer encrypted.
+            Free calls up to 40 minutes. No account required.
+            <a href="/call/pricing" class="text-parch-accent-blue hover:underline">View pricing</a>
         </p>
     </div>
 
@@ -188,6 +278,200 @@
         document.getElementById('joinInput').addEventListener('input', function() {
             document.getElementById('errorMsg').classList.add('hidden');
         });
+
+        // ---- Auth UI Logic ----
+        const AUTH_TOKEN_KEY = 'call_app:auth_token';
+
+        const authLoggedOut = document.getElementById('authLoggedOut');
+        const authLoggedIn = document.getElementById('authLoggedIn');
+        const authUsername = document.getElementById('authUsername');
+        const authModal = document.getElementById('authModal');
+        const authBackdrop = document.getElementById('authBackdrop');
+        const signInBtn = document.getElementById('signInBtn');
+        const signOutBtn = document.getElementById('signOutBtn');
+        const authCloseBtn = document.getElementById('authCloseBtn');
+        const tabSignIn = document.getElementById('tabSignIn');
+        const tabSignUp = document.getElementById('tabSignUp');
+        const signInForm = document.getElementById('signInForm');
+        const signUpForm = document.getElementById('signUpForm');
+        const signInError = document.getElementById('signInError');
+        const signUpError = document.getElementById('signUpError');
+
+        function showAuthModal() {
+            authModal.classList.remove('hidden');
+        }
+
+        function hideAuthModal() {
+            authModal.classList.add('hidden');
+            signInError.classList.add('hidden');
+            signUpError.classList.add('hidden');
+            signInForm.reset();
+            signUpForm.reset();
+        }
+
+        function switchToTab(tab) {
+            if (tab === 'signin') {
+                tabSignIn.classList.replace('text-parch-gray', 'text-parch-bright-white');
+                tabSignIn.classList.add('font-semibold', 'border-parch-accent-blue');
+                tabSignIn.classList.remove('border-transparent');
+                tabSignUp.classList.replace('text-parch-bright-white', 'text-parch-gray');
+                tabSignUp.classList.remove('font-semibold', 'border-parch-accent-blue');
+                tabSignUp.classList.add('border-transparent');
+                signInForm.classList.remove('hidden');
+                signUpForm.classList.add('hidden');
+                signInError.classList.add('hidden');
+                signUpError.classList.add('hidden');
+            } else {
+                tabSignUp.classList.replace('text-parch-gray', 'text-parch-bright-white');
+                tabSignUp.classList.add('font-semibold', 'border-parch-accent-blue');
+                tabSignUp.classList.remove('border-transparent');
+                tabSignIn.classList.replace('text-parch-bright-white', 'text-parch-gray');
+                tabSignIn.classList.remove('font-semibold', 'border-parch-accent-blue');
+                tabSignIn.classList.add('border-transparent');
+                signUpForm.classList.remove('hidden');
+                signInForm.classList.add('hidden');
+                signInError.classList.add('hidden');
+                signUpError.classList.add('hidden');
+            }
+        }
+
+        function showLoggedIn(username) {
+            authLoggedOut.classList.add('hidden');
+            authLoggedIn.classList.remove('hidden');
+            authUsername.textContent = username;
+        }
+
+        function showLoggedOut() {
+            authLoggedIn.classList.add('hidden');
+            authLoggedOut.classList.remove('hidden');
+            authUsername.textContent = '';
+        }
+
+        function showError(el, message) {
+            el.textContent = message;
+            el.classList.remove('hidden');
+        }
+
+        // Open modal
+        signInBtn.addEventListener('click', function() {
+            switchToTab('signin');
+            showAuthModal();
+        });
+
+        // Close modal
+        authCloseBtn.addEventListener('click', hideAuthModal);
+        authBackdrop.addEventListener('click', hideAuthModal);
+
+        // Tab switching
+        tabSignIn.addEventListener('click', function() { switchToTab('signin'); });
+        tabSignUp.addEventListener('click', function() { switchToTab('signup'); });
+
+        // Sign In submit
+        signInForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            signInError.classList.add('hidden');
+            const email = document.getElementById('signInEmail').value;
+            const password = document.getElementById('signInPassword').value;
+
+            try {
+                const res = await fetch('/call/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password }),
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    showError(signInError, data.error || 'Sign in failed.');
+                    return;
+                }
+                localStorage.setItem(AUTH_TOKEN_KEY, data.token);
+                showLoggedIn(data.username || email);
+                hideAuthModal();
+            } catch (err) {
+                showError(signInError, 'Network error. Please try again.');
+            }
+        });
+
+        // Sign Up submit
+        signUpForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            signUpError.classList.add('hidden');
+            const username = document.getElementById('signUpUsername').value;
+            const email = document.getElementById('signUpEmail').value;
+            const password = document.getElementById('signUpPassword').value;
+
+            try {
+                const res = await fetch('/call/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password, username }),
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    showError(signUpError, data.error || 'Registration failed.');
+                    return;
+                }
+                localStorage.setItem(AUTH_TOKEN_KEY, data.token);
+                showLoggedIn(data.username || username);
+                hideAuthModal();
+            } catch (err) {
+                showError(signUpError, 'Network error. Please try again.');
+            }
+        });
+
+        // Sign Out
+        signOutBtn.addEventListener('click', function() {
+            localStorage.removeItem(AUTH_TOKEN_KEY);
+            showLoggedOut();
+        });
+
+        // Session restoration on page load
+        (async function restoreSession() {
+            const token = localStorage.getItem(AUTH_TOKEN_KEY);
+            if (!token) {
+                // Check for ?auth= param to auto-open modal
+                const params = new URLSearchParams(window.location.search);
+                const authParam = params.get('auth');
+                if (authParam === 'signup') {
+                    switchToTab('signup');
+                    showAuthModal();
+                } else if (authParam === 'signin') {
+                    switchToTab('signin');
+                    showAuthModal();
+                }
+                return;
+            }
+
+            try {
+                const res = await fetch('/call/login-by-token', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token }),
+                });
+                const data = await res.json();
+                if (res.ok && data.username) {
+                    showLoggedIn(data.username);
+                    // If they came from pricing with ?auth=, redirect to account
+                    const params = new URLSearchParams(window.location.search);
+                    if (params.get('auth')) {
+                        window.location.href = '/call/account';
+                    }
+                } else {
+                    localStorage.removeItem(AUTH_TOKEN_KEY);
+                    const params = new URLSearchParams(window.location.search);
+                    const authParam = params.get('auth');
+                    if (authParam === 'signup') {
+                        switchToTab('signup');
+                        showAuthModal();
+                    } else if (authParam === 'signin') {
+                        switchToTab('signin');
+                        showAuthModal();
+                    }
+                }
+            } catch (err) {
+                localStorage.removeItem(AUTH_TOKEN_KEY);
+            }
+        })();
     </script>
 </body>
 </html>

@@ -42,6 +42,7 @@ require (
 	github.com/redis/go-redis/v9 v9.0.2 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20200410134404-eec4a21b6bb0 // indirect
 	github.com/stretchr/testify v1.10.0 // indirect
+	github.com/stripe/stripe-go/v82 v82.5.1 // indirect
 	github.com/wlynxg/anet v0.0.3 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	golang.org/x/mod v0.21.0 // indirect

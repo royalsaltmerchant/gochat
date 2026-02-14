@@ -11,6 +11,8 @@ import {
   VIDEO_DEVICE_STORAGE_KEY,
   setStoredDeviceId,
 } from '../config/mediaStorage';
+import { useAuth } from '../contexts/AuthContext';
+import { getAnonToken } from '../config/anonToken';
 
 interface CallRoomProps {
   roomId: string;
@@ -18,10 +20,22 @@ interface CallRoomProps {
 
 type CallState = 'preview' | 'joining' | 'connected' | 'ended';
 
+function formatTime(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
 export function CallRoom({ roomId }: CallRoomProps) {
   const [callState, setCallState] = useState<CallState>('preview');
   const [displayName, setDisplayName] = useState('');
   const [showShareLink, setShowShareLink] = useState(false);
+  const [displayTime, setDisplayTime] = useState<number | null>(null);
+  const [showTimeWarningModal, setShowTimeWarningModal] = useState(false);
+  const warningShownRef = useRef(false);
+  const { token } = useAuth();
   const pendingJoinRef = useRef<{ name: string; streamId: string } | null>(null);
   const hideControlsTimeoutRef = useRef<number | null>(null);
   const [showControls, setShowControls] = useState(true);
@@ -58,6 +72,10 @@ export function CallRoom({ roomId }: CallRoomProps) {
     participantId,
     participants,
     voiceCredentials,
+    timeRemaining,
+    roomTier,
+    timeWarning,
+    timeExpired,
     joinRoom,
     leaveRoom,
     updateMedia,
@@ -89,6 +107,29 @@ export function CallRoom({ roomId }: CallRoomProps) {
       stopStream();
     };
   }, [startStream, stopStream]);
+
+  // Countdown timer synced with server time
+  useEffect(() => {
+    if (timeRemaining === null) return;
+    setDisplayTime(timeRemaining);
+
+    const interval = setInterval(() => {
+      setDisplayTime(prev => {
+        if (prev === null || prev <= 0) return 0;
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [timeRemaining]);
+
+  // Show warning modal once when timeWarning triggers
+  useEffect(() => {
+    if (timeWarning && !warningShownRef.current) {
+      warningShownRef.current = true;
+      setShowTimeWarningModal(true);
+    }
+  }, [timeWarning]);
 
   // Handle joining when voice credentials are received
   useEffect(() => {
@@ -137,8 +178,10 @@ export function CallRoom({ roomId }: CallRoomProps) {
     pendingJoinRef.current = { name, streamId: tempStreamId };
 
     // Join WebSocket room first - this triggers voice_credentials to be sent
-    joinRoom(roomId, name, tempStreamId);
-  }, [roomId, wsConnected, joinRoom]);
+    // Use token from context, or fall back to localStorage in case auth restore is still in-flight
+    const authToken = token || localStorage.getItem('call_app:auth_token') || undefined;
+    joinRoom(roomId, name, tempStreamId, authToken, getAnonToken());
+  }, [roomId, wsConnected, joinRoom, token]);
 
   const handleLeave = useCallback(() => {
     leaveRoom(roomId);
@@ -258,6 +301,36 @@ export function CallRoom({ roomId }: CallRoomProps) {
     );
   }
 
+  // Show time expired state
+  if (timeExpired) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="text-center max-w-md">
+          <h1 className="text-2xl sm:text-3xl font-serif font-bold text-parch-bright-white mb-4 tracking-parch">
+            Call time limit reached
+          </h1>
+          <p className="text-parch-gray mb-6 tracking-parch">
+            Free calls are limited to 40 minutes. Upgrade for calls up to 6 hours.
+          </p>
+          <div className="flex gap-3 justify-center">
+            <a
+              href="/call/account"
+              className="parch-btn bg-parch-light-blue text-parch-bright-white font-serif font-semibold py-3 px-6 rounded-lg transition-all duration-150 tracking-parch"
+            >
+              Upgrade
+            </a>
+            <button
+              onClick={() => window.close()}
+              className="parch-btn bg-parch-dark-blue text-parch-bright-white font-serif font-semibold py-3 px-6 rounded-lg transition-all duration-150 tracking-parch border border-parch-gray/30"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Show ended state
   if (callState === 'ended') {
     return (
@@ -324,8 +397,49 @@ export function CallRoom({ roomId }: CallRoomProps) {
           selectedVideoDeviceId={activeSelectedVideoDeviceId}
           onSelectAudioDevice={handleSelectAudioDevice}
           onSelectVideoDevice={handleSelectVideoDevice}
+          displayTime={displayTime !== null ? formatTime(displayTime) : null}
+          timeWarning={timeWarning}
+          roomTier={roomTier}
         />
       </div>
+
+      {/* Time warning modal */}
+      {showTimeWarningModal && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setShowTimeWarningModal(false)} />
+          <div className="relative parch-card rounded-xl p-6 sm:p-8 shadow-2xl max-w-sm w-full text-center">
+            <div className="text-parch-light-red text-4xl mb-4">
+              <svg className="w-12 h-12 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-serif font-bold text-parch-bright-white mb-2 tracking-parch">
+              Call ending soon
+            </h2>
+            <p className="text-parch-gray text-sm tracking-parch mb-5">
+              {displayTime !== null ? formatTime(displayTime) : 'Less than 5 minutes'} remaining.
+              {roomTier === 'free' ? ' Upgrade for calls up to 6 hours.' : ''}
+            </p>
+            <div className="flex gap-3 justify-center">
+              {roomTier === 'free' && (
+                <a
+                  href="/call/pricing"
+                  target="_blank"
+                  className="parch-btn bg-parch-light-blue text-parch-bright-white font-serif font-semibold py-2.5 px-5 rounded-lg tracking-parch text-sm"
+                >
+                  View Plans
+                </a>
+              )}
+              <button
+                onClick={() => setShowTimeWarningModal(false)}
+                className="parch-btn bg-parch-dark-blue text-parch-bright-white font-serif font-semibold py-2.5 px-5 rounded-lg tracking-parch text-sm border border-parch-gray/30"
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Share link modal */}
       {showShareLink && (

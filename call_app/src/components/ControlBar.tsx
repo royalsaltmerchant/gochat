@@ -14,6 +14,9 @@ interface ControlBarProps {
   selectedVideoDeviceId?: string | null;
   onSelectAudioDevice?: (deviceId: string) => void | Promise<void>;
   onSelectVideoDevice?: (deviceId: string) => void | Promise<void>;
+  displayTime?: string | null;
+  timeWarning?: boolean;
+  roomTier?: string | null;
 }
 
 export function ControlBar({
@@ -29,6 +32,9 @@ export function ControlBar({
   selectedVideoDeviceId,
   onSelectAudioDevice,
   onSelectVideoDevice,
+  displayTime,
+  timeWarning,
+  roomTier,
 }: ControlBarProps) {
   const [showSettings, setShowSettings] = useState(false);
   const hasDeviceSettings = audioDevices.length > 0 || videoDevices.length > 0;
@@ -86,6 +92,16 @@ export function ControlBar({
       )}
 
       <div className="flex items-center justify-center gap-2 sm:gap-3">
+        {/* Timer */}
+        {displayTime && (
+          <div className={`font-mono text-sm tracking-wide mr-1 sm:mr-2 ${
+            timeWarning ? 'text-parch-light-red' : 'text-parch-accent-blue'
+          }`}>
+            {displayTime}
+            {roomTier === 'free' && <span className="text-parch-gray text-xs ml-1 hidden sm:inline">(free)</span>}
+          </div>
+        )}
+
         {/* Mic toggle */}
         <button
           onClick={onToggleAudio}

@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account - Parch</title>
+    <link rel="stylesheet" href="/static/parch-core.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        parch: {
+                            white: 'rgb(235, 235, 235)',
+                            'bright-white': 'rgb(245, 245, 245)',
+                            dark: 'rgb(25, 29, 37)',
+                            'second-dark': 'rgb(21, 24, 31)',
+                            black: 'rgb(19, 20, 24)',
+                            'light-blue': 'rgb(66, 85, 119)',
+                            'second-blue': 'rgb(55, 71, 99)',
+                            'dark-blue': 'rgb(38, 44, 57)',
+                            'accent-blue': 'rgb(157, 179, 211)',
+                            gray: 'rgb(89, 96, 117)',
+                            'light-red': 'rgb(209, 102, 124)',
+                            'dark-red': 'rgb(152, 74, 90)',
+                            yellow: 'rgb(255, 250, 155)',
+                            green: 'rgb(119, 167, 77)',
+                        },
+                    },
+                    fontFamily: {
+                        serif: ['Georgia', 'Cambria', 'Times New Roman', 'Times', 'serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background: linear-gradient(145deg, var(--parch-dark) 0%, var(--parch-second-dark) 40%, var(--parch-black) 100%);
+            color: var(--parch-white);
+            letter-spacing: 0.5px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+    <div class="max-w-md w-full">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl sm:text-4xl font-serif font-bold text-parch-bright-white mb-2 tracking-wide">
+                Your Account
+            </h1>
+            <p id="userInfo" class="text-parch-gray tracking-wide text-sm sm:text-base"></p>
+        </div>
+
+        <!-- Loading state -->
+        <div id="loadingState" class="text-center text-parch-gray tracking-wide">Loading...</div>
+
+        <!-- Account card -->
+        <div id="accountCard" class="parch-card rounded-xl p-6 sm:p-8 shadow-2xl hidden">
+            <!-- Current Plan -->
+            <div class="mb-6">
+                <h2 class="text-parch-accent-blue text-sm font-serif font-medium mb-3 tracking-wide">Current Plan</h2>
+                <div id="planDisplay" class="bg-parch-second-dark/50 rounded-lg p-4 border border-parch-gray/20">
+                </div>
+            </div>
+
+            <!-- Credit Balance -->
+            <div class="mb-6">
+                <h2 class="text-parch-accent-blue text-sm font-serif font-medium mb-3 tracking-wide">Credit Balance</h2>
+                <div id="creditDisplay" class="bg-parch-second-dark/50 rounded-lg p-4 border border-parch-gray/20 hidden">
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="space-y-3" id="actionButtons">
+                <button
+                    id="buyMinutesBtn"
+                    class="parch-btn w-full bg-parch-light-blue text-parch-bright-white font-serif font-semibold py-3 px-6 rounded-lg tracking-wide"
+                >
+                    Buy Minutes
+                </button>
+                <button
+                    id="subscribeBtn"
+                    class="parch-btn w-full bg-parch-second-blue text-parch-bright-white font-serif font-semibold py-3 px-6 rounded-lg tracking-wide"
+                >
+                    Subscribe Monthly
+                </button>
+                <button
+                    id="manageSubBtn"
+                    class="parch-btn w-full bg-parch-dark-blue text-parch-bright-white font-serif font-semibold py-3 px-6 rounded-lg tracking-wide border border-parch-gray/30 hidden"
+                >
+                    Manage Subscription
+                </button>
+            </div>
+
+            <!-- Divider -->
+            <div class="border-t border-parch-gray/20 my-6"></div>
+
+            <!-- Bottom links -->
+            <div class="flex justify-between items-center">
+                <a href="/call" class="text-parch-accent-blue text-sm font-serif tracking-wide hover:underline">
+                    Back to Calls
+                </a>
+                <button
+                    id="logoutBtn"
+                    class="text-parch-light-red text-sm font-serif tracking-wide hover:underline"
+                >
+                    Log Out
+                </button>
+            </div>
+        </div>
+
+        <!-- Error state -->
+        <div id="errorState" class="text-center hidden">
+            <p class="text-parch-light-red mb-4 tracking-wide">Something went wrong. Please try again.</p>
+            <a href="/call" class="text-parch-accent-blue text-sm font-serif tracking-wide hover:underline">
+                Back to Calls
+            </a>
+        </div>
+    </div>
+
+    <script>
+        const AUTH_TOKEN_KEY = 'call_app:auth_token';
+
+        async function init() {
+            const token = localStorage.getItem(AUTH_TOKEN_KEY);
+            if (!token) {
+                window.location.href = '/call';
+                return;
+            }
+
+            try {
+                // Validate token
+                const userRes = await fetch('/call/login-by-token', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token }),
+                });
+
+                if (!userRes.ok) {
+                    localStorage.removeItem(AUTH_TOKEN_KEY);
+                    window.location.href = '/call';
+                    return;
+                }
+
+                const userData = await userRes.json();
+                document.getElementById('userInfo').textContent = `${userData.username} (${userData.email})`;
+
+                // Get account info
+                const accountRes = await fetch('/call/api/account', {
+                    headers: { 'Authorization': `Bearer ${token}` },
+                });
+
+                if (!accountRes.ok) throw new Error('Failed to fetch account');
+
+                const account = await accountRes.json();
+                renderAccount(account);
+            } catch (err) {
+                document.getElementById('loadingState').classList.add('hidden');
+                document.getElementById('errorState').classList.remove('hidden');
+            }
+        }
+
+        function renderAccount(account) {
+            document.getElementById('loadingState').classList.add('hidden');
+            document.getElementById('accountCard').classList.remove('hidden');
+
+            const planDisplay = document.getElementById('planDisplay');
+            const manageSubBtn = document.getElementById('manageSubBtn');
+            const subscribeBtn = document.getElementById('subscribeBtn');
+
+            const status = account.subscription_status;
+            const credits = account.credit_minutes;
+
+            // Show subscription status
+            if (status === 'active') {
+                planDisplay.innerHTML = `
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="w-2 h-2 rounded-full bg-parch-green"></span>
+                        <span class="text-parch-bright-white font-serif font-semibold tracking-wide">Premium Subscriber</span>
+                    </div>
+                    <p class="text-parch-gray text-sm tracking-wide">Calls up to 6 hours. Unlimited participants.</p>
+                `;
+                manageSubBtn.classList.remove('hidden');
+                subscribeBtn.classList.add('hidden');
+            } else if (status === 'past_due') {
+                planDisplay.innerHTML = `
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="w-2 h-2 rounded-full bg-parch-light-red"></span>
+                        <span class="text-parch-light-red font-serif font-semibold tracking-wide">Payment Failed</span>
+                    </div>
+                    <p class="text-parch-gray text-sm tracking-wide">Your subscription payment failed. Please update your payment method.</p>
+                `;
+                manageSubBtn.classList.remove('hidden');
+                subscribeBtn.classList.add('hidden');
+            } else {
+                planDisplay.innerHTML = `
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="w-2 h-2 rounded-full bg-parch-gray"></span>
+                        <span class="text-parch-bright-white font-serif font-semibold tracking-wide">Free Plan</span>
+                    </div>
+                    <p class="text-parch-gray text-sm tracking-wide">40 minute calls. Upgrade for longer calls.</p>
+                `;
+            }
+
+            // Always show credit balance
+            const creditDisplay = document.getElementById('creditDisplay');
+            const hours = Math.floor(credits / 60);
+            const mins = credits % 60;
+            const timeStr = hours > 0 ? `${hours}h ${mins}m` : `${mins} minutes`;
+            if (credits > 0) {
+                creditDisplay.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <span class="text-parch-bright-white font-serif font-semibold tracking-wide">${timeStr}</span>
+                            <span class="text-parch-gray text-sm tracking-wide ml-1">credit balance</span>
+                        </div>
+                        <span class="text-parch-accent-blue text-xs tracking-wide">${status === 'active' ? 'Saved while subscribed' : 'Used for premium calls'}</span>
+                    </div>
+                `;
+                creditDisplay.classList.remove('hidden');
+            } else {
+                creditDisplay.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <span class="text-parch-gray font-serif tracking-wide">No credits</span>
+                        </div>
+                        <span class="text-parch-gray text-xs tracking-wide">Buy minutes for on-demand premium calls</span>
+                    </div>
+                `;
+                creditDisplay.classList.remove('hidden');
+            }
+        }
+
+        async function createCheckout(type) {
+            const token = localStorage.getItem(AUTH_TOKEN_KEY);
+            try {
+                const res = await fetch('/call/create-checkout-session', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({ type }),
+                });
+                if (!res.ok) throw new Error('Checkout failed');
+                const data = await res.json();
+                window.location.href = data.url;
+            } catch (err) {
+                alert('Failed to start checkout. Please try again.');
+            }
+        }
+
+        async function openPortal() {
+            const token = localStorage.getItem(AUTH_TOKEN_KEY);
+            try {
+                const res = await fetch('/call/create-portal-session', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                });
+                if (!res.ok) throw new Error('Portal failed');
+                const data = await res.json();
+                window.location.href = data.url;
+            } catch (err) {
+                alert('Failed to open billing portal. Please try again.');
+            }
+        }
+
+        // Event listeners
+        document.getElementById('buyMinutesBtn').addEventListener('click', () => createCheckout('credits'));
+        document.getElementById('subscribeBtn').addEventListener('click', () => createCheckout('subscription'));
+        document.getElementById('manageSubBtn').addEventListener('click', openPortal);
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            localStorage.removeItem(AUTH_TOKEN_KEY);
+            window.location.href = '/call';
+        });
+
+        init();
+    </script>
+</body>
+</html>
