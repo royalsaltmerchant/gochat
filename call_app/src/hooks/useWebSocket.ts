@@ -32,7 +32,12 @@ export interface UseWebSocketReturn {
   participantId: string | null;
   participants: CallParticipant[];
   voiceCredentials: VoiceCredentials | null;
-  joinRoom: (roomId: string, displayName: string, streamId: string) => void;
+  timeRemaining: number | null;
+  roomTier: string | null;
+  maxDuration: number | null;
+  timeWarning: boolean;
+  timeExpired: boolean;
+  joinRoom: (roomId: string, displayName: string, streamId: string, token?: string, anonToken?: string) => void;
   leaveRoom: (roomId: string) => void;
   updateMedia: (roomId: string, isAudioOn: boolean, isVideoOn: boolean) => void;
   updateStreamId: (roomId: string, streamId: string) => void;
@@ -43,6 +48,11 @@ export function useWebSocket(): UseWebSocketReturn {
   const [participantId, setParticipantId] = useState<string | null>(null);
   const [participants, setParticipants] = useState<CallParticipant[]>([]);
   const [voiceCredentials, setVoiceCredentials] = useState<VoiceCredentials | null>(null);
+  const [timeRemaining, setTimeRemaining] = useState<number | null>(null); // seconds
+  const [roomTier, setRoomTier] = useState<string | null>(null);
+  const [maxDuration, setMaxDuration] = useState<number | null>(null); // seconds
+  const [timeWarning, setTimeWarning] = useState(false);
+  const [timeExpired, setTimeExpired] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const currentRoomRef = useRef<string | null>(null);
 
@@ -140,6 +150,23 @@ export function useWebSocket(): UseWebSocketReturn {
         setVoiceCredentials(creds);
         break;
       }
+      case 'call_time_remaining': {
+        const data = msg.data as { room_id: string; seconds_left: number; tier: string; max_duration_sec: number };
+        setTimeRemaining(data.seconds_left);
+        setRoomTier(data.tier);
+        setMaxDuration(data.max_duration_sec);
+        break;
+      }
+      case 'call_time_warning': {
+        setTimeWarning(true);
+        const data = msg.data as { seconds_left: number };
+        setTimeRemaining(data.seconds_left);
+        break;
+      }
+      case 'call_time_expired': {
+        setTimeExpired(true);
+        break;
+      }
       case 'error': {
         const data = msg.data as { error?: string; content?: string };
         console.error('Server error:', data.error || data.content);
@@ -154,7 +181,7 @@ export function useWebSocket(): UseWebSocketReturn {
     }
   }, []);
 
-  const joinRoom = useCallback((roomId: string, displayName: string, streamId: string) => {
+  const joinRoom = useCallback((roomId: string, displayName: string, streamId: string, token?: string, anonToken?: string) => {
     currentRoomRef.current = roomId;
     sendMessage({
       type: 'join_call_room',
@@ -162,6 +189,8 @@ export function useWebSocket(): UseWebSocketReturn {
         room_id: roomId,
         display_name: displayName,
         stream_id: streamId,
+        ...(token && { token }),
+        ...(anonToken && { anon_token: anonToken }),
       },
     });
   }, [sendMessage]);
@@ -177,6 +206,11 @@ export function useWebSocket(): UseWebSocketReturn {
     setParticipants([]);
     setParticipantId(null);
     setVoiceCredentials(null);
+    setTimeRemaining(null);
+    setRoomTier(null);
+    setMaxDuration(null);
+    setTimeWarning(false);
+    setTimeExpired(false);
   }, [sendMessage]);
 
   const updateMedia = useCallback((roomId: string, isAudioOn: boolean, isVideoOn: boolean) => {
@@ -205,6 +239,11 @@ export function useWebSocket(): UseWebSocketReturn {
     participantId,
     participants,
     voiceCredentials,
+    timeRemaining,
+    roomTier,
+    maxDuration,
+    timeWarning,
+    timeExpired,
     joinRoom,
     leaveRoom,
     updateMedia,

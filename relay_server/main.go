@@ -110,6 +110,15 @@ func main() {
 	// Internal validation endpoints (for Caddy/proxy auth)
 	r.GET("/internal/validate-ip", HandleValidateIP)
 	r.GET("/internal/validate-sfu-token", HandleValidateSFUToken)
+	// Call app auth endpoints
+	r.POST("/call/register", HandleCallRegister)
+	r.POST("/call/login", HandleCallLogin)
+	r.POST("/call/login-by-token", HandleCallLoginByToken)
+	r.GET("/call/api/account", HandleCallAccount)
+	// Call app Stripe endpoints
+	r.POST("/call/create-checkout-session", HandleCreateCheckoutSession)
+	r.POST("/call/stripe-webhook", HandleStripeWebhook)
+	r.POST("/call/create-portal-session", HandleCreatePortalSession)
 	// Email preference/unsubscribe
 	r.GET("/unsubscribe", HandleUnsubscribe)
 	// Static
@@ -133,6 +142,14 @@ func main() {
 	// Call landing page
 	r.GET("/call", func(c *gin.Context) {
 		c.File(filepath.Join(staticDir, "call_landing.html"))
+	})
+	// Call account page
+	r.GET("/call/account", func(c *gin.Context) {
+		c.File(filepath.Join(staticDir, "call_account.html"))
+	})
+	// Call pricing page
+	r.GET("/call/pricing", func(c *gin.Context) {
+		c.File(filepath.Join(staticDir, "call_pricing.html"))
 	})
 	// React call room app
 	r.GET("/call/room", func(c *gin.Context) {

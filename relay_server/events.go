@@ -1,11 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"gochat/db"
 	"log"
 	"os"
 	"time"
 
+	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/google/uuid"
 
 	"github.com/gorilla/websocket"
@@ -1046,6 +1048,37 @@ func handleLeaveVoiceChannel(client *Client) {
 // Call Room Handlers (Standalone Video Calls)
 // ============================================================================
 
+func lookupUserTier(tokenString string) (int, string, int) {
+	jwtSecret := os.Getenv("JWT_SECRET")
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method")
+		}
+		return []byte(jwtSecret), nil
+	})
+	if err != nil || !token.Valid {
+		return 0, "", 0
+	}
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return 0, "", 0
+	}
+	userIDFloat, ok := claims["userID"].(float64)
+	if !ok {
+		return 0, "", 0
+	}
+	userID := int(userIDFloat)
+
+	var subStatus string
+	var credits int
+	query := `SELECT COALESCE(subscription_status, 'none'), COALESCE(credit_minutes, 0) FROM users WHERE id = ?`
+	err = db.HostDB.QueryRow(query, userID).Scan(&subStatus, &credits)
+	if err != nil {
+		return 0, "", 0
+	}
+	return userID, subStatus, credits
+}
+
 func dispatchCallRoomMessage(conn *websocket.Conn, wsMsg WSMessage) {
 	switch wsMsg.Type {
 	case "join_call_room":
@@ -1071,11 +1104,44 @@ func handleJoinCallRoom(conn *websocket.Conn, wsMsg *WSMessage) {
 	callRoomsMu.Lock()
 	room, exists := CallRooms[data.RoomID]
 	if !exists {
+		tier := "free"
+		maxDuration := 40 * time.Minute
+		creatorID := 0
+
+		if data.Token != "" {
+			userID, subStatus, credits := lookupUserTier(data.Token)
+			log.Printf("Room creation: token present, userID=%d subStatus=%q credits=%d", userID, subStatus, credits)
+			if userID > 0 {
+				creatorID = userID
+				if subStatus == "active" {
+					tier = "premium"
+					maxDuration = 6 * time.Hour
+				} else if credits > 0 {
+					tier = "premium"
+					creditDuration := time.Duration(credits) * time.Minute
+					if creditDuration > 6*time.Hour {
+						creditDuration = 6 * time.Hour
+					}
+					maxDuration = creditDuration
+				}
+			}
+		} else {
+			log.Printf("Room creation: no token provided, creating free room")
+		}
+
+		log.Printf("Room created: id=%s tier=%s creatorID=%d maxDuration=%v", data.RoomID, tier, creatorID, maxDuration)
 		room = &CallRoom{
 			ID:           data.RoomID,
+			CreatorID:    creatorID,
+			CreatorToken: data.AnonToken,
+			Tier:         tier,
+			CreatedAt:    time.Now(),
+			MaxDuration:  maxDuration,
+			TimerDone:    make(chan struct{}),
 			Participants: make(map[*websocket.Conn]*CallRoomParticipant),
 		}
 		CallRooms[data.RoomID] = room
+		go startRoomTimer(room)
 	}
 	callRoomsMu.Unlock()
 
@@ -1133,6 +1199,22 @@ func handleJoinCallRoom(conn *websocket.Conn, wsMsg *WSMessage) {
 	// Send TURN credentials
 	sendCallRoomVoiceCredentials(participant, data.RoomID)
 
+	// Send time remaining to the new participant
+	elapsed := time.Since(room.CreatedAt)
+	remaining := room.MaxDuration - elapsed
+	if remaining < 0 {
+		remaining = 0
+	}
+	participant.SendQueue <- WSMessage{
+		Type: "call_time_remaining",
+		Data: CallTimeRemaining{
+			RoomID:         data.RoomID,
+			SecondsLeft:    int(remaining.Seconds()),
+			Tier:           room.Tier,
+			MaxDurationSec: int(room.MaxDuration.Seconds()),
+		},
+	}
+
 	// Broadcast to other participants that someone joined
 	newParticipant := CallParticipant{
 		ID:          participantID,
@@ -1178,6 +1260,7 @@ func handleLeaveCallRoom(conn *websocket.Conn, wsMsg *WSMessage) {
 
 	// Clean up empty room
 	if len(room.Participants) == 0 {
+		close(room.TimerDone)
 		callRoomsMu.Lock()
 		delete(CallRooms, data.RoomID)
 		callRoomsMu.Unlock()
@@ -1321,6 +1404,7 @@ func cleanupCallRoomParticipant(conn *websocket.Conn) {
 
 			// Clean up empty room
 			if len(room.Participants) == 0 {
+				close(room.TimerDone)
 				delete(CallRooms, roomID)
 			}
 		}

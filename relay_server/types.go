@@ -552,6 +552,8 @@ type JoinCallRoomClient struct {
 	RoomID      string `json:"room_id"`
 	DisplayName string `json:"display_name"`
 	StreamID    string `json:"stream_id"`
+	Token       string `json:"token,omitempty"`
+	AnonToken   string `json:"anon_token,omitempty"`
 }
 
 type LeaveCallRoomClient struct {
@@ -590,4 +592,20 @@ type CallStreamIDUpdated struct {
 	RoomID        string `json:"room_id"`
 	ParticipantID string `json:"participant_id"`
 	StreamID      string `json:"stream_id"`
+}
+
+type CallTimeRemaining struct {
+	RoomID         string `json:"room_id"`
+	SecondsLeft    int    `json:"seconds_left"`
+	Tier           string `json:"tier"`
+	MaxDurationSec int    `json:"max_duration_sec"`
+}
+
+type CallTimeWarning struct {
+	RoomID      string `json:"room_id"`
+	SecondsLeft int    `json:"seconds_left"`
+}
+
+type CallTimeExpired struct {
+	RoomID string `json:"room_id"`
 }
