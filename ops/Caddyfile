@@ -1,0 +1,51 @@
+{
+	log {
+		output file /var/log/caddy/access.log
+		level INFO
+	}
+}
+
+parchchat.com, www.parchchat.com {
+	@wordpressProbes {
+		path /wp-* /xmlrpc.php /wordpress*
+	}
+
+	handle @wordpressProbes {
+		respond "No WordPress here." 403
+	}
+
+	@chatClient path /client /client/*
+	redir @chatClient https://chat.parchchat.com{uri} 308
+
+	reverse_proxy localhost:8000
+}
+
+chat.parchchat.com {
+	# Dedicated web chat relay service
+	reverse_proxy localhost:8001
+}
+
+sfu.parchchat.com {
+	# If token in query param, validate it                                                                                             
+	@hasToken query token=*
+	handle @hasToken {
+		forward_auth localhost:8000 {
+			uri /internal/validate-sfu-token?token={query.token}
+		}
+		reverse_proxy localhost:7000 {
+			header_up Host {host}
+			header_up X-Real-IP {remote_host}
+		}
+	}
+
+	# Otherwise, validate by IP                                                                                                        
+	handle {
+		forward_auth localhost:8000 {
+			uri /internal/validate-ip
+		}
+		reverse_proxy localhost:7000 {
+			header_up Host {host}
+			header_up X-Real-IP {remote_host}
+		}
+	}
+}

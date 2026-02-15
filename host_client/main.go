@@ -2,23 +2,30 @@ package main
 
 import (
 	"context"
-	"embed"
 	"gochat/db"
 	"log"
 	"time"
 )
 
-//go:embed migrations/*.sql
-var MigrationFiles embed.FS
-
 func runMainLogic(ctx context.Context, cfg *HostConfig) {
 	var err error
-	db.ChatDB, err = db.InitDB(cfg.DBFile, MigrationFiles, "migrations")
+	currentHostUUID = cfg.UUID
+
+	if err := prepareHostDatabase(cfg.DBFile); err != nil {
+		log.Println("Error preparing host database:", err)
+		return
+	}
+
+	db.ChatDB, err = db.InitSQLite(cfg.DBFile)
 	if err != nil {
 		log.Println("Error opening database:", err)
 		return
 	}
 	defer db.CloseDB(db.ChatDB)
+	if err := ensureHostClientSchema(); err != nil {
+		log.Println("Error ensuring host schema:", err)
+		return
+	}
 
 	go func() {
 		err := SocketClient(ctx, cfg.UUID, cfg.AuthorID)
