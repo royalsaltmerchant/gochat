@@ -146,6 +146,10 @@ func main() {
 	r.GET("/call/pricing", func(c *gin.Context) {
 		c.File(filepath.Join(staticDir, "call_pricing.html"))
 	})
+	// Chat non-technical guide page
+	r.GET("/chat/how-it-works", func(c *gin.Context) {
+		c.File(filepath.Join(staticDir, "chat_how_it_works.html"))
+	})
 	// React call room app
 	r.GET("/call/room", func(c *gin.Context) {
 		c.File(filepath.Join(staticDir, "call", "index.html"))
