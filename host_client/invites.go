@@ -2,9 +2,9 @@ package main
 
 import (
 	"database/sql"
-	"encoding/json"
-	"gochat/db"
 	"log"
+
+	"gochat/db"
 
 	"github.com/gorilla/websocket"
 )
@@ -16,10 +16,22 @@ func handleAcceptInvite(conn *websocket.Conn, wsMsg *WSMessage) {
 		return
 	}
 
+	user, err := resolveHostUserIdentityStrict(data.UserID, data.UserPublicKey)
+	if err != nil {
+		sendToConn(conn, WSMessage{
+			Type: "error",
+			Data: ChatError{
+				Content:    "Failed to resolve user identity",
+				ClientUUID: data.ClientUUID,
+			},
+		})
+		return
+	}
+
 	// Get space user
 	var spaceUUID string
 	query := `UPDATE space_users SET joined = 1 WHERE id = ? AND user_id = ? RETURNING space_uuid` // Checking by user_id also ensures they are authorized
-	err = db.ChatDB.QueryRow(query, data.SpaceUserID, data.UserID).Scan(&spaceUUID)
+	err = db.ChatDB.QueryRow(query, data.SpaceUserID, user.ID).Scan(&spaceUUID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			sendToConn(conn, WSMessage{
@@ -65,23 +77,6 @@ func handleAcceptInvite(conn *websocket.Conn, wsMsg *WSMessage) {
 		}
 	}
 
-	payload := map[string]int{
-		"user_id": data.UserID,
-	}
-
-	resp, err := PostJSON(relayBaseURL.String()+"/api/user_by_id", payload, nil)
-	if err != nil {
-		log.Println("Error:", err)
-		return
-	}
-	defer resp.Body.Close()
-
-	var user DashDataUser
-	if err := json.NewDecoder(resp.Body).Decode(&user); err != nil {
-		log.Println("Error decoding user list:", err)
-		return
-	}
-
 	AppendspaceChannelsAndUsers(&space)
 
 	sendToConn(conn, WSMessage{
@@ -102,7 +97,19 @@ func handleDeclineInvite(conn *websocket.Conn, wsMsg *WSMessage) {
 		return
 	}
 
-	res, err := db.ChatDB.Exec(`DELETE FROM space_users WHERE id = ? AND user_id = ?`, data.SpaceUserID, data.UserID) // Checking by user_id also ensures they are authorized
+	user, err := resolveHostUserIdentityStrict(data.UserID, data.UserPublicKey)
+	if err != nil {
+		sendToConn(conn, WSMessage{
+			Type: "error",
+			Data: ChatError{
+				Content:    "Failed to resolve user identity",
+				ClientUUID: data.ClientUUID,
+			},
+		})
+		return
+	}
+
+	res, err := db.ChatDB.Exec(`DELETE FROM space_users WHERE id = ? AND user_id = ?`, data.SpaceUserID, user.ID) // Checking by user_id also ensures they are authorized
 	if err != nil {
 		sendToConn(conn, WSMessage{
 			Type: "error",
@@ -124,6 +131,9 @@ func handleDeclineInvite(conn *websocket.Conn, wsMsg *WSMessage) {
 		})
 		return
 	}
+
+	data.UserID = user.ID
+	data.UserPublicKey = user.PublicKey
 
 	sendToConn(conn, WSMessage{
 		Type: "decline_invite_success",

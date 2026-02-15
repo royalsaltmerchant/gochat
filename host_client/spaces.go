@@ -18,10 +18,22 @@ func handleCreateSpace(conn *websocket.Conn, wsMsg *WSMessage) {
 	// Get UUID and Author ID
 	spaceUUID := uuid.New()
 
+	user, err := resolveHostUserIdentity(data.UserID, data.UserPublicKey, data.Username)
+	if err != nil {
+		sendToConn(conn, WSMessage{
+			Type: "error",
+			Data: ChatError{
+				Content:    "Failed to resolve user identity",
+				ClientUUID: data.ClientUUID,
+			},
+		})
+		return
+	}
+
 	var space DashDataSpace
 
 	query := `INSERT INTO spaces (uuid, name, author_id) VALUES (?, ?, ?) RETURNING *`
-	err = db.ChatDB.QueryRow(query, spaceUUID, data.Name, data.UserID).Scan(&space.ID, &space.UUID, &space.Name, &space.AuthorID)
+	err = db.ChatDB.QueryRow(query, spaceUUID, data.Name, user.ID).Scan(&space.ID, &space.UUID, &space.Name, &space.AuthorID)
 
 	if err != nil {
 		// Check if the error message contains "UNIQUE constraint failed"
@@ -138,7 +150,22 @@ func handleGetDashData(conn *websocket.Conn, wsMsg *WSMessage) {
 	}
 
 	// 1. Use helper
-	userSpaces, err := GetUserSpaces(data.UserID)
+	user, err := resolveHostUserIdentity(data.UserID, data.UserPublicKey, data.Username)
+	if err != nil {
+		sendToConn(conn, WSMessage{
+			Type: "error",
+			Data: ChatError{
+				Content:    "Failed to resolve user identity",
+				ClientUUID: data.ClientUUID,
+			},
+		})
+		return
+	}
+	if user.Username == "" {
+		user.Username = data.Username
+	}
+
+	userSpaces, err := GetUserSpaces(user.ID)
 	if err != nil {
 		sendToConn(conn, WSMessage{
 			Type: "error",
@@ -163,7 +190,7 @@ func handleGetDashData(conn *websocket.Conn, wsMsg *WSMessage) {
 				WHERE su.user_id = ? AND su.joined = 0
 			`
 
-	rows, err := db.ChatDB.Query(query, data.UserID)
+	rows, err := db.ChatDB.Query(query, user.ID)
 	if err != nil {
 		sendToConn(conn, WSMessage{
 			Type: "error",
@@ -185,6 +212,7 @@ func handleGetDashData(conn *websocket.Conn, wsMsg *WSMessage) {
 		}
 		spaceInvites = append(spaceInvites, spaceInvite)
 	}
+	spaceInvites = hydrateInvitePublicKeys(spaceInvites)
 
 	// Official host auto-invite: every authenticated user gets a pending invite
 	// to the official community space (if they are not already a member/invited).
@@ -208,23 +236,25 @@ func handleGetDashData(conn *websocket.Conn, wsMsg *WSMessage) {
 			var autoInvite DashDataInvite
 			err := db.ChatDB.QueryRow(
 				`INSERT INTO space_users (space_uuid, user_id) VALUES (?, ?) RETURNING id, space_uuid, user_id, joined`,
-				officialSpaceUUID, data.UserID,
+				officialSpaceUUID, user.ID,
 			).Scan(&autoInvite.ID, &autoInvite.SpaceUUID, &autoInvite.UserID, &autoInvite.Joined)
 			if err != nil {
 				log.Println("Auto-invite insert error:", err)
 			} else {
 				autoInvite.Name = officialSpaceName
+				autoInvite.UserPublicKey = user.PublicKey
 				spaceInvites = append(spaceInvites, autoInvite)
 
 				// Emit invite update back through relay so the client sees the new invite
 				sendToConn(conn, WSMessage{
 					Type: "invite_user_success",
 					Data: InviteUserResponse{
-						PublicKey:  "",
-						UserID:     data.UserID,
-						SpaceUUID:  officialSpaceUUID,
-						Invite:     autoInvite,
-						ClientUUID: data.ClientUUID,
+						PublicKey:     "",
+						UserID:        user.ID,
+						UserPublicKey: user.PublicKey,
+						SpaceUUID:     officialSpaceUUID,
+						Invite:        autoInvite,
+						ClientUUID:    data.ClientUUID,
 					},
 				})
 			}
@@ -235,8 +265,9 @@ func handleGetDashData(conn *websocket.Conn, wsMsg *WSMessage) {
 		Type: "get_dash_data_response",
 		Data: GetDashDataResponse{
 			User: DashDataUser{
-				ID:       data.UserID,
-				Username: data.Username,
+				ID:        user.ID,
+				Username:  user.Username,
+				PublicKey: user.PublicKey,
 			},
 			Spaces:     userSpaces,
 			Invites:    spaceInvites,

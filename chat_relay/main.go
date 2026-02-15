@@ -72,10 +72,6 @@ func main() {
 	r.POST("/api/host_offline/:uuid", HandleUpdateHostOffline)
 	r.POST("/api/register_host", HandleRegisterHost)
 
-	r.POST("/api/user_by_id", HandleGetUserByID)
-	r.POST("/api/user_by_pubkey", HandleGetUserByPubKey)
-	r.POST("/api/users_by_ids", HandleGetUsersByIDs)
-
 	r.GET("/client", func(c *gin.Context) {
 		c.File(filepath.Join(staticDir, "client", "index.html"))
 	})

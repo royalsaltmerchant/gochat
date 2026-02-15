@@ -92,6 +92,8 @@ func handleSocketMessages(ctx context.Context, conn *websocket.Conn) error {
 			case "auth_challenge":
 				// Host author sessions do not use pubkey auth challenges.
 				continue
+			case "update_username_request":
+				handleUpdateUsername(conn, &wsMsg)
 			case "get_dash_data_request":
 				handleGetDashData(conn, &wsMsg)
 			case "create_space_request":

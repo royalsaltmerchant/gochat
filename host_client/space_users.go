@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"gochat/db"
 	"log"
 
@@ -15,37 +14,17 @@ func handleInviteUser(conn *websocket.Conn, wsMsg *WSMessage) {
 		return
 	}
 
-	payload := map[string]string{"public_key": data.PublicKey}
-	resp, err := PostJSON(relayBaseURL.String()+"/api/user_by_pubkey", payload, nil)
+	user, err := upsertHostUserByPublicKey(data.PublicKey, "")
 	if err != nil {
 		sendToConn(conn, WSMessage{
 			Type: "error",
 			Data: ChatError{
-				Content:    "Failed to reach user lookup API",
+				Content:    "Failed to resolve invite user identity",
 				ClientUUID: data.ClientUUID,
 			},
 		})
 		return
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == 400 {
-		sendToConn(conn, WSMessage{
-			Type: "error",
-			Data: ChatError{
-				Content:    "User not found by public key",
-				ClientUUID: data.ClientUUID,
-			},
-		})
-		return
-	}
-
-	var user DashDataUser
-	if err := json.NewDecoder(resp.Body).Decode(&user); err != nil {
-		log.Println("Error decoding user_by_id response:", err)
-		return
-	}
-
 	var spaceUser DashDataInvite
 
 	// First, insert into space_users
@@ -71,6 +50,7 @@ RETURNING id, space_uuid, user_id, joined
 		})
 		return
 	}
+	spaceUser.UserPublicKey = user.PublicKey
 
 	// Then, query for space name
 	query = `SELECT name FROM spaces WHERE uuid = ?`
@@ -90,11 +70,12 @@ RETURNING id, space_uuid, user_id, joined
 	sendToConn(conn, WSMessage{
 		Type: "invite_user_success",
 		Data: InviteUserResponse{
-			PublicKey:  data.PublicKey,
-			UserID:     user.ID,
-			SpaceUUID:  data.SpaceUUID,
-			Invite:     spaceUser,
-			ClientUUID: data.ClientUUID,
+			PublicKey:     data.PublicKey,
+			UserID:        user.ID,
+			UserPublicKey: user.PublicKey,
+			SpaceUUID:     data.SpaceUUID,
+			Invite:        spaceUser,
+			ClientUUID:    data.ClientUUID,
 		},
 	})
 }
@@ -106,7 +87,19 @@ func handleRemoveSpaceUser(conn *websocket.Conn, wsMsg *WSMessage) {
 		return
 	}
 
-	res, err := db.ChatDB.Exec("DELETE FROM space_users WHERE space_uuid = ? AND user_id = ?", data.SpaceUUID, data.UserID)
+	user, err := resolveHostUserIdentityStrict(data.UserID, data.UserPublicKey)
+	if err != nil {
+		sendToConn(conn, WSMessage{
+			Type: "error",
+			Data: ChatError{
+				Content:    "Failed to resolve user identity",
+				ClientUUID: data.ClientUUID,
+			},
+		})
+		return
+	}
+
+	res, err := db.ChatDB.Exec("DELETE FROM space_users WHERE space_uuid = ? AND user_id = ?", data.SpaceUUID, user.ID)
 	if err != nil {
 		sendToConn(conn, WSMessage{
 			Type: "error",
@@ -128,6 +121,9 @@ func handleRemoveSpaceUser(conn *websocket.Conn, wsMsg *WSMessage) {
 		return
 	}
 
+	data.UserID = user.ID
+	data.UserPublicKey = user.PublicKey
+
 	sendToConn(conn, WSMessage{
 		Type: "remove_space_user_success",
 		Data: data,
@@ -141,7 +137,19 @@ func handleLeaveSpace(conn *websocket.Conn, wsMsg *WSMessage) {
 		return
 	}
 
-	res, err := db.ChatDB.Exec("DELETE FROM space_users WHERE space_uuid = ? AND user_id = ?", data.SpaceUUID, data.UserID)
+	user, err := resolveHostUserIdentityStrict(data.UserID, data.UserPublicKey)
+	if err != nil {
+		sendToConn(conn, WSMessage{
+			Type: "error",
+			Data: ChatError{
+				Content:    "Failed to resolve user identity",
+				ClientUUID: data.ClientUUID,
+			},
+		})
+		return
+	}
+
+	res, err := db.ChatDB.Exec("DELETE FROM space_users WHERE space_uuid = ? AND user_id = ?", data.SpaceUUID, user.ID)
 	if err != nil {
 		sendToConn(conn, WSMessage{
 			Type: "error",
@@ -162,6 +170,9 @@ func handleLeaveSpace(conn *websocket.Conn, wsMsg *WSMessage) {
 		})
 		return
 	}
+
+	data.UserID = user.ID
+	data.UserPublicKey = user.PublicKey
 
 	sendToConn(conn, WSMessage{
 		Type: "leave_space_success",

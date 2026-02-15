@@ -177,7 +177,15 @@ export default class DashboardApp {
       (space) => space.uuid === data.data.space_uuid
     );
 
-    if (!spaceToUpdate.users.find((user) => user.id === data.data.user.id)) {
+    if (
+      !spaceToUpdate.users.find(
+        (user) =>
+          user.id === data.data.user.id ||
+          (user.public_key &&
+            data.data.user.public_key &&
+            user.public_key === data.data.user.public_key)
+      )
+    ) {
       spaceToUpdate.users.push(data.data.user);
     }
 
@@ -213,10 +221,16 @@ export default class DashboardApp {
     );
     if (spaceToUpdate && this.currentSpaceUUID === spaceToUpdate.uuid) {
       const indexOfUser = spaceToUpdate.users.findIndex(
-        (user) => user.id === data.data.user_id
+        (user) =>
+          user.id === data.data.user_id ||
+          (user.public_key &&
+            data.data.user_public_key &&
+            user.public_key === data.data.user_public_key)
       );
-      spaceToUpdate.users.splice(indexOfUser, 1);
-      this.sidebar.spaceUserListComponent.render();
+      if (indexOfUser >= 0) {
+        spaceToUpdate.users.splice(indexOfUser, 1);
+        this.sidebar.spaceUserListComponent.render();
+      }
     }
   };
 

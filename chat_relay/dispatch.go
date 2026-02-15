@@ -16,6 +16,8 @@ func dispatchMessage(client *Client, conn *websocket.Conn, wsMsg WSMessage) {
 		handleGetDashDatRes(client, conn, &wsMsg)
 	case "update_username":
 		handleUpdateUsername(client, conn, &wsMsg)
+	case "update_username_response":
+		handleUpdateUsernameRes(client, conn, &wsMsg)
 	case "create_space":
 		handleCreateSpace(client, conn, &wsMsg)
 	case "create_space_response":

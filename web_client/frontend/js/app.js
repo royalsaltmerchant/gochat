@@ -169,7 +169,7 @@ export default class HostForm {
           createElement("fieldset", {}, [
             createElement("legend", {}, "New Host"),
             createElement("div", { class: "input-container" }, [
-              createElement("label", { for: "host-key" }, "Host Key"),
+              createElement("label", { for: "hostKey" }, "Host Key"),
               createElement("input", {
                 type: "text",
                 id: "hostKey",

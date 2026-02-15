@@ -5,8 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
-	"gochat/db"
-	"log"
+	"hash/fnv"
 	"strings"
 
 	"github.com/gorilla/websocket"
@@ -39,34 +38,14 @@ func normalizeUsername(username string, publicKey string) string {
 	return name
 }
 
-func upsertChatIdentity(publicKey, username string) (int, string, error) {
-	resolvedUsername := normalizeUsername(username, publicKey)
-	_, err := db.HostDB.Exec(
-		`INSERT INTO chat_identities (public_key, username)
-		 VALUES (?, ?)
-		 ON CONFLICT(public_key) DO UPDATE SET
-		   username = CASE
-		     WHEN excluded.username <> '' THEN excluded.username
-		     ELSE chat_identities.username
-		   END,
-		   updated_at = CURRENT_TIMESTAMP`,
-		publicKey,
-		resolvedUsername,
-	)
-	if err != nil {
-		return 0, "", err
+func deriveSessionUserID(publicKey string) int {
+	hasher := fnv.New32a()
+	_, _ = hasher.Write([]byte(publicKey))
+	userID := int(hasher.Sum32() & 0x7fffffff)
+	if userID == 0 {
+		userID = 1
 	}
-
-	var userID int
-	var currentUsername string
-	err = db.HostDB.QueryRow(
-		`SELECT id, username FROM chat_identities WHERE public_key = ?`,
-		publicKey,
-	).Scan(&userID, &currentUsername)
-	if err != nil {
-		return 0, "", err
-	}
-	return userID, currentUsername, nil
+	return userID
 }
 
 func handleAuthPubKey(client *Client, conn *websocket.Conn, wsMsg *WSMessage) {
@@ -104,11 +83,8 @@ func handleAuthPubKey(client *Client, conn *websocket.Conn, wsMsg *WSMessage) {
 		return
 	}
 
-	userID, username, err := upsertChatIdentity(data.PublicKey, data.Username)
-	if err != nil {
-		safeSend(client, conn, WSMessage{Type: "error", Data: ChatError{Content: "Failed to authenticate identity"}})
-		return
-	}
+	userID := deriveSessionUserID(data.PublicKey)
+	username := normalizeUsername(data.Username, data.PublicKey)
 
 	host, exists := GetHost(client.HostUUID)
 	if !exists {
@@ -120,7 +96,10 @@ func handleAuthPubKey(client *Client, conn *websocket.Conn, wsMsg *WSMessage) {
 	client.UserID = userID
 	client.Username = username
 	client.PublicKey = data.PublicKey
-	host.ClientsByUserID[userID] = client
+	if userID > 0 {
+		host.ClientsByUserID[userID] = client
+	}
+	host.ClientsByPublicKey[data.PublicKey] = client
 	host.mu.Unlock()
 
 	if !client.IsAuthenticated {
@@ -140,81 +119,65 @@ func handleAuthPubKey(client *Client, conn *websocket.Conn, wsMsg *WSMessage) {
 }
 
 func handleUpdateUsername(client *Client, conn *websocket.Conn, wsMsg *WSMessage) {
-	data, err := decodeData[UpdateUsernameRequest](wsMsg.Data)
+	data, err := decodeData[UpdateUsernameClient](wsMsg.Data)
 	if err != nil {
 		safeSend(client, conn, WSMessage{Type: "error", Data: ChatError{Content: "Invalid update username data"}})
 		return
 	}
 
-	if data.UserID <= 0 || data.UserID != client.UserID {
-		safeSend(client, conn, WSMessage{Type: "error", Data: ChatError{Content: "Unauthorized username update"}})
-		return
-	}
-
 	newName := normalizeUsername(data.Username, client.PublicKey)
-	res, err := db.HostDB.Exec(`UPDATE chat_identities SET username = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`, newName, data.UserID)
-	if err != nil {
-		safeSend(client, conn, WSMessage{Type: "error", Data: ChatError{Content: "Database error updating username"}})
-		return
-	}
-	if rows, _ := res.RowsAffected(); rows == 0 {
-		safeSend(client, conn, WSMessage{Type: "error", Data: ChatError{Content: "Identity not found"}})
-		return
-	}
-
 	client.Username = newName
-	safeSend(client, conn, WSMessage{
-		Type: "update_username_success",
-		Data: UpdateUsername{UserID: data.UserID, Username: newName},
+	SendToAuthor(client, WSMessage{
+		Type: "update_username_request",
+		Data: UpdateUsernameRequest{
+			UserID:        data.UserID,
+			UserPublicKey: firstNonEmpty(data.UserPublicKey, client.PublicKey),
+			Username:      newName,
+			ClientUUID:    client.ClientUUID,
+		},
 	})
 }
 
-func lookupIdentityByPublicKey(publicKey string) (DashDataUser, error) {
-	var user DashDataUser
-	err := db.HostDB.QueryRow(`SELECT id, username, public_key FROM chat_identities WHERE public_key = ?`, publicKey).Scan(&user.ID, &user.Username, &user.PublicKey)
+func handleUpdateUsernameRes(client *Client, conn *websocket.Conn, wsMsg *WSMessage) {
+	data, err := decodeData[UpdateUsernameResponse](wsMsg.Data)
 	if err != nil {
-		return DashDataUser{}, err
-	}
-	return user, nil
-}
-
-func lookupIdentityByID(userID int) (DashDataUser, error) {
-	var user DashDataUser
-	err := db.HostDB.QueryRow(`SELECT id, username, public_key FROM chat_identities WHERE id = ?`, userID).Scan(&user.ID, &user.Username, &user.PublicKey)
-	if err != nil {
-		return DashDataUser{}, err
-	}
-	return user, nil
-}
-
-func lookupIdentitiesByIDs(userIDs []int) ([]DashDataUser, error) {
-	if len(userIDs) == 0 {
-		return []DashDataUser{}, nil
+		safeSend(client, conn, WSMessage{Type: "error", Data: ChatError{Content: "Invalid update username response"}})
+		return
 	}
 
-	placeholders := make([]string, len(userIDs))
-	args := make([]interface{}, len(userIDs))
-	for i, id := range userIDs {
-		placeholders[i] = "?"
-		args[i] = id
-	}
-
-	query := fmt.Sprintf(`SELECT id, username, public_key FROM chat_identities WHERE id IN (%s)`, strings.Join(placeholders, ","))
-	rows, err := db.HostDB.Query(query, args...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	users := make([]DashDataUser, 0, len(userIDs))
-	for rows.Next() {
-		var user DashDataUser
-		if err := rows.Scan(&user.ID, &user.Username, &user.PublicKey); err != nil {
-			log.Printf("lookupIdentitiesByIDs scan error: %v", err)
-			continue
+	host, exists := GetHost(client.HostUUID)
+	if exists {
+		host.mu.Lock()
+		joinConn, ok := host.ClientConnsByUUID[data.ClientUUID]
+		if ok {
+			joinClient := host.ClientsByConn[joinConn]
+			if joinClient != nil {
+				if joinClient.UserID > 0 {
+					delete(host.ClientsByUserID, joinClient.UserID)
+				}
+				if joinClient.PublicKey != "" {
+					delete(host.ClientsByPublicKey, joinClient.PublicKey)
+				}
+				joinClient.UserID = data.UserID
+				joinClient.PublicKey = firstNonEmpty(data.UserPublicKey, joinClient.PublicKey)
+				joinClient.Username = data.Username
+				if joinClient.UserID > 0 {
+					host.ClientsByUserID[joinClient.UserID] = joinClient
+				}
+				if joinClient.PublicKey != "" {
+					host.ClientsByPublicKey[joinClient.PublicKey] = joinClient
+				}
+			}
 		}
-		users = append(users, user)
+		host.mu.Unlock()
 	}
 
-	return users, rows.Err()
+	SendToClient(client.HostUUID, data.ClientUUID, WSMessage{
+		Type: "update_username_success",
+		Data: UpdateUsernameSuccess{
+			UserID:        data.UserID,
+			UserPublicKey: data.UserPublicKey,
+			Username:      data.Username,
+		},
+	})
 }

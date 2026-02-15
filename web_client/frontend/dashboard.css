@@ -270,13 +270,14 @@
 .modal {
   display: none;
   position: fixed;
-  top: 0;
-  left: 0;
+  inset: 0;
   width: 100%;
   height: 100%;
+  padding: 16px;
   background-color: rgba(0, 0, 0, 0.65);
   backdrop-filter: blur(4px);
   z-index: 1000;
+  overflow-y: auto;
   animation: modalFadeIn 200ms var(--ease-out);
 }
 
@@ -288,10 +289,13 @@
 .modal-content {
   position: relative;
   background-color: var(--main-dark);
-  margin: 10% auto;
+  margin: min(8vh, 56px) auto;
   padding: 28px;
   width: 90%;
   max-width: 480px;
+  max-height: calc(100dvh - 32px);
+  display: flex;
+  flex-direction: column;
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
   border: 1px solid var(--main-gray);
@@ -351,6 +355,22 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+@media (max-width: 640px) {
+  .modal {
+    padding: 10px;
+  }
+
+  .modal-content {
+    width: 100%;
+    max-height: calc(100dvh - 20px);
+    margin: 0 auto;
+    padding: 18px;
+  }
 }
 
 .modal .btn-danger {

@@ -7,7 +7,7 @@
 - Host registration and host online/offline status for chat
 - Chat websocket routing between web clients and host clients
 - Public-key identity auth (`auth_pubkey`)
-- User lookup APIs for pubkey invite flow
+- No persistent user profile storage (identity persistence lives on host client DBs)
 
 ## Public-Key Auth
 
@@ -47,9 +47,6 @@ parch-chat-auth:<hostUUID>:<challenge>
 - `POST /api/hosts_by_uuids`
 - `POST /api/register_host`
 - `POST /api/host_offline/:uuid`
-- `POST /api/user_by_pubkey`
-- `POST /api/user_by_id`
-- `POST /api/users_by_ids`
 - `GET /client`
 
 ## Environment Variables
@@ -85,4 +82,4 @@ Output:
 On startup it now:
 - Opens SQLite with foreign keys enabled
 - Creates required tables/indexes if missing
-- Adds any missing compatibility columns (`hosts.online`, `chat_identities.created_at`, `chat_identities.updated_at`)
+- Adds any missing compatibility columns (`hosts.online`)

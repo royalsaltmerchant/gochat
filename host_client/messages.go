@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"gochat/db"
 	"log"
@@ -19,8 +18,14 @@ func handleSaveChatMessage(wsMsg *WSMessage) {
 
 	msgTimestamp := time.Now().UTC()
 
+	user, err := resolveHostUserIdentity(data.UserID, data.UserPublicKey, data.Username)
+	if err != nil {
+		log.Println("Error resolving message user identity:", err)
+		return
+	}
+
 	query := `INSERT INTO messages (channel_uuid, content, user_id, timestamp) VALUES (?, ?, ?, ?)`
-	_, err = db.ChatDB.Exec(query, data.ChannelUUID, data.Content, data.UserID, msgTimestamp.Format(time.RFC3339))
+	_, err = db.ChatDB.Exec(query, data.ChannelUUID, data.Content, user.ID, msgTimestamp.Format(time.RFC3339))
 	if err != nil {
 		fmt.Println("Error: Database failed to insert message")
 	}
@@ -73,44 +78,36 @@ func handleGetMessages(conn *websocket.Conn, wsMsg *WSMessage) {
 		log.Println("Row iteration error:", err)
 	}
 
-	var users []DashDataUser
-
 	if len(messages) > 0 {
 		// Deduplicate user_ids
 		var userIDs []int
 		for uid := range userIDSet {
+			if uid <= 0 {
+				continue
+			}
 			userIDs = append(userIDs, uid)
 		}
 
-		// Make batch API request
-		payload := map[string][]int{
-			"user_ids": userIDs,
-		}
-		resp, err := PostJSON(relayBaseURL.String()+"/api/users_by_ids", payload, nil)
-		if err != nil {
-			log.Println("Error fetching user info:", err)
-			return
-		}
-		defer resp.Body.Close()
+		if len(userIDs) > 0 {
+			users, err := lookupHostUsersByIDs(userIDs)
+			if err != nil {
+				log.Println("Error fetching user info from host DB:", err)
+				return
+			}
 
-		if resp.StatusCode == 400 {
-			log.Println("User not found by ID")
-		}
+			// Create user_id → user map
+			userMap := make(map[int]DashDataUser)
+			for _, user := range users {
+				userMap[user.ID] = user
+			}
 
-		if err := json.NewDecoder(resp.Body).Decode(&users); err != nil {
-			log.Println("Error decoding user list:", err)
-			return
-		}
-
-		// Create user_id → username map
-		userMap := make(map[int]string)
-		for _, user := range users {
-			userMap[user.ID] = user.Username
-		}
-
-		// Assign usernames
-		for i := range messages {
-			messages[i].Username = userMap[messages[i].UserID]
+			// Assign usernames/public keys
+			for i := range messages {
+				if user, ok := userMap[messages[i].UserID]; ok {
+					messages[i].Username = user.Username
+					messages[i].UserPublicKey = user.PublicKey
+				}
+			}
 		}
 	}
 
