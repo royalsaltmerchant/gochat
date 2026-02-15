@@ -12,30 +12,55 @@
  * - New code should use --parch-* names where available
  */
 :root {
-  /* Neutral Palette */
-  --main-white: rgb(235, 235, 235);
-  --bright-white: rgb(245, 245, 245);
-  --main-dark: rgb(25, 29, 37);
-  --second-dark: rgb(21, 24, 31);
-  --black: rgb(19, 20, 24);
+  /* Neutral Palette — warm charcoal base */
+  --main-white: rgb(222, 218, 210);
+  --bright-white: rgb(240, 236, 228);
+  --main-dark: rgb(24, 22, 20);
+  --second-dark: rgb(20, 18, 16);
+  --black: rgb(14, 13, 12);
 
-  /* Blue Palette (Interactive) */
-  --light-blue: rgb(66, 85, 119);
-  --second-blue: rgb(55, 71, 99);
-  --dark-blue: rgb(38, 44, 57);
-  --a-blue: rgb(157, 179, 211);
+  /* Accent Palette — warm steel-blue */
+  --light-blue: rgb(82, 96, 120);
+  --second-blue: rgb(62, 74, 96);
+  --dark-blue: rgb(34, 36, 42);
+  --a-blue: rgb(168, 186, 212);
 
   /* Neutral Accent */
-  --main-gray: rgb(89, 96, 117);
+  --main-gray: rgb(72, 68, 62);
 
   /* Status Colors */
-  --light-red: rgb(209, 102, 124);
-  --dark-red: rgb(152, 74, 90);
-  --light-yellow: rgb(255, 250, 155);
-  --light-green: rgb(119, 167, 77);
+  --light-red: rgb(196, 88, 96);
+  --dark-red: rgb(148, 64, 72);
+  --light-yellow: rgb(224, 196, 120);
+  --light-green: rgb(108, 156, 72);
+
+  /* Warm accents */
+  --parch-amber: rgb(196, 156, 96);
+  --parch-amber-dim: rgb(148, 120, 80);
+  --parch-copper: rgb(180, 120, 88);
 
   /* Spacing */
   --main-distance: 10px;
+
+  /* Radius */
+  --radius-sm: 3px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.6);
+  --shadow-glow: 0 0 20px rgba(196, 156, 96, 0.08);
+
+  /* Typography */
+  --font-display: 'Crimson Pro', Georgia, serif;
+  --font-body: 'Karla', system-ui, sans-serif;
+
+  /* Transitions */
+  --ease-out: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --transition-fast: 150ms var(--ease-out);
+  --transition-base: 250ms var(--ease-out);
 
   /* New naming convention aliases (for future migration) */
   --parch-white: var(--main-white);
@@ -60,16 +85,56 @@
   box-sizing: border-box;
 }
 
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--main-gray);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--light-blue);
+}
+
 body {
   height: 100vh;
   display: flex;
   flex-direction: column;
-  line-height: 1.4;
-  font-family: serif;
-  font-size: 18px;
+  line-height: 1.5;
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 400;
   background-color: var(--main-dark);
   color: var(--main-white);
-  letter-spacing: 0.8px;
+  letter-spacing: 0.2px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  color: var(--bright-white);
+}
+
+h1 { font-size: 2rem; }
+h2 { font-size: 1.5rem; }
+h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  font-family: var(--font-body);
+  font-size: 0.7rem;
+  color: var(--main-gray);
 }
 
 p {
@@ -78,13 +143,15 @@ p {
 
 a {
   display: inline-block;
-  color: var(--a-blue);
+  color: var(--parch-amber);
   text-decoration: none;
   cursor: pointer;
+  transition: color var(--transition-fast);
 }
 
 a:hover {
-  text-decoration: underline;
+  color: var(--bright-white);
+  text-decoration: none;
 }
 
 br {
@@ -95,14 +162,18 @@ br {
 
 hr {
   height: 1px;
-
   border: none;
-  background-color: var(--main-gray);
-  margin: 8px 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--main-gray),
+    transparent
+  );
+  margin: 12px 0;
 }
 
 main {
-  padding: 15px 30px;
+  padding: 20px 32px;
 }
 
 header {
@@ -112,6 +183,7 @@ header {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
+  border-bottom: 1px solid rgba(196, 156, 96, 0.1);
 }
 
 nav {
@@ -124,22 +196,36 @@ nav a {
 
 legend {
   color: var(--bright-white);
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 1.1rem;
+  padding: 0 6px;
 }
 
 fieldset {
   width: fit-content;
-  padding: 12px 15px;
-  border-color: var(--main-gray);
+  padding: 16px 20px;
+  border: 1px solid var(--main-gray);
+  border-radius: var(--radius-md);
+  transition: border-color var(--transition-base);
+}
+
+fieldset:focus-within {
+  border-color: var(--parch-amber-dim);
 }
 
 label {
-  font-size: small;
-  font-weight: bold;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
   position: absolute;
-  top: -10;
+  top: -10px;
   left: 10px;
   transform: translateY(-50%);
   background: linear-gradient(var(--main-dark) 10%, var(--second-dark) 90%);
+  padding: 0 4px;
+  color: var(--parch-amber-dim);
 }
 
 .input-container {
@@ -150,34 +236,36 @@ label {
 
 input {
   float: right;
-  color: inherit;
-  font: inherit;
-  padding: 5px;
+  color: var(--bright-white);
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  padding: 8px 10px;
   background-color: var(--second-dark);
-  border-left: 1px solid var(--main-gray);
-  border-top: 1px solid var(--main-gray);
-  border-right: 1px solid var(--black);
-  border-bottom: 1px solid var(--black);
+  border: 1px solid var(--main-gray);
+  border-radius: var(--radius-sm);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 input:focus {
-  outline: 1px solid var(--light-blue);
+  outline: none;
+  border-color: var(--parch-amber-dim);
+  box-shadow: 0 0 0 2px rgba(196, 156, 96, 0.15);
 }
 
 input[type="checkbox"] {
   appearance: none;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border: 2px solid var(--main-gray);
   background-color: var(--main-dark);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   position: relative;
   cursor: pointer;
-  transition: background-color 0.2s, border-color 0.2s;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
 }
 
 input[type="checkbox"]:hover {
-  background-color: var(--main-dark);
+  border-color: var(--parch-amber-dim);
 }
 
 input[type="checkbox"]:checked {
@@ -188,15 +276,15 @@ input[type="checkbox"]:checked {
 input[type="checkbox"]::after {
   content: "";
   position: absolute;
-  top: 6px;
-  left: 10px;
+  top: 4px;
+  left: 8px;
   width: 6px;
-  height: 14px;
+  height: 12px;
   border: solid var(--main-dark);
-  border-width: 0 3px 3px 0;
+  border-width: 0 2.5px 2.5px 0;
   transform: rotate(45deg);
   opacity: 0;
-  transition: opacity 0.2s;
+  transition: opacity var(--transition-fast);
 }
 
 input[type="checkbox"]:checked::after {
@@ -206,26 +294,32 @@ input[type="checkbox"]:checked::after {
 
 button {
   color: var(--bright-white);
-  font: inherit;
-  padding: 2px 4px;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  font-weight: 500;
+  padding: 6px 14px;
   cursor: pointer;
   background-color: var(--light-blue);
-  border-left: 1px solid var(--main-gray);
-  border-top: 1px solid var(--main-gray);
-  border-right: 1px solid var(--black);
-  border-bottom: 1px solid var(--black);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+  letter-spacing: 0.3px;
 }
 
 button:hover {
-  background: linear-gradient(var(--light-blue) 25%, var(--second-blue) 75%);
-  /* border-left: 1px solid var(--black);
-  border-top: 1px solid var(--black);
-  border-right: 1px solid var(--main-gray);
-  border-bottom: 1px solid var(--main-gray); */
+  background-color: var(--second-blue);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+}
+
+button:active {
+  transform: translateY(0);
+  box-shadow: none;
 }
 
 button:focus {
-  outline: 1px solid var(--light-blue);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(82, 96, 120, 0.4);
 }
 
 .btn-red {
@@ -233,29 +327,37 @@ button:focus {
 }
 
 .btn-red:hover {
-  background: linear-gradient(var(--light-red) 25%, var(--dark-red) 75%);
+  background-color: var(--dark-red);
 }
 
 .plus-btn {
-  color: var(--a-blue);
+  color: var(--parch-amber);
   cursor: pointer;
-  outline: dotted;
-  padding: var(--main-distance)
+  border: 1px dashed var(--main-gray);
+  border-radius: var(--radius-sm);
+  padding: var(--main-distance);
+  background: transparent;
+  transition: all var(--transition-fast);
 }
 
-.plus-btn:Hover {
-  color: var(--light-blue);
+.plus-btn:hover {
+  color: var(--bright-white);
+  border-color: var(--parch-amber-dim);
 }
 
 .plus-btn-red {
   color: var(--light-red);
   cursor: pointer;
-  outline: dotted;
+  border: 1px dashed var(--light-red);
+  border-radius: var(--radius-sm);
   padding: var(--main-distance);
+  background: transparent;
+  transition: all var(--transition-fast);
 }
 
 .plus-btn-red:hover {
   color: var(--dark-red);
+  border-color: var(--dark-red);
 }
 
 .a-list {
@@ -271,13 +373,15 @@ button:focus {
 
 .toast-warning {
   color: var(--light-red);
+  font-size: 0.85rem;
 }
 
 .invites-section {
   margin-bottom: 20px;
-  padding: 10px;
+  padding: 12px;
   background-color: var(--dark-blue);
-  border-radius: 4px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--main-gray);
 }
 
 .pending-invites-item {
@@ -285,11 +389,16 @@ button:focus {
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  margin-left: var(--main-distance);
+  padding: 8px 0;
+  margin-left: 0;
+}
+
+.pending-invites-item + .pending-invites-item {
+  border-top: 1px solid var(--main-gray);
 }
 
 .pending-invites-item button {
-  margin-right: var(--main-distance);
+  margin-left: 6px;
 }
 
 .app {
@@ -299,33 +408,52 @@ button:focus {
   overflow: hidden;
 }
 
+/* ===== HOST SELECTION SCREEN ===== */
+
 .host-form-container {
   height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-top: 200px;
-  /* justify-content: center; */
+  padding-top: 120px;
+  background:
+    radial-gradient(ellipse at 50% 20%, rgba(196, 156, 96, 0.04) 0%, transparent 60%),
+    var(--main-dark);
+}
 
+.host-form-container h2 {
+  font-family: var(--font-display);
+  font-size: 1.8rem;
+  font-weight: 400;
+  letter-spacing: 1px;
+  color: var(--bright-white);
 }
 
 .host-list-index {
   display: flex;
   flex-direction: column;
-  height: 300px;
-  width: 400px;
-  ;
-  border-width: 2px;
-  border-style: solid;
-  border-color: var(--main-gray);
+  height: 320px;
+  width: 420px;
+  border: 1px solid var(--main-gray);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background-color: var(--second-dark);
+  box-shadow: var(--shadow-md);
 }
 
 .host-item {
-  padding: 10px;
+  padding: 14px 16px;
   display: flex;
   flex-direction: row;
   justify-content: space-between;
+  align-items: center;
   cursor: pointer;
+  transition: background var(--transition-fast);
+  border-bottom: 1px solid rgba(72, 68, 62, 0.4);
+}
+
+.host-item:last-child {
+  border-bottom: none;
 }
 
 .host-item:hover {
@@ -333,20 +461,25 @@ button:focus {
 }
 
 .host-item-name {
-  margin-left: 20px;
-  font-size: 20px;
+  margin-left: 14px;
+  font-size: 1rem;
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: 0.3px;
 }
 
 .host-online-span,
 .host-offline-span {
   display: inline-block;
-  width: 13px;
-  height: 13px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .host-online-span {
   background-color: var(--light-green);
+  box-shadow: 0 0 6px rgba(108, 156, 72, 0.5);
 }
 
 .host-offline-span {
@@ -354,7 +487,8 @@ button:focus {
 }
 
 
-/* spinner */
+/* ===== SPINNER ===== */
+
 .initial-spinner {
   position: absolute;
   top: 50%;
@@ -374,21 +508,23 @@ button:focus {
 .lds-dual-ring:after {
   content: " ";
   display: block;
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   margin: 4px;
   border-radius: 50%;
-  border: 3px solid var(--bright-white);
-  border-color: var(--bright-white) transparent var(--bright-white) transparent;
-  animation: lds-dual-ring 1.2s linear infinite;
+  border: 2px solid var(--parch-amber);
+  border-color: var(--parch-amber) transparent var(--parch-amber-dim) transparent;
+  animation: lds-dual-ring 1s linear infinite;
 }
 
 @keyframes lds-dual-ring {
-  0% {
-    transform: rotate(0deg);
-  }
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
 
-  100% {
-    transform: rotate(360deg);
-  }
+/* ===== SELECTION STYLING ===== */
+
+::selection {
+  background: rgba(196, 156, 96, 0.25);
+  color: var(--bright-white);
 }
