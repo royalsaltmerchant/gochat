@@ -8,12 +8,8 @@ import (
 
 func dispatchMessage(client *Client, conn *websocket.Conn, wsMsg WSMessage) {
 	switch wsMsg.Type {
-	case "register_user":
-		handleRegisterUser(client, conn, &wsMsg)
-	case "login_user":
-		handleLogin(client, conn, &wsMsg)
-	case "login_user_by_token":
-		handleLoginByToken(client, conn, &wsMsg)
+	case "auth_pubkey":
+		handleAuthPubKey(client, conn, &wsMsg)
 	case "get_dash_data":
 		handleGetDashData(client, conn)
 	case "get_dash_data_response":
@@ -76,12 +72,6 @@ func dispatchMessage(client *Client, conn *websocket.Conn, wsMsg WSMessage) {
 		handleGetMessages(client, conn, &wsMsg)
 	case "get_messages_response":
 		handleGetMessagesRes(client, conn, &wsMsg)
-	case "channel_allow_voice":
-		handleChannelAllowVoice(client, conn, &wsMsg)
-	case "join_voice_channel":
-		handleJoinVoiceChannel(client, conn, &wsMsg)
-	case "leave_voice_channel":
-		handleLeaveVoiceChannel(client)
 	case "error":
 		data, err := decodeData[ChatError](wsMsg.Data)
 		if err != nil {

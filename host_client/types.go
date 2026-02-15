@@ -1,10 +1,9 @@
 package main
 
 type UserData struct {
-	ID       int
-	Username string
-	Email    string
-	Password string
+	ID        int
+	Username  string
+	PublicKey string
 }
 
 type Space struct {
@@ -63,32 +62,6 @@ type JoinHostPayload struct {
 	ID   string `json:"id"`
 }
 
-type ApproveLoginUser struct {
-	Password   string `json:"password"`
-	Email      string `json:"email"`
-	AuthorID   string `json:"author_id"`
-	ClientUUID string `json:"client_uuid"`
-}
-
-type ApproveLoginUserByToken struct {
-	Token      string `json:"token"`
-	ClientUUID string `json:"client_uuid"`
-}
-
-type ApprovedLoginUser struct {
-	UserID     int    `json:"user_id"`
-	Username   string `json:"username"`
-	ClientUUID string `json:"client_uuid"`
-	Token      string `json:"token"`
-}
-
-type ApproveRegisterUser struct {
-	Username   string `json:"username"`
-	Email      string `json:"email"`
-	Password   string `json:"password"` // already hashed
-	ClientUUID string `json:"client_uuid"`
-}
-
 type UpdateUsernameRequest struct {
 	UserID     int    `json:"user_id"`
 	Username   string `json:"username"`
@@ -98,7 +71,6 @@ type UpdateUsernameRequest struct {
 type UpdateUsernameResponse struct {
 	UserID     int    `json:"user_id"`
 	Username   string `json:"username"`
-	Token      string `json:"token"`
 	ClientUUID string `json:"client_uuid"`
 }
 
@@ -109,10 +81,9 @@ type GetDashDataRequest struct {
 }
 
 type DashDataUser struct {
-	ID       int    `json:"id"`
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	ID        int    `json:"id"`
+	Username  string `json:"username"`
+	PublicKey string `json:"public_key,omitempty"`
 }
 
 type DashDataChannel struct {
@@ -188,13 +159,13 @@ type DeleteChannelResponse struct {
 }
 
 type InviteUserRequest struct {
-	Email      string `json:"email"`
+	PublicKey  string `json:"public_key"`
 	SpaceUUID  string `json:"space_uuid"`
 	ClientUUID string `json:"client_uuid"`
 }
 
 type InviteUserResponse struct {
-	Email      string         `json:"email"`
+	PublicKey  string         `json:"public_key"`
 	UserID     int            `json:"user_id"`
 	SpaceUUID  string         `json:"space_uuid"`
 	Invite     DashDataInvite `json:"invite"`

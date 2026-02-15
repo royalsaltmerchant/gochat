@@ -3,19 +3,15 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-  "dependencies": {
-    "ion-sdk-js": "^1.8.2"
-  },
+  "dependencies": {},
   "devDependencies": {
     "vite": "^6.3.5"
   },
   "scripts": {
-    "dev": "vite --mode web",
-    "dev:web": "vite --mode web",
+    "dev": "vite",
+    "dev:web": "vite",
     "build": "npm run build:web",
-    "build:web": "vite build --mode web",
-    "dev:desktop-assets": "vite build --mode desktop --watch",
-    "build:desktop": "vite build --mode desktop"
+    "build:web": "vite build"
   },
   "keywords": [],
   "author": "",

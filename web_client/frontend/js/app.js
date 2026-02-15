@@ -1,8 +1,6 @@
 import { relayBaseURL } from "./lib/config.js";
 import createElement from "./components/createElement.js";
 import DashboardApp from "./dashboard.js";
-import voiceManager from "./lib/voiceManager.js";
-import voiceElemContainer from "./components/voiceElemContainer.js";
 import platform from "./platform/index.js";
 
 class App {
@@ -18,11 +16,14 @@ class App {
   returnToHostList = async () => {
     // Remove host UUID
     localStorage.removeItem("hostUUID");
-    // Leave any voice channels or socket conns
-    await voiceManager.leaveVoice();
-    this.dashboard.socketConn.hardClose();
+    // Leave socket connection
+    if (this.dashboard?.socketConn) {
+      this.dashboard.socketConn.hardClose();
+    }
     // Set dashboard to null
-    this.dashboard.innerHTML = "";
+    if (this.dashboard?.domComponent) {
+      this.dashboard.domComponent.innerHTML = "";
+    }
     this.dashboard = null;
     // Render host form
     this.render({ type: "host_form" });

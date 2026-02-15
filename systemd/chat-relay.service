@@ -1,0 +1,18 @@
+[Unit]
+Description=Parch Chat Relay
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/go_chat
+ExecStart=/root/go_chat/chat_relay/chat_relay
+Restart=on-failure
+RestartSec=5
+Environment=CHAT_RELAY_PORT=8001
+Environment=CHAT_DB_FILE=/root/go_chat/chat_relay/chat_relay.db
+Environment=CHAT_STATIC_DIR=/root/go_chat/chat_relay/static
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

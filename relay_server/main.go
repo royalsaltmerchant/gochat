@@ -92,24 +92,11 @@ func main() {
 	// CORS
 	r.Use(cors.Default())
 
-	// WebSocket route
+	// WebSocket route for call room signaling
 	r.GET("/ws", func(c *gin.Context) {
 		HandleSocket(c)
 	})
-	// API
-	r.GET("/api/host/:uuid", HandleGetHost)
-	r.POST("/api/hosts_by_uuids", HandleGetHostsByUUIDs)
-	r.POST("/api/host_offline/:uuid", HandleUpdateHostOffline)
-	r.POST("/api/register_host", HandleRegisterHost)
-	r.POST("/api/user_by_id", HandleGetUserByID)
-	r.POST("/api/user_by_email", HandleGetUserByEmail)
-	r.POST("/api/users_by_ids", HandleGetUsersByIDs)
-	r.GET("/api/turn_credentials", HandleGetTurnCredentials)
-	r.POST("/api/request_reset_email", HandlePasswordResetRequest)
-	r.POST("/api/reset_password", HandlePasswordReset)
-	// Internal validation endpoints (for Caddy/proxy auth)
-	r.GET("/internal/validate-ip", HandleValidateIP)
-	r.GET("/internal/validate-sfu-token", HandleValidateSFUToken)
+
 	// Call app auth endpoints
 	r.POST("/call/register", HandleCallRegister)
 	r.POST("/call/login", HandleCallLogin)
@@ -119,19 +106,13 @@ func main() {
 	r.POST("/call/create-checkout-session", HandleCreateCheckoutSession)
 	r.POST("/call/stripe-webhook", HandleStripeWebhook)
 	r.POST("/call/create-portal-session", HandleCreatePortalSession)
-	// Email preference/unsubscribe
-	r.GET("/unsubscribe", HandleUnsubscribe)
+
 	// Static
 	r.GET("/", func(c *gin.Context) {
 		c.File(filepath.Join(staticDir, "index.html"))
 	})
-	r.GET("/forgot_password", func(c *gin.Context) {
-		c.File(filepath.Join(staticDir, "forgot_password.html"))
-	})
-	r.GET("/reset_password", func(c *gin.Context) {
-		c.File(filepath.Join(staticDir, "reset_password.html"))
-	})
 	r.Static("/static", staticDir)
+
 	// SEO files
 	r.GET("/robots.txt", func(c *gin.Context) {
 		c.File(filepath.Join(staticDir, "robots.txt"))
@@ -141,6 +122,9 @@ func main() {
 	})
 	// Call landing page
 	r.GET("/call", func(c *gin.Context) {
+		c.File(filepath.Join(staticDir, "call_landing.html"))
+	})
+	r.GET("/call/", func(c *gin.Context) {
 		c.File(filepath.Join(staticDir, "call_landing.html"))
 	})
 	// Call account page
@@ -156,14 +140,6 @@ func main() {
 		c.File(filepath.Join(staticDir, "call", "index.html"))
 	})
 	r.Static("/call/assets", filepath.Join(staticDir, "call", "assets"))
-	// Web chat client app
-	r.GET("/client", func(c *gin.Context) {
-		c.File(filepath.Join(staticDir, "client", "index.html"))
-	})
-	r.GET("/client/", func(c *gin.Context) {
-		c.File(filepath.Join(staticDir, "client", "index.html"))
-	})
-	r.Static("/client/assets", filepath.Join(staticDir, "client", "assets"))
 
 	// Create HTTP server manually so we can shut it down
 	server := &http.Server{
@@ -179,16 +155,11 @@ func main() {
 		}
 	}()
 
-	notificationCtx, cancelNotifications := context.WithCancel(context.Background())
-	defer cancelNotifications()
-	go StartEmailNotificationScheduler(notificationCtx)
-
 	// Wait for SIGINT or SIGTERM
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	log.Println("Shutting down server...")
-	cancelNotifications()
 
 	// Gracefully shut down HTTP server
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

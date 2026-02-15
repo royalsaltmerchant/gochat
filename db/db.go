@@ -23,6 +23,22 @@ var ChatDB *sql.DB
 var HostDB *sql.DB
 
 func InitDB(databaseName string, migrations embed.FS, migrationPath string) (*sql.DB, error) {
+	db, err := InitSQLite(databaseName)
+	if err != nil {
+		return nil, err
+	}
+
+	err = runMigrations(db, migrations, migrationPath)
+	if err != nil {
+		return nil, fmt.Errorf("migration error: %v", err)
+	}
+
+	return db, nil
+}
+
+// InitSQLite opens a sqlite database with foreign keys enabled.
+// Callers can bootstrap schema directly in code without migration files.
+func InitSQLite(databaseName string) (*sql.DB, error) {
 	db, err := sql.Open("sqlite3", databaseName)
 	if err != nil {
 		return nil, err
@@ -40,11 +56,6 @@ func InitDB(databaseName string, migrations embed.FS, migrationPath string) (*sq
 	}
 	if enabled != 1 {
 		return nil, fmt.Errorf("foreign keys are not enabled")
-	}
-
-	err = runMigrations(db, migrations, migrationPath)
-	if err != nil {
-		return nil, fmt.Errorf("migration error: %v", err)
 	}
 
 	return db, nil
