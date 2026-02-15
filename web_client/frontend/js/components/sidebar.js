@@ -242,7 +242,10 @@ class SpaceItemComponent {
       "div",
       { class: "channel-list" },
       (this.space.channels || []).map((channel) =>
-        createElement("div", { class: "channel-item" }, channel.name, {
+        createElement("div", { class: "channel-item" }, [
+          createElement("span", { class: "channel-hash" }, "#"),
+          createElement("span", {}, channel.name),
+        ], {
           type: "click",
           event: () => this.loadChannel(this.space.uuid, channel.uuid),
         })
@@ -256,12 +259,14 @@ class SpaceItemComponent {
   };
 
   render = () => {
-    this.domComponent.innerHTML = "";
+    this.domComponent.textContent = "";
+    this.domComponent.className = `space-item${this.channelsOpen ? " space-item--open" : ""}`;
     this.domComponent.append(
       createElement(
         "div",
         { class: "space-header" },
         [
+          createElement("span", { class: "space-chevron" }),
           createElement("span", {}, this.space.name),
           createElement(
             "div",
