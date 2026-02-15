@@ -18,7 +18,7 @@ func handleCreateSpace(conn *websocket.Conn, wsMsg *WSMessage) {
 	// Get UUID and Author ID
 	spaceUUID := uuid.New()
 
-	user, err := resolveHostUserIdentity(data.UserID, data.UserPublicKey, data.Username)
+	user, err := resolveHostUserIdentity(data.UserID, data.UserPublicKey, data.UserEncPublicKey, data.Username)
 	if err != nil {
 		sendToConn(conn, WSMessage{
 			Type: "error",
@@ -150,7 +150,7 @@ func handleGetDashData(conn *websocket.Conn, wsMsg *WSMessage) {
 	}
 
 	// 1. Use helper
-	user, err := resolveHostUserIdentity(data.UserID, data.UserPublicKey, data.Username)
+	user, err := resolveHostUserIdentity(data.UserID, data.UserPublicKey, data.UserEncPublicKey, data.Username)
 	if err != nil {
 		sendToConn(conn, WSMessage{
 			Type: "error",
@@ -265,9 +265,10 @@ func handleGetDashData(conn *websocket.Conn, wsMsg *WSMessage) {
 		Type: "get_dash_data_response",
 		Data: GetDashDataResponse{
 			User: DashDataUser{
-				ID:        user.ID,
-				Username:  user.Username,
-				PublicKey: user.PublicKey,
+				ID:           user.ID,
+				Username:     user.Username,
+				PublicKey:    user.PublicKey,
+				EncPublicKey: user.EncPublicKey,
 			},
 			Spaces:     userSpaces,
 			Invites:    spaceInvites,

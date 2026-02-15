@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"gochat/db"
 	"log"
@@ -18,14 +19,20 @@ func handleSaveChatMessage(wsMsg *WSMessage) {
 
 	msgTimestamp := time.Now().UTC()
 
-	user, err := resolveHostUserIdentity(data.UserID, data.UserPublicKey, data.Username)
+	user, err := resolveHostUserIdentity(data.UserID, data.UserPublicKey, data.UserEncPublicKey, data.Username)
 	if err != nil {
 		log.Println("Error resolving message user identity:", err)
 		return
 	}
 
 	query := `INSERT INTO messages (channel_uuid, content, user_id, timestamp) VALUES (?, ?, ?, ?)`
-	_, err = db.ChatDB.Exec(query, data.ChannelUUID, data.Content, user.ID, msgTimestamp.Format(time.RFC3339))
+	envelopeJSON, err := json.Marshal(data.Envelope)
+	if err != nil {
+		log.Println("Error marshalling encrypted message envelope:", err)
+		return
+	}
+
+	_, err = db.ChatDB.Exec(query, data.ChannelUUID, string(envelopeJSON), user.ID, msgTimestamp.Format(time.RFC3339))
 	if err != nil {
 		fmt.Println("Error: Database failed to insert message")
 	}
@@ -65,10 +72,17 @@ func handleGetMessages(conn *websocket.Conn, wsMsg *WSMessage) {
 
 	for rows.Next() {
 		var msg GetMessagesMessage
-		err = rows.Scan(&msg.ID, &msg.ChannelUUID, &msg.Content, &msg.UserID, &msg.Timestamp)
+		var envelopeRaw string
+		err = rows.Scan(&msg.ID, &msg.ChannelUUID, &envelopeRaw, &msg.UserID, &msg.Timestamp)
 		if err != nil {
 			log.Println("Error scanning message:", err)
 			continue
+		}
+		if envelopeRaw != "" {
+			if err := json.Unmarshal([]byte(envelopeRaw), &msg.Envelope); err != nil {
+				log.Println("Error unmarshalling encrypted message envelope:", err)
+				continue
+			}
 		}
 		userIDSet[msg.UserID] = struct{}{}
 		messages = append(messages, msg)
@@ -106,6 +120,7 @@ func handleGetMessages(conn *websocket.Conn, wsMsg *WSMessage) {
 				if user, ok := userMap[messages[i].UserID]; ok {
 					messages[i].Username = user.Username
 					messages[i].UserPublicKey = user.PublicKey
+					messages[i].UserEncPublicKey = user.EncPublicKey
 				}
 			}
 		}

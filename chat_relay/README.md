@@ -7,7 +7,9 @@
 - Host registration and host online/offline status for chat
 - Chat websocket routing between web clients and host clients
 - Public-key identity auth (`auth_pubkey`)
-- No persistent user profile storage (identity persistence lives on host client DBs)
+- Routes encrypted chat envelopes
+- No persistent centralized user profile storage for chat identities
+  - identity persistence lives on host client DBs and browser local identity storage
 
 ## Public-Key Auth
 
@@ -26,6 +28,7 @@ Payload:
   "type": "auth_pubkey",
   "data": {
     "public_key": "<base64 raw ed25519 public key>",
+    "enc_public_key": "<base64 spki p256 encryption public key>",
     "username": "optional username",
     "challenge": "<challenge>",
     "signature": "<base64 raw ed25519 signature>"
@@ -36,8 +39,15 @@ Payload:
 Signing input:
 
 ```text
-parch-chat-auth:<hostUUID>:<challenge>
+parch-chat-auth:<hostUUID>:<challenge>:<encPublicKey>
 ```
+
+## Encrypted Message Routing
+
+- Browser sends `chat` with:
+  - `data.envelope` (ciphertext payload + wrapped keys + signature)
+- Relay broadcasts envelope to channel subscribers and forwards to host for persistence.
+- Relay does not decrypt message bodies.
 
 ## API
 

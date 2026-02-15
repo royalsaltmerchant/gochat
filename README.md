@@ -27,16 +27,42 @@ Parch now runs chat and calls as separate services:
   └─────────────┘          └─────────────┘
 ```
 
+Detailed chat auth + E2EE flow:
+- `docs/chat-e2ee-architecture.md`
+
 ### Components
 
 | Component | Description |
 |-----------|-------------|
 | **Chat Relay** | Go service for host registration, chat websocket routing, and pubkey identity lookup |
-| **Host Client** | Linux CLI process storing chat data locally (SQLite), manages spaces/channels/messages |
-| **Web Client** | Browser chat app using local Ed25519 identity keys |
+| **Host Client** | Linux CLI process storing chat data locally (SQLite), manages spaces/channels/messages/invites |
+| **Web Client** | Browser chat app using local public-key identity and end-to-end encryption |
 | **Relay Server** | Go service used by `call_app` (email auth, billing, call APIs, call static pages) |
 | **Call App** | React web app for standalone video/voice calls |
 | **SFU/TURN** | WebRTC infrastructure used by the call stack |
+
+## Chat Auth + E2EE (High Level)
+
+Chat no longer uses centralized email/password identity.
+
+- Browser identity:
+  - Ed25519 keypair for auth signatures
+  - ECDH P-256 keypair for message encryption
+- Relay auth:
+  - Relay sends challenge
+  - Browser signs `parch-chat-auth:<hostUUID>:<challenge>:<encPublicKey>`
+  - Relay verifies and opens session
+- Invites:
+  - Done by public key
+  - Host resolves public key to host-local user identity
+- Messages:
+  - Client encrypts to envelope JSON per message (recipient wrapped keys)
+  - Relay forwards envelope
+  - Host stores envelope JSON (ciphertext)
+  - Clients decrypt locally
+
+For the full flow with trust boundaries and examples:
+- `docs/chat-e2ee-architecture.md`
 
 ---
 
@@ -153,6 +179,7 @@ cd web_client/frontend
 npm install
 npm run dev:web      # Vite dev server
 npm run build:web    # Build to chat_relay/static/client
+npm run test:e2ee    # E2EE crypto tests
 ```
 
 ---
@@ -202,6 +229,10 @@ Build and deploy from local machine:
 
 # Chat relay (deploys to /root/go_chat/chat_relay, preserves DB/env files, restarts chat-relay)
 ./scripts/deploy-chat-relay.sh
+
+# Optional (only if call_app/landing/relay changed)
+# Relay server (deploys to /root/relay_dist, preserves DB files, restarts relay_server)
+./scripts/deploy-relay.sh
 ```
 
 If you are migrating an existing host to a fresh `chat_relay.db`, ensure the host row exists in `hosts` using the same `uuid` and `author_id` from `~/.config/ParchHost/host_config.json`:

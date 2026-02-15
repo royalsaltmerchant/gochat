@@ -21,26 +21,37 @@ func normalizeUsername(username string, publicKey string) string {
 	return name
 }
 
-func upsertHostUserByPublicKey(publicKey string, username string) (DashDataUser, error) {
+func upsertHostUserByPublicKey(publicKey string, encPublicKey string, username string) (DashDataUser, error) {
 	key := strings.TrimSpace(publicKey)
+	encKey := strings.TrimSpace(encPublicKey)
 	if key == "" {
 		return DashDataUser{}, fmt.Errorf("missing public key")
+	}
+	if encKey == "" {
+		return DashDataUser{}, fmt.Errorf("missing encryption public key")
 	}
 
 	trimmedUsername := strings.TrimSpace(username)
 	resolvedUsername := normalizeUsername(trimmedUsername, key)
 
 	_, err := db.ChatDB.Exec(
-		`INSERT INTO chat_users (public_key, username)
-		 VALUES (?, ?)
+		`INSERT INTO chat_users (public_key, enc_public_key, username)
+		 VALUES (?, ?, ?)
 		 ON CONFLICT(public_key) DO UPDATE SET
+		   enc_public_key = CASE
+		     WHEN ? <> '' THEN ?
+		     ELSE chat_users.enc_public_key
+		   END,
 		   username = CASE
 		     WHEN ? <> '' THEN ?
 		     ELSE chat_users.username
 		   END,
 		   updated_at = CURRENT_TIMESTAMP`,
 		key,
+		encKey,
 		resolvedUsername,
+		encKey,
+		encKey,
 		trimmedUsername,
 		resolvedUsername,
 	)
@@ -50,9 +61,26 @@ func upsertHostUserByPublicKey(publicKey string, username string) (DashDataUser,
 
 	var user DashDataUser
 	err = db.ChatDB.QueryRow(
-		`SELECT id, username, public_key FROM chat_users WHERE public_key = ?`,
+		`SELECT id, username, public_key, enc_public_key FROM chat_users WHERE public_key = ?`,
 		key,
-	).Scan(&user.ID, &user.Username, &user.PublicKey)
+	).Scan(&user.ID, &user.Username, &user.PublicKey, &user.EncPublicKey)
+	if err != nil {
+		return DashDataUser{}, err
+	}
+	return user, nil
+}
+
+func lookupHostUserByPublicKey(publicKey string) (DashDataUser, error) {
+	key := strings.TrimSpace(publicKey)
+	if key == "" {
+		return DashDataUser{}, fmt.Errorf("missing public key")
+	}
+
+	var user DashDataUser
+	err := db.ChatDB.QueryRow(
+		`SELECT id, username, public_key, enc_public_key FROM chat_users WHERE public_key = ?`,
+		key,
+	).Scan(&user.ID, &user.Username, &user.PublicKey, &user.EncPublicKey)
 	if err != nil {
 		return DashDataUser{}, err
 	}
@@ -66,9 +94,9 @@ func lookupHostUserByID(userID int) (DashDataUser, error) {
 
 	var user DashDataUser
 	err := db.ChatDB.QueryRow(
-		`SELECT id, username, public_key FROM chat_users WHERE id = ?`,
+		`SELECT id, username, public_key, enc_public_key FROM chat_users WHERE id = ?`,
 		userID,
-	).Scan(&user.ID, &user.Username, &user.PublicKey)
+	).Scan(&user.ID, &user.Username, &user.PublicKey, &user.EncPublicKey)
 	if err != nil {
 		return DashDataUser{}, err
 	}
@@ -98,7 +126,7 @@ func lookupHostUsersByIDs(userIDs []int) ([]DashDataUser, error) {
 	}
 
 	query := fmt.Sprintf(
-		`SELECT id, username, public_key FROM chat_users WHERE id IN (%s)`,
+		`SELECT id, username, public_key, enc_public_key FROM chat_users WHERE id IN (%s)`,
 		strings.Join(placeholders, ","),
 	)
 	rows, err := db.ChatDB.Query(query, args...)
@@ -110,7 +138,7 @@ func lookupHostUsersByIDs(userIDs []int) ([]DashDataUser, error) {
 	var users []DashDataUser
 	for rows.Next() {
 		var user DashDataUser
-		if err := rows.Scan(&user.ID, &user.Username, &user.PublicKey); err != nil {
+		if err := rows.Scan(&user.ID, &user.Username, &user.PublicKey, &user.EncPublicKey); err != nil {
 			continue
 		}
 		users = append(users, user)
@@ -118,11 +146,18 @@ func lookupHostUsersByIDs(userIDs []int) ([]DashDataUser, error) {
 	return users, rows.Err()
 }
 
-func resolveHostUserIdentity(userID int, userPublicKey string, fallbackUsername string) (DashDataUser, error) {
+func resolveHostUserIdentity(userID int, userPublicKey string, userEncPublicKey string, fallbackUsername string) (DashDataUser, error) {
 	trimmedPublicKey := strings.TrimSpace(userPublicKey)
+	trimmedEncPublicKey := strings.TrimSpace(userEncPublicKey)
 
 	if trimmedPublicKey != "" {
-		return upsertHostUserByPublicKey(trimmedPublicKey, fallbackUsername)
+		if trimmedEncPublicKey != "" {
+			return upsertHostUserByPublicKey(trimmedPublicKey, trimmedEncPublicKey, fallbackUsername)
+		}
+		lookedUp, err := lookupHostUserByPublicKey(trimmedPublicKey)
+		if err == nil {
+			return lookedUp, nil
+		}
 	}
 
 	if userID > 0 {
@@ -132,8 +167,8 @@ func resolveHostUserIdentity(userID int, userPublicKey string, fallbackUsername 
 	return DashDataUser{}, fmt.Errorf("missing user identity")
 }
 
-func resolveHostUserIdentityStrict(userID int, userPublicKey string) (DashDataUser, error) {
-	return resolveHostUserIdentity(userID, userPublicKey, "")
+func resolveHostUserIdentityStrict(userID int, userPublicKey string, userEncPublicKey string) (DashDataUser, error) {
+	return resolveHostUserIdentity(userID, userPublicKey, userEncPublicKey, "")
 }
 
 func hydrateInvitePublicKeys(invites []DashDataInvite) []DashDataInvite {

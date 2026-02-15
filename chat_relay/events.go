@@ -138,10 +138,11 @@ func handleGetDashData(client *Client, conn *websocket.Conn) {
 	SendToAuthor(client, WSMessage{ // Regular client assuming host is already logged in
 		Type: "get_dash_data_request",
 		Data: GetDashDataRequest{
-			UserID:        userID,
-			UserPublicKey: client.PublicKey,
-			Username:      username,
-			ClientUUID:    client.ClientUUID,
+			UserID:           userID,
+			UserPublicKey:    client.PublicKey,
+			UserEncPublicKey: client.EncPublicKey,
+			Username:         username,
+			ClientUUID:       client.ClientUUID,
 		},
 	})
 }
@@ -167,6 +168,7 @@ func handleGetDashDatRes(client *Client, conn *websocket.Conn, wsMsg *WSMessage)
 				}
 				joinClient.UserID = data.User.ID
 				joinClient.PublicKey = firstNonEmpty(data.User.PublicKey, joinClient.PublicKey)
+				joinClient.EncPublicKey = firstNonEmpty(data.User.EncPublicKey, joinClient.EncPublicKey)
 				joinClient.Username = data.User.Username
 				if joinClient.UserID > 0 {
 					host.ClientsByUserID[joinClient.UserID] = joinClient
@@ -204,11 +206,12 @@ func handleCreateSpace(client *Client, conn *websocket.Conn, wsMsg *WSMessage) {
 	SendToAuthor(client, WSMessage{
 		Type: "create_space_request",
 		Data: CreateSpaceRequest{
-			Name:          data.Name,
-			UserID:        client.UserID,
-			UserPublicKey: client.PublicKey,
-			Username:      client.Username,
-			ClientUUID:    client.ClientUUID,
+			Name:             data.Name,
+			UserID:           client.UserID,
+			UserPublicKey:    client.PublicKey,
+			UserEncPublicKey: client.EncPublicKey,
+			Username:         client.Username,
+			ClientUUID:       client.ClientUUID,
 		},
 	})
 }
@@ -441,10 +444,11 @@ func handleAcceptInvite(client *Client, conn *websocket.Conn, wsMsg *WSMessage) 
 	SendToAuthor(client, WSMessage{
 		Type: "accept_invite_request",
 		Data: AcceptInviteRequest{
-			SpaceUserID:   data.SpaceUserID,
-			UserID:        data.UserID,
-			UserPublicKey: firstNonEmpty(data.UserPublicKey, client.PublicKey),
-			ClientUUID:    client.ClientUUID,
+			SpaceUserID:      data.SpaceUserID,
+			UserID:           data.UserID,
+			UserPublicKey:    firstNonEmpty(data.UserPublicKey, client.PublicKey),
+			UserEncPublicKey: firstNonEmpty(data.UserEncPublicKey, client.EncPublicKey),
+			ClientUUID:       client.ClientUUID,
 		},
 	})
 }
@@ -503,10 +507,11 @@ func handleDeclineInvite(client *Client, conn *websocket.Conn, wsMsg *WSMessage)
 	SendToAuthor(client, WSMessage{
 		Type: "decline_invite_request",
 		Data: DeclineInviteRequest{
-			SpaceUserID:   data.SpaceUserID,
-			UserID:        data.UserID,
-			UserPublicKey: firstNonEmpty(data.UserPublicKey, client.PublicKey),
-			ClientUUID:    client.ClientUUID,
+			SpaceUserID:      data.SpaceUserID,
+			UserID:           data.UserID,
+			UserPublicKey:    firstNonEmpty(data.UserPublicKey, client.PublicKey),
+			UserEncPublicKey: firstNonEmpty(data.UserEncPublicKey, client.EncPublicKey),
+			ClientUUID:       client.ClientUUID,
 		},
 	})
 }
@@ -536,10 +541,11 @@ func handleLeaveSpace(client *Client, conn *websocket.Conn, wsMsg *WSMessage) {
 	SendToAuthor(client, WSMessage{
 		Type: "leave_space_request",
 		Data: LeaveSpaceRequest{
-			SpaceUUID:     data.SpaceUUID,
-			UserID:        data.UserID,
-			UserPublicKey: firstNonEmpty(data.UserPublicKey, client.PublicKey),
-			ClientUUID:    client.ClientUUID,
+			SpaceUUID:        data.SpaceUUID,
+			UserID:           data.UserID,
+			UserPublicKey:    firstNonEmpty(data.UserPublicKey, client.PublicKey),
+			UserEncPublicKey: firstNonEmpty(data.UserEncPublicKey, client.EncPublicKey),
+			ClientUUID:       client.ClientUUID,
 		},
 	})
 }
@@ -680,10 +686,11 @@ func handleRemoveSpaceUser(client *Client, conn *websocket.Conn, wsMsg *WSMessag
 	SendToAuthor(client, WSMessage{
 		Type: "remove_space_user_request",
 		Data: RemoveSpaceUserRequest{
-			SpaceUUID:     data.SpaceUUID,
-			UserID:        data.UserID,
-			UserPublicKey: data.UserPublicKey,
-			ClientUUID:    client.ClientUUID,
+			SpaceUUID:        data.SpaceUUID,
+			UserID:           data.UserID,
+			UserPublicKey:    data.UserPublicKey,
+			UserEncPublicKey: data.UserEncPublicKey,
+			ClientUUID:       client.ClientUUID,
 		},
 	})
 }
@@ -736,6 +743,10 @@ func handleChatMessage(client *Client, conn *websocket.Conn, wsMsg *WSMessage) {
 		safeSend(client, conn, WSMessage{Type: "error", Data: ChatError{Content: "Invalid chat message data"}})
 		return
 	}
+	if len(data.Envelope) == 0 {
+		safeSend(client, conn, WSMessage{Type: "error", Data: ChatError{Content: "Missing encrypted envelope"}})
+		return
+	}
 
 	msgTimestamp := time.Now().UTC()
 
@@ -764,8 +775,7 @@ func handleChatMessage(client *Client, conn *websocket.Conn, wsMsg *WSMessage) {
 		BroadcastToChannel(client.HostUUID, channelUUID, WSMessage{
 			Type: "chat",
 			Data: ChatPayload{
-				Username:  client.Username,
-				Content:   data.Content,
+				Envelope:  data.Envelope,
 				Timestamp: msgTimestamp,
 			},
 		})
@@ -775,11 +785,12 @@ func handleChatMessage(client *Client, conn *websocket.Conn, wsMsg *WSMessage) {
 	SendToAuthor(client, WSMessage{
 		Type: "save_chat_message_request",
 		Data: SaveChatMessageRequest{
-			UserID:        client.UserID,
-			UserPublicKey: client.PublicKey,
-			Username:      client.Username,
-			ChannelUUID:   channelUUID,
-			Content:       data.Content,
+			UserID:           client.UserID,
+			UserPublicKey:    client.PublicKey,
+			UserEncPublicKey: client.EncPublicKey,
+			Username:         client.Username,
+			ChannelUUID:      channelUUID,
+			Envelope:         data.Envelope,
 		},
 	})
 }

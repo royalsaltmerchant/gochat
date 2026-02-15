@@ -1,6 +1,9 @@
 import createElement from "./components/createElement.js";
 import isoDateFormat from "./lib/isoDateFormat.js";
 import { isImageUrl, createValidatedImage } from "./lib/imageValidation.js";
+import identityManager from "./lib/identityManager.js";
+import e2ee from "./lib/e2ee.js";
+import platform from "./platform/index.js";
 
 class ChatApp {
   constructor(props) {
@@ -89,16 +92,43 @@ class ChatBoxComponent {
             },
             {
               type: "keydown",
-              event: (e) => {
+              event: async (e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
                   const textarea = e.target;
                   const content = textarea.value.trim();
                   if (content) {
-                    this.socketConn.sendMessage(content);
-                    textarea.value = "";
-                    textarea.style.height = "auto";
-                    textarea.focus();
+                    try {
+                      const identity = await identityManager.getOrCreateIdentity();
+                      const recipients = (this.space?.users || [])
+                        .filter(
+                          (user) =>
+                            user?.public_key &&
+                            user?.enc_public_key
+                        )
+                        .map((user) => ({
+                          authPublicKey: user.public_key,
+                          encPublicKey: user.enc_public_key,
+                        }));
+
+                      const envelope = await e2ee.encryptMessageForSpace({
+                        plaintext: content,
+                        spaceUUID: this.space?.uuid,
+                        channelUUID: this.channelUUID,
+                        identity,
+                        recipients,
+                      });
+
+                      this.socketConn.sendMessage({ envelope });
+                      textarea.value = "";
+                      textarea.style.height = "auto";
+                      textarea.focus();
+                    } catch (err) {
+                      console.error(err);
+                      platform.alert(
+                        err?.message || "Failed to encrypt message"
+                      );
+                    }
                   }
                 }
               },

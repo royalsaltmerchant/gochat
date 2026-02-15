@@ -1,6 +1,7 @@
 {
   "name": "frontend",
   "version": "1.0.0",
+  "type": "module",
   "description": "",
   "main": "index.js",
   "dependencies": {},
@@ -11,7 +12,8 @@
     "dev": "vite",
     "dev:web": "vite",
     "build": "npm run build:web",
-    "build:web": "vite build"
+    "build:web": "vite build",
+    "test:e2ee": "node --test js/lib/e2ee.test.mjs"
   },
   "keywords": [],
   "author": "",

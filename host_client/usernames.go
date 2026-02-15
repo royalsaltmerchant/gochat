@@ -14,7 +14,7 @@ func handleUpdateUsername(conn *websocket.Conn, wsMsg *WSMessage) {
 		return
 	}
 
-	user, err := resolveHostUserIdentity(data.UserID, data.UserPublicKey, data.Username)
+	user, err := resolveHostUserIdentity(data.UserID, data.UserPublicKey, data.UserEncPublicKey, data.Username)
 	if err != nil {
 		sendToConn(conn, WSMessage{
 			Type: "error",
@@ -56,10 +56,11 @@ func handleUpdateUsername(conn *websocket.Conn, wsMsg *WSMessage) {
 	sendToConn(conn, WSMessage{
 		Type: "update_username_response",
 		Data: UpdateUsernameResponse{
-			UserID:        user.ID,
-			UserPublicKey: user.PublicKey,
-			Username:      newName,
-			ClientUUID:    data.ClientUUID,
+			UserID:           user.ID,
+			UserPublicKey:    user.PublicKey,
+			UserEncPublicKey: user.EncPublicKey,
+			Username:         newName,
+			ClientUUID:       data.ClientUUID,
 		},
 	})
 }

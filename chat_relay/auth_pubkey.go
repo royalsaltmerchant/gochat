@@ -19,8 +19,8 @@ func newAuthChallenge() string {
 	return base64.RawURLEncoding.EncodeToString(buf)
 }
 
-func authMessage(hostUUID, challenge string) string {
-	return fmt.Sprintf("parch-chat-auth:%s:%s", hostUUID, challenge)
+func authMessage(hostUUID, challenge, encPublicKey string) string {
+	return fmt.Sprintf("parch-chat-auth:%s:%s:%s", hostUUID, challenge, encPublicKey)
 }
 
 func normalizeUsername(username string, publicKey string) string {
@@ -59,6 +59,10 @@ func handleAuthPubKey(client *Client, conn *websocket.Conn, wsMsg *WSMessage) {
 		safeSend(client, conn, WSMessage{Type: "authentication-error", Data: ChatError{Content: "Missing public key or signature"}})
 		return
 	}
+	if strings.TrimSpace(data.EncPublicKey) == "" {
+		safeSend(client, conn, WSMessage{Type: "authentication-error", Data: ChatError{Content: "Missing encryption public key"}})
+		return
+	}
 
 	if data.Challenge == "" || client.AuthChallenge == "" || data.Challenge != client.AuthChallenge {
 		safeSend(client, conn, WSMessage{Type: "authentication-error", Data: ChatError{Content: "Invalid auth challenge"}})
@@ -77,7 +81,7 @@ func handleAuthPubKey(client *Client, conn *websocket.Conn, wsMsg *WSMessage) {
 		return
 	}
 
-	message := authMessage(client.HostUUID, data.Challenge)
+	message := authMessage(client.HostUUID, data.Challenge, data.EncPublicKey)
 	if !ed25519.Verify(ed25519.PublicKey(publicKeyBytes), []byte(message), signatureBytes) {
 		safeSend(client, conn, WSMessage{Type: "authentication-error", Data: ChatError{Content: "Invalid signature"}})
 		return
@@ -96,6 +100,7 @@ func handleAuthPubKey(client *Client, conn *websocket.Conn, wsMsg *WSMessage) {
 	client.UserID = userID
 	client.Username = username
 	client.PublicKey = data.PublicKey
+	client.EncPublicKey = data.EncPublicKey
 	if userID > 0 {
 		host.ClientsByUserID[userID] = client
 	}
@@ -111,9 +116,10 @@ func handleAuthPubKey(client *Client, conn *websocket.Conn, wsMsg *WSMessage) {
 	safeSend(client, conn, WSMessage{
 		Type: "auth_pubkey_success",
 		Data: AuthPubKeySuccess{
-			UserID:    userID,
-			Username:  username,
-			PublicKey: data.PublicKey,
+			UserID:       userID,
+			Username:     username,
+			PublicKey:    data.PublicKey,
+			EncPublicKey: data.EncPublicKey,
 		},
 	})
 }
@@ -130,10 +136,11 @@ func handleUpdateUsername(client *Client, conn *websocket.Conn, wsMsg *WSMessage
 	SendToAuthor(client, WSMessage{
 		Type: "update_username_request",
 		Data: UpdateUsernameRequest{
-			UserID:        data.UserID,
-			UserPublicKey: firstNonEmpty(data.UserPublicKey, client.PublicKey),
-			Username:      newName,
-			ClientUUID:    client.ClientUUID,
+			UserID:           data.UserID,
+			UserPublicKey:    firstNonEmpty(data.UserPublicKey, client.PublicKey),
+			UserEncPublicKey: firstNonEmpty(data.UserEncPublicKey, client.EncPublicKey),
+			Username:         newName,
+			ClientUUID:       client.ClientUUID,
 		},
 	})
 }
@@ -160,6 +167,7 @@ func handleUpdateUsernameRes(client *Client, conn *websocket.Conn, wsMsg *WSMess
 				}
 				joinClient.UserID = data.UserID
 				joinClient.PublicKey = firstNonEmpty(data.UserPublicKey, joinClient.PublicKey)
+				joinClient.EncPublicKey = firstNonEmpty(data.UserEncPublicKey, joinClient.EncPublicKey)
 				joinClient.Username = data.Username
 				if joinClient.UserID > 0 {
 					host.ClientsByUserID[joinClient.UserID] = joinClient
@@ -175,9 +183,10 @@ func handleUpdateUsernameRes(client *Client, conn *websocket.Conn, wsMsg *WSMess
 	SendToClient(client.HostUUID, data.ClientUUID, WSMessage{
 		Type: "update_username_success",
 		Data: UpdateUsernameSuccess{
-			UserID:        data.UserID,
-			UserPublicKey: data.UserPublicKey,
-			Username:      data.Username,
+			UserID:           data.UserID,
+			UserPublicKey:    data.UserPublicKey,
+			UserEncPublicKey: data.UserEncPublicKey,
+			Username:         data.Username,
 		},
 	})
 }

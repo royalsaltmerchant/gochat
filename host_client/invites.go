@@ -16,7 +16,7 @@ func handleAcceptInvite(conn *websocket.Conn, wsMsg *WSMessage) {
 		return
 	}
 
-	user, err := resolveHostUserIdentityStrict(data.UserID, data.UserPublicKey)
+	user, err := resolveHostUserIdentityStrict(data.UserID, data.UserPublicKey, data.UserEncPublicKey)
 	if err != nil {
 		sendToConn(conn, WSMessage{
 			Type: "error",
@@ -97,7 +97,7 @@ func handleDeclineInvite(conn *websocket.Conn, wsMsg *WSMessage) {
 		return
 	}
 
-	user, err := resolveHostUserIdentityStrict(data.UserID, data.UserPublicKey)
+	user, err := resolveHostUserIdentityStrict(data.UserID, data.UserPublicKey, data.UserEncPublicKey)
 	if err != nil {
 		sendToConn(conn, WSMessage{
 			Type: "error",

@@ -41,6 +41,7 @@ type Client struct {
 	HostUUID        string
 	ClientUUID      string
 	PublicKey       string
+	EncPublicKey    string
 	AuthChallenge   string
 	IP              string
 	IsAuthenticated bool
@@ -83,13 +84,12 @@ type JoinUUID struct {
 }
 
 type ChatData struct {
-	Content string `json:"content"`
+	Envelope map[string]interface{} `json:"envelope"`
 }
 
 type ChatPayload struct {
-	Username  string    `json:"username"`
-	Content   string    `json:"content"`
-	Timestamp time.Time `json:"timestamp"`
+	Envelope  map[string]interface{} `json:"envelope"`
+	Timestamp time.Time              `json:"timestamp"`
 }
 
 type ChatError struct {
@@ -98,35 +98,40 @@ type ChatError struct {
 }
 
 type UpdateUsernameClient struct {
-	UserID        int    `json:"user_id"`
-	UserPublicKey string `json:"user_public_key,omitempty"`
-	Username      string `json:"username"`
+	UserID           int    `json:"user_id"`
+	UserPublicKey    string `json:"user_public_key,omitempty"`
+	UserEncPublicKey string `json:"user_enc_public_key,omitempty"`
+	Username         string `json:"username"`
 }
 
 type UpdateUsernameRequest struct {
-	UserID        int    `json:"user_id"`
-	UserPublicKey string `json:"user_public_key,omitempty"`
-	Username      string `json:"username"`
-	ClientUUID    string `json:"client_uuid"`
+	UserID           int    `json:"user_id"`
+	UserPublicKey    string `json:"user_public_key,omitempty"`
+	UserEncPublicKey string `json:"user_enc_public_key,omitempty"`
+	Username         string `json:"username"`
+	ClientUUID       string `json:"client_uuid"`
 }
 
 type UpdateUsernameResponse struct {
-	UserID        int    `json:"user_id"`
-	UserPublicKey string `json:"user_public_key,omitempty"`
-	Username      string `json:"username"`
-	ClientUUID    string `json:"client_uuid"`
+	UserID           int    `json:"user_id"`
+	UserPublicKey    string `json:"user_public_key,omitempty"`
+	UserEncPublicKey string `json:"user_enc_public_key,omitempty"`
+	Username         string `json:"username"`
+	ClientUUID       string `json:"client_uuid"`
 }
 
 type UpdateUsernameSuccess struct {
-	UserID        int    `json:"user_id"`
-	UserPublicKey string `json:"user_public_key,omitempty"`
-	Username      string `json:"username"`
+	UserID           int    `json:"user_id"`
+	UserPublicKey    string `json:"user_public_key,omitempty"`
+	UserEncPublicKey string `json:"user_enc_public_key,omitempty"`
+	Username         string `json:"username"`
 }
 
 type DashDataUser struct {
-	ID        int    `json:"id"`
-	Username  string `json:"username"`
-	PublicKey string `json:"public_key,omitempty"`
+	ID           int    `json:"id"`
+	Username     string `json:"username"`
+	PublicKey    string `json:"public_key,omitempty"`
+	EncPublicKey string `json:"enc_public_key,omitempty"`
 }
 
 type DashDataChannel struct {
@@ -156,10 +161,11 @@ type DashDataInvite struct {
 }
 
 type GetDashDataRequest struct {
-	UserID        int    `json:"user_id"`
-	UserPublicKey string `json:"user_public_key,omitempty"`
-	Username      string `json:"username"`
-	ClientUUID    string `json:"client_uuid"`
+	UserID           int    `json:"user_id"`
+	UserPublicKey    string `json:"user_public_key,omitempty"`
+	UserEncPublicKey string `json:"user_enc_public_key,omitempty"`
+	Username         string `json:"username"`
+	ClientUUID       string `json:"client_uuid"`
 }
 
 type GetDashDataResponse struct {
@@ -180,11 +186,12 @@ type CreateSpaceClient struct {
 }
 
 type CreateSpaceRequest struct {
-	Name          string `json:"name"`
-	UserID        int    `json:"user_id"`
-	UserPublicKey string `json:"user_public_key,omitempty"`
-	Username      string `json:"username,omitempty"`
-	ClientUUID    string `json:"client_uuid"`
+	Name             string `json:"name"`
+	UserID           int    `json:"user_id"`
+	UserPublicKey    string `json:"user_public_key,omitempty"`
+	UserEncPublicKey string `json:"user_enc_public_key,omitempty"`
+	Username         string `json:"username,omitempty"`
+	ClientUUID       string `json:"client_uuid"`
 }
 
 type CreateSpaceResponse struct {
@@ -282,16 +289,18 @@ type InviteUserUpdate struct {
 }
 
 type AcceptInviteClient struct {
-	SpaceUserID   int    `json:"space_user_id"`
-	UserID        int    `json:"user_id"`
-	UserPublicKey string `json:"user_public_key,omitempty"`
+	SpaceUserID      int    `json:"space_user_id"`
+	UserID           int    `json:"user_id"`
+	UserPublicKey    string `json:"user_public_key,omitempty"`
+	UserEncPublicKey string `json:"user_enc_public_key,omitempty"`
 }
 
 type AcceptInviteRequest struct {
-	SpaceUserID   int    `json:"space_user_id"`
-	UserID        int    `json:"user_id"`
-	UserPublicKey string `json:"user_public_key,omitempty"`
-	ClientUUID    string `json:"client_uuid"`
+	SpaceUserID      int    `json:"space_user_id"`
+	UserID           int    `json:"user_id"`
+	UserPublicKey    string `json:"user_public_key,omitempty"`
+	UserEncPublicKey string `json:"user_enc_public_key,omitempty"`
+	ClientUUID       string `json:"client_uuid"`
 }
 
 type AcceptInviteResponse struct {
@@ -313,16 +322,18 @@ type AcceptInviteUpdate struct {
 }
 
 type DeclineInviteClient struct {
-	SpaceUserID   int    `json:"space_user_id"`
-	UserID        int    `json:"user_id"`
-	UserPublicKey string `json:"user_public_key,omitempty"`
+	SpaceUserID      int    `json:"space_user_id"`
+	UserID           int    `json:"user_id"`
+	UserPublicKey    string `json:"user_public_key,omitempty"`
+	UserEncPublicKey string `json:"user_enc_public_key,omitempty"`
 }
 
 type DeclineInviteRequest struct {
-	SpaceUserID   int    `json:"space_user_id"`
-	UserID        int    `json:"user_id"`
-	UserPublicKey string `json:"user_public_key,omitempty"`
-	ClientUUID    string `json:"client_uuid"`
+	SpaceUserID      int    `json:"space_user_id"`
+	UserID           int    `json:"user_id"`
+	UserPublicKey    string `json:"user_public_key,omitempty"`
+	UserEncPublicKey string `json:"user_enc_public_key,omitempty"`
+	ClientUUID       string `json:"client_uuid"`
 }
 
 type DeclineInviteResponse struct {
@@ -339,16 +350,18 @@ type DeclineInviteSuccess struct {
 }
 
 type LeaveSpaceClient struct {
-	SpaceUUID     string `json:"space_uuid"`
-	UserID        int    `json:"user_id"`
-	UserPublicKey string `json:"user_public_key,omitempty"`
+	SpaceUUID        string `json:"space_uuid"`
+	UserID           int    `json:"user_id"`
+	UserPublicKey    string `json:"user_public_key,omitempty"`
+	UserEncPublicKey string `json:"user_enc_public_key,omitempty"`
 }
 
 type LeaveSpaceRequest struct {
-	SpaceUUID     string `json:"space_uuid"`
-	UserID        int    `json:"user_id"`
-	UserPublicKey string `json:"user_public_key,omitempty"`
-	ClientUUID    string `json:"client_uuid"`
+	SpaceUUID        string `json:"space_uuid"`
+	UserID           int    `json:"user_id"`
+	UserPublicKey    string `json:"user_public_key,omitempty"`
+	UserEncPublicKey string `json:"user_enc_public_key,omitempty"`
+	ClientUUID       string `json:"client_uuid"`
 }
 
 type LeaveSpaceResponse struct {
@@ -369,16 +382,18 @@ type JoinAllSpacesClient struct {
 }
 
 type RemoveSpaceUserClient struct {
-	SpaceUUID     string `json:"space_uuid"`
-	UserID        int    `json:"user_id"`
-	UserPublicKey string `json:"user_public_key,omitempty"`
+	SpaceUUID        string `json:"space_uuid"`
+	UserID           int    `json:"user_id"`
+	UserPublicKey    string `json:"user_public_key,omitempty"`
+	UserEncPublicKey string `json:"user_enc_public_key,omitempty"`
 }
 
 type RemoveSpaceUserRequest struct {
-	SpaceUUID     string `json:"space_uuid"`
-	UserID        int    `json:"user_id"`
-	UserPublicKey string `json:"user_public_key,omitempty"`
-	ClientUUID    string `json:"client_uuid"`
+	SpaceUUID        string `json:"space_uuid"`
+	UserID           int    `json:"user_id"`
+	UserPublicKey    string `json:"user_public_key,omitempty"`
+	UserEncPublicKey string `json:"user_enc_public_key,omitempty"`
+	ClientUUID       string `json:"client_uuid"`
 }
 
 type RemoveSpaceUserResponse struct {
@@ -395,11 +410,12 @@ type RemoveSpaceUserUpdate struct {
 }
 
 type SaveChatMessageRequest struct {
-	UserID        int    `json:"user_id"`
-	UserPublicKey string `json:"user_public_key,omitempty"`
-	Username      string `json:"username,omitempty"`
-	ChannelUUID   string `json:"channel_uuid"`
-	Content       string `json:"content"`
+	UserID           int                    `json:"user_id"`
+	UserPublicKey    string                 `json:"user_public_key,omitempty"`
+	UserEncPublicKey string                 `json:"user_enc_public_key,omitempty"`
+	Username         string                 `json:"username,omitempty"`
+	ChannelUUID      string                 `json:"channel_uuid"`
+	Envelope         map[string]interface{} `json:"envelope"`
 }
 
 type GetMessagesClient struct {
@@ -413,13 +429,14 @@ type GetMessagesRequest struct {
 }
 
 type GetMessagesMessage struct {
-	ID            int    `json:"id"`
-	ChannelUUID   string `json:"channel_uuid"`
-	Username      string `json:"username"`
-	Content       string `json:"content"`
-	UserID        int    `json:"user_id"`
-	UserPublicKey string `json:"user_public_key,omitempty"`
-	Timestamp     string `json:"timestamp"`
+	ID               int                    `json:"id"`
+	ChannelUUID      string                 `json:"channel_uuid"`
+	Username         string                 `json:"username"`
+	Envelope         map[string]interface{} `json:"envelope"`
+	UserID           int                    `json:"user_id"`
+	UserPublicKey    string                 `json:"user_public_key,omitempty"`
+	UserEncPublicKey string                 `json:"user_enc_public_key,omitempty"`
+	Timestamp        string                 `json:"timestamp"`
 }
 
 type GetMessagesResponse struct {
@@ -448,10 +465,11 @@ type UUIDListRequest struct {
 }
 
 type AuthPubKeyClient struct {
-	PublicKey string `json:"public_key"`
-	Username  string `json:"username"`
-	Challenge string `json:"challenge"`
-	Signature string `json:"signature"`
+	PublicKey    string `json:"public_key"`
+	EncPublicKey string `json:"enc_public_key"`
+	Username     string `json:"username"`
+	Challenge    string `json:"challenge"`
+	Signature    string `json:"signature"`
 }
 
 type AuthChallenge struct {
@@ -459,7 +477,8 @@ type AuthChallenge struct {
 }
 
 type AuthPubKeySuccess struct {
-	UserID    int    `json:"user_id"`
-	Username  string `json:"username"`
-	PublicKey string `json:"public_key"`
+	UserID       int    `json:"user_id"`
+	Username     string `json:"username"`
+	PublicKey    string `json:"public_key"`
+	EncPublicKey string `json:"enc_public_key"`
 }
