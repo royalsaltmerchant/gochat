@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"gochat/db"
 	"log"
 )
@@ -47,25 +46,20 @@ func AppendspaceChannelsAndUsers(space *DashDataSpace) {
 	// Build user ID slice
 	var userIDs []int
 	for id := range userIDSet {
+		if id <= 0 {
+			continue
+		}
 		userIDs = append(userIDs, id)
 	}
 
-	// Batch request to /api/users_by_ids
-	payload := map[string][]int{"user_ids": userIDs}
-	resp, err := PostJSON(relayBaseURL.String()+"/api/users_by_ids", payload, nil)
-	if err != nil {
-		log.Println("Error fetching users:", err)
+	if len(userIDs) == 0 {
+		space.Users = []DashDataUser{}
 		return
 	}
-	defer resp.Body.Close()
 
-	if resp.StatusCode == 400 {
-		log.Println("Failed to find users by IDs")
-	}
-
-	var users []DashDataUser
-	if err := json.NewDecoder(resp.Body).Decode(&users); err != nil {
-		log.Println("Error decoding users_by_ids response:", err)
+	users, err := lookupHostUsersByIDs(userIDs)
+	if err != nil {
+		log.Println("Error fetching users from host DB:", err)
 		return
 	}
 

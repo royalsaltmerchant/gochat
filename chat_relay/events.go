@@ -27,6 +27,7 @@ func registerOrCreateHost(hostUUID, potentialAuthorID string, conn *websocket.Co
 			ClientsByConn:        make(map[*websocket.Conn]*Client),
 			ClientConnsByUUID:    make(map[string]*websocket.Conn),
 			ClientsByUserID:      make(map[int]*Client),
+			ClientsByPublicKey:   make(map[string]*Client),
 			ConnByAuthorID:       make(map[string]*websocket.Conn),
 			Channels:             make(map[string]*Channel),
 			ChannelToSpace:       make(map[string]string),
@@ -57,6 +58,9 @@ func registerClient(host *Host, conn *websocket.Conn, clientIP string) *Client {
 		}
 		delete(host.ClientConnsByUUID, oldClient.ClientUUID)
 		delete(host.ClientsByUserID, oldClient.UserID)
+		if oldClient.PublicKey != "" {
+			delete(host.ClientsByPublicKey, oldClient.PublicKey)
+		}
 		delete(host.ClientsByConn, conn)
 		close(oldClient.SendQueue)
 		close(oldClient.Done)
@@ -92,6 +96,29 @@ func registerClient(host *Host, conn *websocket.Conn, clientIP string) *Client {
 	return client
 }
 
+func findHostClientByIdentity(host *Host, userID int, userPublicKey string) (*Client, bool) {
+	if userPublicKey != "" {
+		if c, ok := host.ClientsByPublicKey[userPublicKey]; ok {
+			return c, true
+		}
+	}
+	if userID > 0 {
+		if c, ok := host.ClientsByUserID[userID]; ok {
+			return c, true
+		}
+	}
+	return nil, false
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if value != "" {
+			return value
+		}
+	}
+	return ""
+}
+
 func handleGetDashData(client *Client, conn *websocket.Conn) {
 	host, exists := GetHost(client.HostUUID)
 	if !exists {
@@ -111,9 +138,10 @@ func handleGetDashData(client *Client, conn *websocket.Conn) {
 	SendToAuthor(client, WSMessage{ // Regular client assuming host is already logged in
 		Type: "get_dash_data_request",
 		Data: GetDashDataRequest{
-			UserID:     userID,
-			Username:   username,
-			ClientUUID: client.ClientUUID,
+			UserID:        userID,
+			UserPublicKey: client.PublicKey,
+			Username:      username,
+			ClientUUID:    client.ClientUUID,
 		},
 	})
 }
@@ -127,6 +155,27 @@ func handleGetDashDatRes(client *Client, conn *websocket.Conn, wsMsg *WSMessage)
 
 	if host, exists := GetHost(client.HostUUID); exists {
 		host.mu.Lock()
+		joinConn, ok := host.ClientConnsByUUID[data.ClientUUID]
+		if ok {
+			joinClient := host.ClientsByConn[joinConn]
+			if joinClient != nil {
+				if joinClient.UserID > 0 {
+					delete(host.ClientsByUserID, joinClient.UserID)
+				}
+				if joinClient.PublicKey != "" {
+					delete(host.ClientsByPublicKey, joinClient.PublicKey)
+				}
+				joinClient.UserID = data.User.ID
+				joinClient.PublicKey = firstNonEmpty(data.User.PublicKey, joinClient.PublicKey)
+				joinClient.Username = data.User.Username
+				if joinClient.UserID > 0 {
+					host.ClientsByUserID[joinClient.UserID] = joinClient
+				}
+				if joinClient.PublicKey != "" {
+					host.ClientsByPublicKey[joinClient.PublicKey] = joinClient
+				}
+			}
+		}
 		for _, space := range data.Spaces {
 			for _, channel := range space.Channels {
 				host.ChannelToSpace[channel.UUID] = space.UUID
@@ -155,9 +204,11 @@ func handleCreateSpace(client *Client, conn *websocket.Conn, wsMsg *WSMessage) {
 	SendToAuthor(client, WSMessage{
 		Type: "create_space_request",
 		Data: CreateSpaceRequest{
-			Name:       data.Name,
-			UserID:     client.UserID,
-			ClientUUID: client.ClientUUID,
+			Name:          data.Name,
+			UserID:        client.UserID,
+			UserPublicKey: client.PublicKey,
+			Username:      client.Username,
+			ClientUUID:    client.ClientUUID,
 		},
 	})
 }
@@ -364,7 +415,7 @@ func handleInviteUserRes(client *Client, conn *websocket.Conn, wsMsg *WSMessage)
 	}
 
 	host.mu.Lock()
-	inviteeClient, ok := host.ClientsByUserID[data.UserID]
+	inviteeClient, ok := findHostClientByIdentity(host, data.UserID, data.UserPublicKey)
 	if !ok {
 		host.mu.Unlock()
 		log.Println("SendToClient: invitee not connected to host")
@@ -390,9 +441,10 @@ func handleAcceptInvite(client *Client, conn *websocket.Conn, wsMsg *WSMessage) 
 	SendToAuthor(client, WSMessage{
 		Type: "accept_invite_request",
 		Data: AcceptInviteRequest{
-			SpaceUserID: data.SpaceUserID,
-			UserID:      data.UserID,
-			ClientUUID:  client.ClientUUID,
+			SpaceUserID:   data.SpaceUserID,
+			UserID:        data.UserID,
+			UserPublicKey: firstNonEmpty(data.UserPublicKey, client.PublicKey),
+			ClientUUID:    client.ClientUUID,
 		},
 	})
 }
@@ -451,9 +503,10 @@ func handleDeclineInvite(client *Client, conn *websocket.Conn, wsMsg *WSMessage)
 	SendToAuthor(client, WSMessage{
 		Type: "decline_invite_request",
 		Data: DeclineInviteRequest{
-			SpaceUserID: data.SpaceUserID,
-			UserID:      data.UserID,
-			ClientUUID:  client.ClientUUID,
+			SpaceUserID:   data.SpaceUserID,
+			UserID:        data.UserID,
+			UserPublicKey: firstNonEmpty(data.UserPublicKey, client.PublicKey),
+			ClientUUID:    client.ClientUUID,
 		},
 	})
 }
@@ -467,8 +520,9 @@ func handleDeclineInviteRes(client *Client, conn *websocket.Conn, wsMsg *WSMessa
 	SendToClient(client.HostUUID, data.ClientUUID, WSMessage{
 		Type: "decline_invite_success",
 		Data: DeclineInviteSuccess{
-			SpaceUserID: data.SpaceUserID,
-			UserID:      data.UserID,
+			SpaceUserID:   data.SpaceUserID,
+			UserID:        data.UserID,
+			UserPublicKey: data.UserPublicKey,
 		},
 	})
 }
@@ -482,9 +536,10 @@ func handleLeaveSpace(client *Client, conn *websocket.Conn, wsMsg *WSMessage) {
 	SendToAuthor(client, WSMessage{
 		Type: "leave_space_request",
 		Data: LeaveSpaceRequest{
-			SpaceUUID:  data.SpaceUUID,
-			UserID:     data.UserID,
-			ClientUUID: client.ClientUUID,
+			SpaceUUID:     data.SpaceUUID,
+			UserID:        data.UserID,
+			UserPublicKey: firstNonEmpty(data.UserPublicKey, client.PublicKey),
+			ClientUUID:    client.ClientUUID,
 		},
 	})
 }
@@ -504,8 +559,9 @@ func handleLeaveSpaceRes(client *Client, conn *websocket.Conn, wsMsg *WSMessage)
 	BroadcastToSpace(client.HostUUID, data.SpaceUUID, WSMessage{
 		Type: "leave_space_update",
 		Data: LeaveSpaceUpdate{
-			SpaceUUID: data.SpaceUUID,
-			UserID:    data.UserID,
+			SpaceUUID:     data.SpaceUUID,
+			UserID:        data.UserID,
+			UserPublicKey: data.UserPublicKey,
 		},
 	})
 
@@ -624,9 +680,10 @@ func handleRemoveSpaceUser(client *Client, conn *websocket.Conn, wsMsg *WSMessag
 	SendToAuthor(client, WSMessage{
 		Type: "remove_space_user_request",
 		Data: RemoveSpaceUserRequest{
-			SpaceUUID:  data.SpaceUUID,
-			UserID:     data.UserID,
-			ClientUUID: client.ClientUUID,
+			SpaceUUID:     data.SpaceUUID,
+			UserID:        data.UserID,
+			UserPublicKey: data.UserPublicKey,
+			ClientUUID:    client.ClientUUID,
 		},
 	})
 }
@@ -642,8 +699,9 @@ func handleRemoveSpaceUserRes(client *Client, conn *websocket.Conn, wsMsg *WSMes
 	BroadcastToSpace(client.HostUUID, data.SpaceUUID, WSMessage{
 		Type: "leave_space_update",
 		Data: RemoveSpaceUserUpdate{
-			SpaceUUID: data.SpaceUUID,
-			UserID:    data.UserID,
+			SpaceUUID:     data.SpaceUUID,
+			UserID:        data.UserID,
+			UserPublicKey: data.UserPublicKey,
 		},
 	})
 
@@ -658,7 +716,7 @@ func handleRemoveSpaceUserRes(client *Client, conn *websocket.Conn, wsMsg *WSMes
 	}
 
 	host.mu.Lock()
-	removeClient, ok := host.ClientsByUserID[data.UserID]
+	removeClient, ok := findHostClientByIdentity(host, data.UserID, data.UserPublicKey)
 	host.mu.Unlock()
 
 	if ok {
@@ -717,9 +775,11 @@ func handleChatMessage(client *Client, conn *websocket.Conn, wsMsg *WSMessage) {
 	SendToAuthor(client, WSMessage{
 		Type: "save_chat_message_request",
 		Data: SaveChatMessageRequest{
-			UserID:      client.UserID,
-			ChannelUUID: channelUUID,
-			Content:     data.Content,
+			UserID:        client.UserID,
+			UserPublicKey: client.PublicKey,
+			Username:      client.Username,
+			ChannelUUID:   channelUUID,
+			Content:       data.Content,
 		},
 	})
 }

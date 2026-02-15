@@ -40,11 +40,12 @@ type Host struct {
 }
 
 type SpaceUser struct {
-	ID        int
-	SpaceUUID string
-	UserID    int
-	Joined    int
-	Name      string
+	ID            int
+	SpaceUUID     string
+	UserID        int
+	UserPublicKey string
+	Joined        int
+	Name          string
 }
 
 type WSMessage struct {
@@ -63,21 +64,24 @@ type JoinHostPayload struct {
 }
 
 type UpdateUsernameRequest struct {
-	UserID     int    `json:"user_id"`
-	Username   string `json:"username"`
-	ClientUUID string `json:"client_uuid"`
+	UserID        int    `json:"user_id"`
+	UserPublicKey string `json:"user_public_key,omitempty"`
+	Username      string `json:"username"`
+	ClientUUID    string `json:"client_uuid"`
 }
 
 type UpdateUsernameResponse struct {
-	UserID     int    `json:"user_id"`
-	Username   string `json:"username"`
-	ClientUUID string `json:"client_uuid"`
+	UserID        int    `json:"user_id"`
+	UserPublicKey string `json:"user_public_key,omitempty"`
+	Username      string `json:"username"`
+	ClientUUID    string `json:"client_uuid"`
 }
 
 type GetDashDataRequest struct {
-	UserID     int    `json:"user_id"`
-	Username   string `json:"username"`
-	ClientUUID string `json:"client_uuid"`
+	UserID        int    `json:"user_id"`
+	UserPublicKey string `json:"user_public_key,omitempty"`
+	Username      string `json:"username"`
+	ClientUUID    string `json:"client_uuid"`
 }
 
 type DashDataUser struct {
@@ -95,11 +99,12 @@ type DashDataChannel struct {
 }
 
 type DashDataInvite struct {
-	ID        int    `json:"id"`
-	SpaceUUID string `json:"space_uuid"`
-	UserID    int    `json:"user_id"`
-	Joined    int    `json:"joined"`
-	Name      string `json:"name"`
+	ID            int    `json:"id"`
+	SpaceUUID     string `json:"space_uuid"`
+	UserID        int    `json:"user_id"`
+	UserPublicKey string `json:"user_public_key,omitempty"`
+	Joined        int    `json:"joined"`
+	Name          string `json:"name"`
 }
 
 type DashDataSpace struct {
@@ -119,9 +124,11 @@ type GetDashDataResponse struct {
 }
 
 type CreateSpaceRequest struct {
-	Name       string `json:"name"`
-	UserID     int    `json:"user_id"`
-	ClientUUID string `json:"client_uuid"`
+	Name          string `json:"name"`
+	UserID        int    `json:"user_id"`
+	UserPublicKey string `json:"user_public_key,omitempty"`
+	Username      string `json:"username,omitempty"`
+	ClientUUID    string `json:"client_uuid"`
 }
 
 type CreateSpaceResponse struct {
@@ -165,17 +172,19 @@ type InviteUserRequest struct {
 }
 
 type InviteUserResponse struct {
-	PublicKey  string         `json:"public_key"`
-	UserID     int            `json:"user_id"`
-	SpaceUUID  string         `json:"space_uuid"`
-	Invite     DashDataInvite `json:"invite"`
-	ClientUUID string         `json:"client_uuid"`
+	PublicKey     string         `json:"public_key"`
+	UserID        int            `json:"user_id"`
+	UserPublicKey string         `json:"user_public_key,omitempty"`
+	SpaceUUID     string         `json:"space_uuid"`
+	Invite        DashDataInvite `json:"invite"`
+	ClientUUID    string         `json:"client_uuid"`
 }
 
 type AcceptInviteRequest struct {
-	SpaceUserID int    `json:"space_user_id"`
-	UserID      int    `json:"user_id"`
-	ClientUUID  string `json:"client_uuid"`
+	SpaceUserID   int    `json:"space_user_id"`
+	UserID        int    `json:"user_id"`
+	UserPublicKey string `json:"user_public_key,omitempty"`
+	ClientUUID    string `json:"client_uuid"`
 }
 
 type AcceptInviteResponse struct {
@@ -186,33 +195,39 @@ type AcceptInviteResponse struct {
 }
 
 type DeclineInviteRequest struct {
-	SpaceUserID int    `json:"space_user_id"`
-	UserID      int    `json:"user_id"`
-	ClientUUID  string `json:"client_uuid"`
+	SpaceUserID   int    `json:"space_user_id"`
+	UserID        int    `json:"user_id"`
+	UserPublicKey string `json:"user_public_key,omitempty"`
+	ClientUUID    string `json:"client_uuid"`
 }
 
 type LeaveSpaceRequest struct {
-	SpaceUUID  string `json:"space_uuid"`
-	UserID     int    `json:"user_id"`
-	ClientUUID string `json:"client_uuid"`
+	SpaceUUID     string `json:"space_uuid"`
+	UserID        int    `json:"user_id"`
+	UserPublicKey string `json:"user_public_key,omitempty"`
+	ClientUUID    string `json:"client_uuid"`
 }
 
 type LeaveSpaceResponse struct {
-	SpaceUUID  string `json:"space_uuid"`
-	UserID     int    `json:"user_id"`
-	ClientUUID string `json:"client_uuid"`
+	SpaceUUID     string `json:"space_uuid"`
+	UserID        int    `json:"user_id"`
+	UserPublicKey string `json:"user_public_key,omitempty"`
+	ClientUUID    string `json:"client_uuid"`
 }
 
 type RemoveSpaceUserRequest struct {
-	SpaceUUID  string `json:"space_uuid"`
-	UserID     int    `json:"user_id"`
-	ClientUUID string `json:"client_uuid"`
+	SpaceUUID     string `json:"space_uuid"`
+	UserID        int    `json:"user_id"`
+	UserPublicKey string `json:"user_public_key,omitempty"`
+	ClientUUID    string `json:"client_uuid"`
 }
 
 type SaveChatMessageRequest struct {
-	UserID      int    `json:"user_id"`
-	ChannelUUID string `json:"channel_uuid"`
-	Content     string `json:"content"`
+	UserID        int    `json:"user_id"`
+	UserPublicKey string `json:"user_public_key,omitempty"`
+	Username      string `json:"username,omitempty"`
+	ChannelUUID   string `json:"channel_uuid"`
+	Content       string `json:"content"`
 }
 
 type GetMessagesRequest struct {
@@ -222,12 +237,13 @@ type GetMessagesRequest struct {
 }
 
 type GetMessagesMessage struct {
-	ID          int    `json:"id"`
-	ChannelUUID string `json:"channel_uuid"`
-	Username    string `json:"username"`
-	Content     string `json:"content"`
-	UserID      int    `json:"user_id"`
-	Timestamp   string `json:"timestamp"`
+	ID            int    `json:"id"`
+	ChannelUUID   string `json:"channel_uuid"`
+	Username      string `json:"username"`
+	Content       string `json:"content"`
+	UserID        int    `json:"user_id"`
+	UserPublicKey string `json:"user_public_key,omitempty"`
+	Timestamp     string `json:"timestamp"`
 }
 
 type GetMessagesResponse struct {

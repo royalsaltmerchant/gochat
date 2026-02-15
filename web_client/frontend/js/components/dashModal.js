@@ -156,6 +156,7 @@ export default class DashModal {
                   this.socketConn.leaveSpace({
                     space_uuid: space.uuid,
                     user_id: user.id,
+                    user_public_key: user.public_key || "",
                   });
                 }
               });
@@ -355,6 +356,7 @@ export default class DashModal {
                 createElement("div", { class: "input-container" }, [
                   createElement("label", { for: "username" }, "Username"),
                   createElement("input", {
+                    id: "username",
                     name: "username",
                     type: "text",
                     required: true,
@@ -373,6 +375,7 @@ export default class DashModal {
                 const formData = new FormData(e.target);
                 const jsonData = Object.fromEntries(formData.entries());
                 jsonData["user_id"] = user.id;
+                jsonData["user_public_key"] = user.public_key || "";
                 this.socketConn.updateUsername(jsonData);
               },
             }
@@ -448,6 +451,7 @@ export default class DashModal {
                           this.socketConn.acceptInvite({
                             space_user_id: invite.id,
                             user_id: user.id,
+                            user_public_key: user.public_key || "",
                           }),
                       }),
                       createElement(
@@ -460,6 +464,7 @@ export default class DashModal {
                             this.socketConn.declineInvite({
                               space_user_id: invite.id,
                               user_id: user.id,
+                              user_public_key: user.public_key || "",
                             }),
                         }
                       ),

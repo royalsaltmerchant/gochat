@@ -55,6 +55,7 @@ func prepareHostDatabase(dbPath string) error {
 
 func hasIncompatibleHostSchema(conn *sql.DB) (bool, string, error) {
 	requiredColumns := map[string][]string{
+		"chat_users":  {"id", "public_key", "username"},
 		"spaces":      {"id", "uuid", "name", "author_id"},
 		"channels":    {"id", "uuid", "name", "space_uuid", "allow_voice"},
 		"messages":    {"id", "channel_uuid", "content", "user_id", "timestamp"},
@@ -78,7 +79,34 @@ func hasIncompatibleHostSchema(conn *sql.DB) (bool, string, error) {
 		}
 	}
 
+	chatUsersExists, _, err := tableColumns(conn, "chat_users")
+	if err != nil {
+		return false, "", fmt.Errorf("failed checking table chat_users: %w", err)
+	}
+	if !chatUsersExists {
+		legacyTables := []string{"spaces", "space_users", "messages"}
+		for _, tableName := range legacyTables {
+			count, err := tableRowCount(conn, tableName)
+			if err != nil {
+				return false, "", fmt.Errorf("failed counting rows in %s: %w", tableName, err)
+			}
+			if count > 0 {
+				reason := "legacy identityless chat data detected; requires clean host DB"
+				return true, reason, nil
+			}
+		}
+	}
+
 	return false, "", nil
+}
+
+func tableRowCount(conn *sql.DB, tableName string) (int, error) {
+	var count int
+	err := conn.QueryRow(`SELECT COUNT(1) FROM ` + tableName).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
 }
 
 func tableColumns(conn *sql.DB, tableName string) (bool, map[string]bool, error) {

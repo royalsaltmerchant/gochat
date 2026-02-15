@@ -7,6 +7,13 @@ import (
 
 func ensureHostClientSchema() error {
 	statements := []string{
+		`CREATE TABLE IF NOT EXISTS chat_users (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			public_key TEXT NOT NULL UNIQUE,
+			username TEXT NOT NULL,
+			created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)`,
 		`CREATE TABLE IF NOT EXISTS spaces (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			uuid TEXT NOT NULL UNIQUE,
@@ -39,6 +46,7 @@ func ensureHostClientSchema() error {
 		`CREATE INDEX IF NOT EXISTS idx_channels_space_uuid ON channels(space_uuid)`,
 		`CREATE INDEX IF NOT EXISTS idx_messages_channel_time ON messages(channel_uuid, timestamp)`,
 		`CREATE INDEX IF NOT EXISTS idx_space_users_space_user ON space_users(space_uuid, user_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_chat_users_public_key ON chat_users(public_key)`,
 	}
 
 	for _, stmt := range statements {
@@ -49,6 +57,18 @@ func ensureHostClientSchema() error {
 
 	if err := ensureColumnExists("channels", "allow_voice", `ALTER TABLE channels ADD COLUMN allow_voice INTEGER DEFAULT 0`); err != nil {
 		return err
+	}
+	if err := ensureColumnExists("chat_users", "created_at", `ALTER TABLE chat_users ADD COLUMN created_at TEXT`); err != nil {
+		return err
+	}
+	if err := ensureColumnExists("chat_users", "updated_at", `ALTER TABLE chat_users ADD COLUMN updated_at TEXT`); err != nil {
+		return err
+	}
+	if _, err := db.ChatDB.Exec(`UPDATE chat_users SET created_at = COALESCE(created_at, CURRENT_TIMESTAMP)`); err != nil {
+		return fmt.Errorf("failed to backfill chat_users.created_at: %w", err)
+	}
+	if _, err := db.ChatDB.Exec(`UPDATE chat_users SET updated_at = COALESCE(updated_at, CURRENT_TIMESTAMP)`); err != nil {
+		return fmt.Errorf("failed to backfill chat_users.updated_at: %w", err)
 	}
 
 	if !isOfficialHostInstance() {

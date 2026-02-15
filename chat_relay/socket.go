@@ -98,6 +98,9 @@ func cleanupClient(client *Client) {
 	delete(host.ClientsByConn, client.Conn)
 	delete(host.ClientConnsByUUID, client.ClientUUID)
 	delete(host.ClientsByUserID, client.UserID)
+	if client.PublicKey != "" {
+		delete(host.ClientsByPublicKey, client.PublicKey)
+	}
 	host.mu.Unlock()
 
 	close(client.SendQueue)

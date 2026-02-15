@@ -179,6 +179,7 @@ class SpaceUserListComponent {
                 this.socketConn.removeSpaceUser({
                   space_uuid: currentSpace.uuid,
                   user_id: user.id,
+                  user_public_key: user.public_key || "",
                 });
               }
             });
