@@ -1,40 +1,40 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+OUT_DIR="$REPO_DIR/dist"
+BIN="$OUT_DIR/relay_server"
+REMOTE_DIR="/root/relay_dist"
+STAGE_DIR="$(mktemp -d)"
 source "$SCRIPT_DIR/_common.sh"
+trap 'rm -rf "$STAGE_DIR"' EXIT
 
-echo "Deploying relay server..."
-rsync -av --progress -e "ssh -i ~/.ssh/id_rsa" \
-    "$REPO_DIR/relay_server/auth.go" \
-    "$REPO_DIR/relay_server/config.go" \
-    "$REPO_DIR/relay_server/dispatch.go" \
-    "$REPO_DIR/relay_server/email.go" \
-    "$REPO_DIR/relay_server/events.go" \
-    "$REPO_DIR/relay_server/host.go" \
-    "$REPO_DIR/relay_server/main.go" \
-    "$REPO_DIR/relay_server/notifications.go" \
-    "$REPO_DIR/relay_server/sessions.go" \
-    "$REPO_DIR/relay_server/socket.go" \
-    "$REPO_DIR/relay_server/turn.go" \
-    "$REPO_DIR/relay_server/types.go" \
-    "$REPO_DIR/relay_server/user.go" \
-    "$REPO_DIR/relay_server/call_auth.go" \
-    "$REPO_DIR/relay_server/stripe.go" \
-    $SERVER:/root/relay_server
+mkdir -p "$OUT_DIR"
 
-rsync -av --progress -e "ssh -i ~/.ssh/id_rsa" \
-    "$REPO_DIR/relay_server/relay-migrations" \
-    "$REPO_DIR/relay_server/static" \
-    $SERVER:/root/relay_server
+echo "Building relay server locally (linux/amd64)..."
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o "$BIN" "$REPO_DIR/relay_server"
 
-rsync -av --progress -e "ssh -i ~/.ssh/id_rsa" \
-    "$REPO_DIR/go.mod" "$REPO_DIR/go.sum" \
-    $SERVER:/root/
+echo "Preparing deploy bundle..."
+cp "$BIN" "$STAGE_DIR/relay_server"
+cp -R "$REPO_DIR/relay_server/relay-migrations" "$STAGE_DIR/relay-migrations"
+cp -R "$REPO_DIR/relay_server/static" "$STAGE_DIR/static"
 
-echo "Building on server..."
-$SSH_CMD "cd /root/relay_server && go build -o relay_server ."
+echo "Ensuring remote directory exists..."
+$SSH_CMD "mkdir -p $REMOTE_DIR"
+
+echo "Syncing relay bundle and removing stale remote files (DB files preserved)..."
+rsync -av --progress --delete \
+    --filter='P .env' \
+    --filter='P *.db' \
+    --filter='P *.db-wal' \
+    --filter='P *.db-shm' \
+    --filter='P *.sqlite' \
+    --filter='P *.sqlite-wal' \
+    --filter='P *.sqlite-shm' \
+    -e "ssh -i ~/.ssh/id_rsa" \
+    "$STAGE_DIR"/ \
+    "$SERVER:$REMOTE_DIR/"
 
 echo "Restarting relay..."
 $SSH_CMD "systemctl restart relay_server && systemctl status relay_server --no-pager"

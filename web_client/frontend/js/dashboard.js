@@ -3,9 +3,6 @@ import DashModal from "./components/dashModal.js";
 import SidebarComponent from "./components/sidebar.js";
 import MainContentComponent from "./components/mainContent.js";
 import SocketConn from "./lib/socketConn.js";
-import voiceElemContainer from "./components/voiceElemContainer.js";
-import voiceManager from "./lib/voiceManager.js";
-import platform from "./platform/index.js";
 
 export default class DashboardApp {
   constructor(props) {
@@ -51,13 +48,9 @@ export default class DashboardApp {
       handleLeaveSpace: this.handleLeaveSpace,
       handleLeaveSpaceUpdate: this.handleLeaveSpaceUpdate,
       handleIncomingMessages: this.handleIncomingMessages,
-      handleAllowVoiceUpdate: this.handleAllowVoiceUpdate,
     });
 
-    // Set the socket conn on the voice manager
-    voiceManager.socketConn = this.socketConn;
-
-    // Render modal early for login/register
+    // Render modal container early for account/invite/settings dialogs
     this.dashModal = new DashModal(this, this.socketConn);
     this.domComponent.append(this.dashModal.domComponent);
   };
@@ -94,7 +87,6 @@ export default class DashboardApp {
 
   updateAccountUsername = (data, hostUUID) => {
     this.data.user.username = data.data.username;
-    platform.saveAuthToken(data.data.token);
     this.sidebar.userAccountComponent.render();
     this.openDashModal({ type: "account", data: { user: this.data.user } });
   };
@@ -157,9 +149,7 @@ export default class DashboardApp {
   };
 
   handleInviteUser = (data) => {
-    platform.alert(
-      `Successfully invited user by email: ${data.data.email}`
-    );
+    window.alert("Invite sent");
   };
 
   handleAddInvite = (data) => {
@@ -396,33 +386,12 @@ export default class DashboardApp {
     }
   };
 
-  handleAllowVoiceUpdate = (data) => {
-    const {
-      uuid: channelUUID,
-      space_uuid: spaceUUID,
-      allow: allow,
-    } = data.data;
-
-    const spaceToUpdate = this.data.spaces.find(
-      (space) => space.uuid === spaceUUID
-    );
-    if (!spaceToUpdate) return;
-
-    const channel = spaceToUpdate.channels.find(
-      (channel) => channel.uuid === channelUUID
-    );
-    if (!channel) return;
-
-    channel.allow_voice = allow;
-  };
-
   render() {
     this.domComponent.innerHTML = "";
 
     this.domComponent.append(
       this.sidebar.domComponent,
       this.mainContent.domComponent,
-      voiceElemContainer.domComponent,
       this.dashModal.domComponent
     );
   }

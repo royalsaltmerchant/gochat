@@ -13,7 +13,6 @@ echo "Building host_cli for Linux (amd64)..."
 cd "$SCRIPT_DIR"
 
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
-    -tags headless \
     -ldflags="-s -w" \
     -o "$OUTPUT_DIR/host_cli" \
     .

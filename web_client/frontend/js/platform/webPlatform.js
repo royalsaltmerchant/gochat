@@ -1,6 +1,5 @@
 import { relayBaseURL, officialHostUUID, officialHostName } from "../lib/config.js";
 
-const TOKEN_KEY = "parch.auth.token";
 const HOSTS_KEY = "parch.hosts";
 
 function readHosts() {
@@ -33,18 +32,6 @@ const webPlatform = {
 
   async openExternal(url) {
     window.open(url, "_blank", "noopener,noreferrer");
-  },
-
-  async saveAuthToken(token) {
-    localStorage.setItem(TOKEN_KEY, token);
-  },
-
-  async loadAuthToken() {
-    return localStorage.getItem(TOKEN_KEY) || "";
-  },
-
-  async removeAuthToken() {
-    localStorage.removeItem(TOKEN_KEY);
   },
 
   async getHosts() {

@@ -186,46 +186,48 @@ func handleGetDashData(conn *websocket.Conn, wsMsg *WSMessage) {
 		spaceInvites = append(spaceInvites, spaceInvite)
 	}
 
-	// Auto-invite to Parch Community if not already a member or invited
-	communitySpaceUUID := "parch-community"
-	alreadyInCommunity := false
-	for _, s := range userSpaces {
-		if s.UUID == communitySpaceUUID {
-			alreadyInCommunity = true
-			break
-		}
-	}
-	if !alreadyInCommunity {
-		for _, inv := range spaceInvites {
-			if inv.SpaceUUID == communitySpaceUUID {
-				alreadyInCommunity = true
+	// Official host auto-invite: every authenticated user gets a pending invite
+	// to the official community space (if they are not already a member/invited).
+	if isOfficialHostInstance() {
+		alreadyInOfficialSpace := false
+		for _, s := range userSpaces {
+			if s.UUID == officialSpaceUUID {
+				alreadyInOfficialSpace = true
 				break
 			}
 		}
-	}
-	if !alreadyInCommunity {
-		var autoInvite DashDataInvite
-		err := db.ChatDB.QueryRow(
-			`INSERT INTO space_users (space_uuid, user_id) VALUES (?, ?) RETURNING id, space_uuid, user_id, joined`,
-			communitySpaceUUID, data.UserID,
-		).Scan(&autoInvite.ID, &autoInvite.SpaceUUID, &autoInvite.UserID, &autoInvite.Joined)
-		if err != nil {
-			log.Println("Auto-invite insert error:", err)
-		} else {
-			autoInvite.Name = "Parch Community"
-			spaceInvites = append(spaceInvites, autoInvite)
+		if !alreadyInOfficialSpace {
+			for _, inv := range spaceInvites {
+				if inv.SpaceUUID == officialSpaceUUID {
+					alreadyInOfficialSpace = true
+					break
+				}
+			}
+		}
+		if !alreadyInOfficialSpace {
+			var autoInvite DashDataInvite
+			err := db.ChatDB.QueryRow(
+				`INSERT INTO space_users (space_uuid, user_id) VALUES (?, ?) RETURNING id, space_uuid, user_id, joined`,
+				officialSpaceUUID, data.UserID,
+			).Scan(&autoInvite.ID, &autoInvite.SpaceUUID, &autoInvite.UserID, &autoInvite.Joined)
+			if err != nil {
+				log.Println("Auto-invite insert error:", err)
+			} else {
+				autoInvite.Name = officialSpaceName
+				spaceInvites = append(spaceInvites, autoInvite)
 
-			// Send invite notification back through relay so email gets triggered
-			sendToConn(conn, WSMessage{
-				Type: "invite_user_success",
-				Data: InviteUserResponse{
-					Email:      "",
-					UserID:     data.UserID,
-					SpaceUUID:  communitySpaceUUID,
-					Invite:     autoInvite,
-					ClientUUID: data.ClientUUID,
-				},
-			})
+				// Emit invite update back through relay so the client sees the new invite
+				sendToConn(conn, WSMessage{
+					Type: "invite_user_success",
+					Data: InviteUserResponse{
+						PublicKey:  "",
+						UserID:     data.UserID,
+						SpaceUUID:  officialSpaceUUID,
+						Invite:     autoInvite,
+						ClientUUID: data.ClientUUID,
+					},
+				})
+			}
 		}
 	}
 

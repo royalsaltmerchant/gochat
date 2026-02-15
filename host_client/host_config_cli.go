@@ -1,5 +1,3 @@
-//go:build headless
-
 package main
 
 import (

@@ -1,104 +1,109 @@
 # Parch
 
-**The user-hosted messenger and voice chat application.**
+**The user-hosted messenger and call platform.**
 
-Parch is a real-time chat and voice platform built around decentralization and simplicity. It allows users to run their own servers (hosts), connect through a public relay, and communicate securely via self-hosted infrastructure.
+Parch now runs chat and calls as separate services:
+- `chat_relay`: host-backed chat signaling with public-key identities (no email/password auth for chat)
+- `relay_server`: call app auth, billing, and call runtime
 
 ---
 
 ## Architecture
 
 ```
-┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
-│  Desktop Client │  │   Web Client    │  │    Call App     │
-│     (Wails)     │  │  (Vite/Browser) │  │  (React/Vite)   │
-└────────┬────────┘  └────────┬────────┘  └────────┬────────┘
-         │                    │                    │
-         └────────────────────┼────────────────────┘
-                          │
-             ┌────────────▼────────────┐
-             │      Relay Server       │
-             │         (Go)            │
-             └────────────┬────────────┘
-                          │
-           ┌──────────────┼──────────────┐
-           │              │              │
-  ┌────────▼────────┐ ┌───▼───┐ ┌────────▼────────┐
-  │   Host Client   │ │  SFU  │ │   TURN Server   │
-  │  (Go + SQLite)  │ │(Pion) │ │    (coturn)     │
-  └─────────────────┘ └───────┘ └─────────────────┘
+┌─────────────────┐      ┌─────────────────┐
+│   Web Client    │      │    Call App     │
+│  (Vite/Browser) │      │  (React/Vite)   │
+└────────┬────────┘      └────────┬────────┘
+         │                        │
+┌────────▼─────────┐      ┌───────▼─────────┐
+│    Chat Relay    │      │   Relay Server  │
+│      (Go)        │      │      (Go)       │
+└────────┬─────────┘      └───────┬─────────┘
+         │                        │
+  ┌──────▼──────┐          ┌──────▼──────┐
+  │ Host Client │          │ SFU / TURN  │
+  │ (Linux CLI) │          │ Call Stack  │
+  └─────────────┘          └─────────────┘
 ```
 
 ### Components
 
 | Component | Description |
 |-----------|-------------|
-| **Relay Server** | Central Go service for host/user registration, WebSocket signaling, and connection relay |
-| **Host Client** | Desktop app that stores chat data locally (SQLite). Manages spaces, channels, and messages |
-| **Desktop Client** | Wails-based desktop chat application for end users |
-| **Web Client** | Browser build of the same frontend client code used by the desktop app |
-| **Call App** | React web app for standalone video/voice calls (no authentication required) |
-| **SFU** | Pion-based Selective Forwarding Unit for routing voice/video streams |
-| **TURN Server** | coturn server for NAT traversal in WebRTC connections |
+| **Chat Relay** | Go service for host registration, chat websocket routing, and pubkey identity lookup |
+| **Host Client** | Linux CLI process storing chat data locally (SQLite), manages spaces/channels/messages |
+| **Web Client** | Browser chat app using local Ed25519 identity keys |
+| **Relay Server** | Go service used by `call_app` (email auth, billing, call APIs, call static pages) |
+| **Call App** | React web app for standalone video/voice calls |
+| **SFU/TURN** | WebRTC infrastructure used by the call stack |
 
 ---
 
 ## Environment Variables
 
-Create a `.env` file in `relay_server/`:
+Create a `.env` file in `relay_server/` for call features and a separate env for `chat_relay`:
 
 ```bash
-# Server
+# relay_server (call_app)
 RELAY_PORT=8000
 HOST_DB_FILE=./relay.db
-
-# Authentication
 JWT_SECRET=your-jwt-secret-key
-
-# TURN Server (coturn)
 TURN_URL=turn:your-turn-server:3478
 TURN_SECRET=your-coturn-static-auth-secret
 TURN_API_KEY=optional-api-key-for-turn-endpoint
-
-# SFU
 SFU_SECRET=your-sfu-jwt-secret
-
-# Email (password reset)
 EMAIL=your-email@gmail.com
 EMAIL_PASSWORD=your-app-password
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-EMAIL_FROM=optional-from-address
-FEEDBACK_EMAIL=optional-feedback-address
-PUBLIC_BASE_URL=https://parchchat.com
 
-# Optional email notification tuning
-EMAIL_ACTIVITY_THRESHOLD=20
-EMAIL_ACTIVITY_COOLDOWN_MINUTES=720
-EMAIL_ACTIVITY_CHECK_MINUTES=10
-EMAIL_WEEKLY_INTERVAL_DAYS=7
-EMAIL_WEEKLY_CHECK_HOURS=24
+# chat_relay
+CHAT_RELAY_PORT=8001
+CHAT_DB_FILE=./chat_relay.db
+CHAT_STATIC_DIR=./chat_relay/static
+
+# host_client (official host instance)
+OFFICIAL_HOST_UUID=5837a5c3-5268-45e1-9ea4-ee87d959d067
+OFFICIAL_SPACE_UUID=parch-community
+OFFICIAL_SPACE_NAME="Parch Community"
+CHAT_RELAY_HOST=chat.parchchat.com
+CHAT_RELAY_SCHEME=https
+CHAT_RELAY_WS_SCHEME=wss
 ```
 
-### Email Notifications
+## DNS And Caddy
 
-Relay now supports:
-- space invite emails
-- high-activity message digest emails
-- weekly product/feedback emails
+Recommended public DNS:
+- `A`/`AAAA` `parchchat.com` -> your VPS public IP
+- `A`/`AAAA` `chat.parchchat.com` -> your VPS public IP
+- `A`/`AAAA` `sfu.parchchat.com` -> your VPS public IP (or SFU host IP if separate)
+- Optional: `CNAME` `www.parchchat.com` -> `parchchat.com`
 
-Activity digest scope and privacy:
-- digest counters are space-scoped (only spaces the user belongs to)
-- relay does not store message content for digest emails (counts/timestamps only)
+DNS does not include ports. Caddy listens on public `:80/:443` and proxies internally:
+- `parchchat.com` -> `127.0.0.1:8000` (`relay_server`)
+- `chat.parchchat.com` -> `127.0.0.1:8001` (`chat_relay`)
+- `sfu.parchchat.com` -> `127.0.0.1:7000` (SFU)
 
-Every email includes unsubscribe links:
-- per-category unsubscribe (`invite`, `activity`, `weekly`)
-- global unsubscribe (`all`)
+Useful Caddy commands:
 
-Unsubscribe endpoint:
-- `GET /unsubscribe?token=<token>&type=invite|activity|weekly|all`
+```bash
+# Create local ops/Caddyfile from template (if missing)
+./scripts/caddy.sh init
 
----
+# Pull current remote Caddyfile to ops/Caddyfile
+./scripts/caddy.sh fetch
+
+# Validate local file (requires local caddy binary)
+./scripts/caddy.sh validate-local
+
+# Apply local Caddyfile to server (remote validate + reload)
+./scripts/caddy.sh apply
+
+# Service controls
+./scripts/caddy.sh status
+./scripts/caddy.sh logs
+./scripts/caddy.sh reload
+./scripts/caddy.sh restart
+```
 
 ## Local Development
 
@@ -107,7 +112,16 @@ Unsubscribe endpoint:
 - Node.js 18+
 - npm or yarn
 
-### Relay Server
+### Chat Relay (Web Chat)
+
+```bash
+go run ./chat_relay
+```
+
+Then open:
+- `http://localhost:8001/client`
+
+### Relay Server (Call App)
 
 ```bash
 cd relay_server
@@ -116,7 +130,6 @@ go run .
 ```
 Then open:
 - `http://localhost:8000/` (landing page)
-- `http://localhost:8000/client` (web chat client)
 - `http://localhost:8000/call` (on-demand call landing)
 
 ### Call App (Video Calls)
@@ -133,44 +146,36 @@ npm run build    # Build to relay_server/static/call/
 const isDev = false; // Set to false to use production endpoints
 ```
 
-### Desktop Client (Wails)
-
-```bash
-cd web_client/frontend
-npm install
-npm run dev:desktop-assets  # Build/watch desktop assets into web_client/frontend/dist
-```
-In another terminal:
-```bash
-cd web_client
-wails dev
-```
-
 ### Web Client (Browser)
 
 ```bash
 cd web_client/frontend
 npm install
 npm run dev:web      # Vite dev server
-npm run build:web    # Build to relay_server/static/client
+npm run build:web    # Build to chat_relay/static/client
 ```
 
 ---
 
-## Database Migrations
+## Database Schema Setup
 
 ### Host Client (SQLite)
 
-```bash
-# Create migration
-migrate create -ext sql -dir ./migrations <name>
+`host_client` no longer uses migration files.
+Its schema is bootstrapped directly in code on startup (idempotent `CREATE TABLE IF NOT EXISTS` + seed rows).
 
-# Apply migrations
-migrate -path ./migrations -database "sqlite3://chat.db?_foreign_keys=on" up
+Default host DB path is now:
+- `~/.config/ParchHost/host_chat_v2.db`
 
-# Rollback
-migrate -path ./migrations -database "sqlite3://chat.db?_foreign_keys=on" down
-```
+On startup, host client now checks for incompatible legacy schema in the active DB file and archives it automatically as:
+- `host_chat_v2.db.legacy.<UTC timestamp>`
+
+This prevents old DB layouts from interfering with the new decentralized host schema.
+
+### Chat Relay (SQLite)
+
+`chat_relay` no longer uses migration files.
+Its schema is bootstrapped directly in code on startup, including compatibility column checks.
 
 ### Relay Server (SQLite)
 
@@ -181,3 +186,27 @@ Migrations are embedded and run automatically on startup.
 ## Contact
 
 [parchchat@gmail.com](mailto:parchchat@gmail.com)
+
+---
+
+## Deployment Scripts
+
+Build and deploy from local machine:
+
+```bash
+# Relay server (deploys to /root/relay_dist, preserves DB files, restarts relay_server)
+./scripts/deploy-relay.sh
+
+# Host client (deploys to /root/host_client, preserves DB/config files, restarts parch-host)
+./scripts/deploy-host.sh
+
+# Chat relay (deploys to /root/go_chat/chat_relay, preserves DB/env files, restarts chat-relay)
+./scripts/deploy-chat-relay.sh
+```
+
+If you are migrating an existing host to a fresh `chat_relay.db`, ensure the host row exists in `hosts` using the same `uuid` and `author_id` from `~/.config/ParchHost/host_config.json`:
+
+```bash
+sqlite3 /root/go_chat/chat_relay/chat_relay.db \
+  "INSERT OR IGNORE INTO hosts (uuid,name,author_id,online) VALUES ('<host_uuid>','<host_name>','<author_id>',1);"
+```

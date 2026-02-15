@@ -1,0 +1,26 @@
+{
+	# Global options. Set your ACME contact email.
+	email parchchat@gmail.com
+}
+
+# Main landing + call service
+parchchat.com, www.parchchat.com {
+	encode zstd gzip
+
+	# Web chat moved to dedicated chat relay domain.
+	@chat_client path /client /client/*
+	redir @chat_client https://chat.parchchat.com{uri} 308
+
+	reverse_proxy 127.0.0.1:8000
+}
+
+# Dedicated chat relay service
+chat.parchchat.com {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:8001
+}
+
+# SFU websocket endpoint for call_app
+sfu.parchchat.com {
+	reverse_proxy 127.0.0.1:7000
+}

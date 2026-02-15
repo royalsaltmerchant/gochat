@@ -15,8 +15,8 @@ func handleInviteUser(conn *websocket.Conn, wsMsg *WSMessage) {
 		return
 	}
 
-	payload := map[string]string{"email": data.Email}
-	resp, err := PostJSON(relayBaseURL.String()+"/api/user_by_email", payload, nil)
+	payload := map[string]string{"public_key": data.PublicKey}
+	resp, err := PostJSON(relayBaseURL.String()+"/api/user_by_pubkey", payload, nil)
 	if err != nil {
 		sendToConn(conn, WSMessage{
 			Type: "error",
@@ -33,7 +33,7 @@ func handleInviteUser(conn *websocket.Conn, wsMsg *WSMessage) {
 		sendToConn(conn, WSMessage{
 			Type: "error",
 			Data: ChatError{
-				Content:    "User not found by email",
+				Content:    "User not found by public key",
 				ClientUUID: data.ClientUUID,
 			},
 		})
@@ -90,7 +90,7 @@ RETURNING id, space_uuid, user_id, joined
 	sendToConn(conn, WSMessage{
 		Type: "invite_user_success",
 		Data: InviteUserResponse{
-			Email:      data.Email,
+			PublicKey:  data.PublicKey,
 			UserID:     user.ID,
 			SpaceUUID:  data.SpaceUUID,
 			Invite:     spaceUser,
