@@ -1,0 +1,11 @@
+[Unit]
+Description=TURN Server for Clients (port 3478)
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/turnserver -c /etc/turnserver_client.conf
+Restart=on-failure
+User=turnserver
+
+[Install]
+WantedBy=multi-user.target

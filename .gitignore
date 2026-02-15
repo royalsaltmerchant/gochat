@@ -12,3 +12,5 @@ host_cli_dist
 call_app/node_modules
 
 docs
+host.db
+chat.db

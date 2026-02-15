@@ -1,0 +1,13 @@
+[Unit]
+Description=Relay Server
+After=network.target
+
+[Service]
+ExecStart=/root/relay_dist/relay_server
+Environment=/root/.env
+Restart=always
+User=root
+WorkingDirectory=~
+
+[Install]
+WantedBy=multi-user.target

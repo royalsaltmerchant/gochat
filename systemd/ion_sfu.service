@@ -1,0 +1,11 @@
+[Unit]
+Description=Ion SFU
+After=network.target
+
+[Service]
+ExecStart=/root/ion_sfu -c /root/config.toml
+Restart=always
+User=root
+
+[Install]
+WantedBy=multi-user.target

@@ -1,4 +1,4 @@
-import { relayBaseURL } from "../lib/config.js";
+import { relayBaseURL, officialHostUUID, officialHostName } from "../lib/config.js";
 
 const TOKEN_KEY = "parch.auth.token";
 const HOSTS_KEY = "parch.hosts";
@@ -48,7 +48,12 @@ const webPlatform = {
   },
 
   async getHosts() {
-    return readHosts();
+    const hosts = readHosts();
+    if (officialHostUUID && !hosts.some((h) => h.uuid === officialHostUUID)) {
+      hosts.push({ uuid: officialHostUUID, name: officialHostName });
+      writeHosts(hosts);
+    }
+    return hosts;
   },
 
   async verifyHostKey(hostUUID) {
