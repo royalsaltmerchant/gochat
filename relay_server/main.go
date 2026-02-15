@@ -35,23 +35,34 @@ func resolveStaticDir() string {
 		return staticDir
 	}
 
-	// Common local/dev path when running from relay_server/
-	if _, err := os.Stat("./static"); err == nil {
-		return "./static"
+	// Prefer static dir adjacent to deployed binary.
+	if exePath, err := os.Executable(); err == nil {
+		exeStatic := filepath.Join(filepath.Dir(exePath), "static")
+		if _, err := os.Stat(exeStatic); err == nil {
+			return exeStatic
+		}
 	}
 
-	// Common local/dev path when running from repo root
-	if _, err := os.Stat("./relay_server/static"); err == nil {
-		return "./relay_server/static"
+	candidates := []string{
+		"./static",
+		"./relay_server/static",
+		"./relay_dist/static",
+		"/root/relay_dist/static",
+		"/root/relay_server/static",
+	}
+	for _, candidate := range candidates {
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate
+		}
 	}
 
-	// Fallback to source-relative directory when available
+	// Local source fallback.
 	if _, currentFile, _, ok := runtime.Caller(0); ok {
 		return filepath.Join(filepath.Dir(currentFile), "static")
 	}
 
-	// Deployment fallback used previously
-	return "/root/relay_server/static"
+	// Last-resort deploy fallback.
+	return "/root/relay_dist/static"
 }
 
 func main() {
