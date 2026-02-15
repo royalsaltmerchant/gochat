@@ -14,12 +14,12 @@ func handleInviteUser(conn *websocket.Conn, wsMsg *WSMessage) {
 		return
 	}
 
-	user, err := upsertHostUserByPublicKey(data.PublicKey, "")
+	user, err := lookupHostUserByPublicKey(data.PublicKey)
 	if err != nil {
 		sendToConn(conn, WSMessage{
 			Type: "error",
 			Data: ChatError{
-				Content:    "Failed to resolve invite user identity",
+				Content:    "Invite target not found. User must connect once before being invited.",
 				ClientUUID: data.ClientUUID,
 			},
 		})
@@ -87,7 +87,7 @@ func handleRemoveSpaceUser(conn *websocket.Conn, wsMsg *WSMessage) {
 		return
 	}
 
-	user, err := resolveHostUserIdentityStrict(data.UserID, data.UserPublicKey)
+	user, err := resolveHostUserIdentityStrict(data.UserID, data.UserPublicKey, data.UserEncPublicKey)
 	if err != nil {
 		sendToConn(conn, WSMessage{
 			Type: "error",
@@ -137,7 +137,7 @@ func handleLeaveSpace(conn *websocket.Conn, wsMsg *WSMessage) {
 		return
 	}
 
-	user, err := resolveHostUserIdentityStrict(data.UserID, data.UserPublicKey)
+	user, err := resolveHostUserIdentityStrict(data.UserID, data.UserPublicKey, data.UserEncPublicKey)
 	if err != nil {
 		sendToConn(conn, WSMessage{
 			Type: "error",

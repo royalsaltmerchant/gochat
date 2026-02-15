@@ -10,6 +10,7 @@ func ensureHostClientSchema() error {
 		`CREATE TABLE IF NOT EXISTS chat_users (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			public_key TEXT NOT NULL UNIQUE,
+			enc_public_key TEXT NOT NULL DEFAULT '',
 			username TEXT NOT NULL,
 			created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -62,6 +63,9 @@ func ensureHostClientSchema() error {
 		return err
 	}
 	if err := ensureColumnExists("chat_users", "updated_at", `ALTER TABLE chat_users ADD COLUMN updated_at TEXT`); err != nil {
+		return err
+	}
+	if err := ensureColumnExists("chat_users", "enc_public_key", `ALTER TABLE chat_users ADD COLUMN enc_public_key TEXT NOT NULL DEFAULT ''`); err != nil {
 		return err
 	}
 	if _, err := db.ChatDB.Exec(`UPDATE chat_users SET created_at = COALESCE(created_at, CURRENT_TIMESTAMP)`); err != nil {

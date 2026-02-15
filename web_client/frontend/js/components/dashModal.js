@@ -157,6 +157,7 @@ export default class DashModal {
                     space_uuid: space.uuid,
                     user_id: user.id,
                     user_public_key: user.public_key || "",
+                    user_enc_public_key: user.enc_public_key || "",
                   });
                 }
               });
@@ -404,6 +405,7 @@ export default class DashModal {
                 const jsonData = Object.fromEntries(formData.entries());
                 jsonData["user_id"] = user.id;
                 jsonData["user_public_key"] = user.public_key || "";
+                jsonData["user_enc_public_key"] = user.enc_public_key || "";
                 this.socketConn.updateUsername(jsonData);
               },
             }
@@ -488,6 +490,7 @@ export default class DashModal {
                             space_user_id: invite.id,
                             user_id: user.id,
                             user_public_key: user.public_key || "",
+                            user_enc_public_key: user.enc_public_key || "",
                           }),
                       }),
                       createElement(
@@ -501,6 +504,7 @@ export default class DashModal {
                               space_user_id: invite.id,
                               user_id: user.id,
                               user_public_key: user.public_key || "",
+                              user_enc_public_key: user.enc_public_key || "",
                             }),
                         }
                       ),

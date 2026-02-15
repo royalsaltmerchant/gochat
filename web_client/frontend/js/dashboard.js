@@ -3,6 +3,8 @@ import DashModal from "./components/dashModal.js";
 import SidebarComponent from "./components/sidebar.js";
 import MainContentComponent from "./components/mainContent.js";
 import SocketConn from "./lib/socketConn.js";
+import identityManager from "./lib/identityManager.js";
+import e2ee from "./lib/e2ee.js";
 
 export default class DashboardApp {
   constructor(props) {
@@ -348,25 +350,79 @@ export default class DashboardApp {
     }
   };
 
-  renderChatAppMessage = (data) => {
-    if (this.mainContent.chatApp) {
-      this.mainContent.chatApp.chatBoxComponent.chatBoxMessagesComponent.appendNewMessage(
-        data.data
+  findSpaceByChannelUUID = (channelUUID) => {
+    if (!this.data?.spaces || !channelUUID) return null;
+    return (
+      this.data.spaces.find((space) =>
+        (space.channels || []).some((channel) => channel.uuid === channelUUID)
+      ) || null
+    );
+  };
+
+  resolveUsernameForAuthPublicKey = (authPublicKey, spaceUUID) => {
+    if (!authPublicKey || !this.data?.spaces) return "unknown";
+
+    const lookupSpaces = spaceUUID
+      ? this.data.spaces.filter((space) => space.uuid === spaceUUID)
+      : this.data.spaces;
+
+    for (const space of lookupSpaces) {
+      const matched = (space.users || []).find(
+        (user) => user.public_key === authPublicKey
       );
-      // Handle scrolling
-      if (data.data.username === this.data.user.username) {
-        this.mainContent.chatApp.chatBoxComponent.chatBoxMessagesComponent.scrollDown();
-      } else {
+      if (matched?.username) {
+        return matched.username;
+      }
+    }
+
+    return "unknown";
+  };
+
+  decryptWireMessage = async (wireMessage, spaceUUID) => {
+    const identity = await identityManager.getOrCreateIdentity();
+    const envelope = wireMessage?.envelope;
+    if (!envelope) {
+      throw new Error("Missing encrypted envelope");
+    }
+    const content = await e2ee.decryptMessageForIdentity({
+      envelope,
+      identity,
+    });
+
+    const senderAuthPublicKey = envelope.sender_auth_public_key || "";
+    return {
+      ...wireMessage,
+      content,
+      sender_auth_public_key: senderAuthPublicKey,
+      username: this.resolveUsernameForAuthPublicKey(senderAuthPublicKey, spaceUUID),
+    };
+  };
+
+  renderChatAppMessage = async (data) => {
+    if (this.mainContent.chatApp) {
+      try {
+        const decryptedMessage = await this.decryptWireMessage(
+          data.data,
+          this.currentSpaceUUID
+        );
+        const messageComponent =
+          this.mainContent.chatApp.chatBoxComponent.chatBoxMessagesComponent;
+
+        messageComponent.appendNewMessage(decryptedMessage);
         if (
-          this.mainContent.chatApp.chatBoxComponent.chatBoxMessagesComponent.isScrolledToBottom()
+          decryptedMessage.sender_auth_public_key === this.data.user.public_key
         ) {
-          this.mainContent.chatApp.chatBoxComponent.chatBoxMessagesComponent.scrollDown();
+          messageComponent.scrollDown();
+        } else if (messageComponent.isScrolledToBottom()) {
+          messageComponent.scrollDown();
         }
+      } catch (err) {
+        console.error(err);
       }
     }
   };
 
-  handleIncomingMessages = (data) => {
+  handleIncomingMessages = async (data) => {
     if (
       data.data.messages &&
       this.mainContent.chatApp &&
@@ -385,9 +441,26 @@ export default class DashboardApp {
       component.hasMoreMessages = data.data.has_more_messages;
       component.isLoading = false;
 
+      const space = this.findSpaceByChannelUUID(data.data.channel_uuid);
+      const decryptedMessages = await Promise.all(
+        data.data.messages.map(async (message) => {
+          try {
+            return await this.decryptWireMessage(message, space?.uuid || null);
+          } catch (err) {
+            console.error(err);
+            return {
+              ...message,
+              content: "[Unable to decrypt message]",
+              username: "unknown",
+              sender_auth_public_key: "",
+            };
+          }
+        })
+      );
+
       // Prepend older messages
       component.chatBoxMessages = [
-        ...data.data.messages,
+        ...decryptedMessages,
         ...component.chatBoxMessages,
       ];
 

@@ -11,7 +11,7 @@ host_cli_dist
 # Call app (React)
 call_app/node_modules
 
-docs
+
 host.db
 chat.db
 dist

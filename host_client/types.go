@@ -1,9 +1,10 @@
 package main
 
 type UserData struct {
-	ID        int
-	Username  string
-	PublicKey string
+	ID           int
+	Username     string
+	PublicKey    string
+	EncPublicKey string
 }
 
 type Space struct {
@@ -64,30 +65,34 @@ type JoinHostPayload struct {
 }
 
 type UpdateUsernameRequest struct {
-	UserID        int    `json:"user_id"`
-	UserPublicKey string `json:"user_public_key,omitempty"`
-	Username      string `json:"username"`
-	ClientUUID    string `json:"client_uuid"`
+	UserID           int    `json:"user_id"`
+	UserPublicKey    string `json:"user_public_key,omitempty"`
+	UserEncPublicKey string `json:"user_enc_public_key,omitempty"`
+	Username         string `json:"username"`
+	ClientUUID       string `json:"client_uuid"`
 }
 
 type UpdateUsernameResponse struct {
-	UserID        int    `json:"user_id"`
-	UserPublicKey string `json:"user_public_key,omitempty"`
-	Username      string `json:"username"`
-	ClientUUID    string `json:"client_uuid"`
+	UserID           int    `json:"user_id"`
+	UserPublicKey    string `json:"user_public_key,omitempty"`
+	UserEncPublicKey string `json:"user_enc_public_key,omitempty"`
+	Username         string `json:"username"`
+	ClientUUID       string `json:"client_uuid"`
 }
 
 type GetDashDataRequest struct {
-	UserID        int    `json:"user_id"`
-	UserPublicKey string `json:"user_public_key,omitempty"`
-	Username      string `json:"username"`
-	ClientUUID    string `json:"client_uuid"`
+	UserID           int    `json:"user_id"`
+	UserPublicKey    string `json:"user_public_key,omitempty"`
+	UserEncPublicKey string `json:"user_enc_public_key,omitempty"`
+	Username         string `json:"username"`
+	ClientUUID       string `json:"client_uuid"`
 }
 
 type DashDataUser struct {
-	ID        int    `json:"id"`
-	Username  string `json:"username"`
-	PublicKey string `json:"public_key,omitempty"`
+	ID           int    `json:"id"`
+	Username     string `json:"username"`
+	PublicKey    string `json:"public_key,omitempty"`
+	EncPublicKey string `json:"enc_public_key,omitempty"`
 }
 
 type DashDataChannel struct {
@@ -124,11 +129,12 @@ type GetDashDataResponse struct {
 }
 
 type CreateSpaceRequest struct {
-	Name          string `json:"name"`
-	UserID        int    `json:"user_id"`
-	UserPublicKey string `json:"user_public_key,omitempty"`
-	Username      string `json:"username,omitempty"`
-	ClientUUID    string `json:"client_uuid"`
+	Name             string `json:"name"`
+	UserID           int    `json:"user_id"`
+	UserPublicKey    string `json:"user_public_key,omitempty"`
+	UserEncPublicKey string `json:"user_enc_public_key,omitempty"`
+	Username         string `json:"username,omitempty"`
+	ClientUUID       string `json:"client_uuid"`
 }
 
 type CreateSpaceResponse struct {
@@ -181,10 +187,11 @@ type InviteUserResponse struct {
 }
 
 type AcceptInviteRequest struct {
-	SpaceUserID   int    `json:"space_user_id"`
-	UserID        int    `json:"user_id"`
-	UserPublicKey string `json:"user_public_key,omitempty"`
-	ClientUUID    string `json:"client_uuid"`
+	SpaceUserID      int    `json:"space_user_id"`
+	UserID           int    `json:"user_id"`
+	UserPublicKey    string `json:"user_public_key,omitempty"`
+	UserEncPublicKey string `json:"user_enc_public_key,omitempty"`
+	ClientUUID       string `json:"client_uuid"`
 }
 
 type AcceptInviteResponse struct {
@@ -195,17 +202,19 @@ type AcceptInviteResponse struct {
 }
 
 type DeclineInviteRequest struct {
-	SpaceUserID   int    `json:"space_user_id"`
-	UserID        int    `json:"user_id"`
-	UserPublicKey string `json:"user_public_key,omitempty"`
-	ClientUUID    string `json:"client_uuid"`
+	SpaceUserID      int    `json:"space_user_id"`
+	UserID           int    `json:"user_id"`
+	UserPublicKey    string `json:"user_public_key,omitempty"`
+	UserEncPublicKey string `json:"user_enc_public_key,omitempty"`
+	ClientUUID       string `json:"client_uuid"`
 }
 
 type LeaveSpaceRequest struct {
-	SpaceUUID     string `json:"space_uuid"`
-	UserID        int    `json:"user_id"`
-	UserPublicKey string `json:"user_public_key,omitempty"`
-	ClientUUID    string `json:"client_uuid"`
+	SpaceUUID        string `json:"space_uuid"`
+	UserID           int    `json:"user_id"`
+	UserPublicKey    string `json:"user_public_key,omitempty"`
+	UserEncPublicKey string `json:"user_enc_public_key,omitempty"`
+	ClientUUID       string `json:"client_uuid"`
 }
 
 type LeaveSpaceResponse struct {
@@ -216,18 +225,20 @@ type LeaveSpaceResponse struct {
 }
 
 type RemoveSpaceUserRequest struct {
-	SpaceUUID     string `json:"space_uuid"`
-	UserID        int    `json:"user_id"`
-	UserPublicKey string `json:"user_public_key,omitempty"`
-	ClientUUID    string `json:"client_uuid"`
+	SpaceUUID        string `json:"space_uuid"`
+	UserID           int    `json:"user_id"`
+	UserPublicKey    string `json:"user_public_key,omitempty"`
+	UserEncPublicKey string `json:"user_enc_public_key,omitempty"`
+	ClientUUID       string `json:"client_uuid"`
 }
 
 type SaveChatMessageRequest struct {
-	UserID        int    `json:"user_id"`
-	UserPublicKey string `json:"user_public_key,omitempty"`
-	Username      string `json:"username,omitempty"`
-	ChannelUUID   string `json:"channel_uuid"`
-	Content       string `json:"content"`
+	UserID           int                    `json:"user_id"`
+	UserPublicKey    string                 `json:"user_public_key,omitempty"`
+	UserEncPublicKey string                 `json:"user_enc_public_key,omitempty"`
+	Username         string                 `json:"username,omitempty"`
+	ChannelUUID      string                 `json:"channel_uuid"`
+	Envelope         map[string]interface{} `json:"envelope"`
 }
 
 type GetMessagesRequest struct {
@@ -237,13 +248,14 @@ type GetMessagesRequest struct {
 }
 
 type GetMessagesMessage struct {
-	ID            int    `json:"id"`
-	ChannelUUID   string `json:"channel_uuid"`
-	Username      string `json:"username"`
-	Content       string `json:"content"`
-	UserID        int    `json:"user_id"`
-	UserPublicKey string `json:"user_public_key,omitempty"`
-	Timestamp     string `json:"timestamp"`
+	ID               int                    `json:"id"`
+	ChannelUUID      string                 `json:"channel_uuid"`
+	Username         string                 `json:"username"`
+	Envelope         map[string]interface{} `json:"envelope"`
+	UserID           int                    `json:"user_id"`
+	UserPublicKey    string                 `json:"user_public_key,omitempty"`
+	UserEncPublicKey string                 `json:"user_enc_public_key,omitempty"`
+	Timestamp        string                 `json:"timestamp"`
 }
 
 type GetMessagesResponse struct {

@@ -55,7 +55,7 @@ func prepareHostDatabase(dbPath string) error {
 
 func hasIncompatibleHostSchema(conn *sql.DB) (bool, string, error) {
 	requiredColumns := map[string][]string{
-		"chat_users":  {"id", "public_key", "username"},
+		"chat_users":  {"id", "public_key", "enc_public_key", "username"},
 		"spaces":      {"id", "uuid", "name", "author_id"},
 		"channels":    {"id", "uuid", "name", "space_uuid", "allow_voice"},
 		"messages":    {"id", "channel_uuid", "content", "user_id", "timestamp"},

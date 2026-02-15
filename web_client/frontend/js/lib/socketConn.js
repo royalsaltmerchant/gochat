@@ -134,10 +134,10 @@ export default class SocketConn {
             this.handleLeaveSpaceUpdate(data);
             break;
           case "chat":
-            this.renderChatAppMessage(data);
+            await this.renderChatAppMessage(data);
             break;
           case "get_messages_success":
-            this.handleIncomingMessages(data);
+            await this.handleIncomingMessages(data);
             break;
           case "error":
             platform.alert(data.data.error);
@@ -166,13 +166,14 @@ export default class SocketConn {
 
     try {
       const identity = await identityManager.getOrCreateIdentity();
-      const authMessage = `parch-chat-auth:${this.hostUUID}:${challenge}`;
+      const authMessage = `parch-chat-auth:${this.hostUUID}:${challenge}:${identity.encPublicKey}`;
       const signature = await identityManager.signAuthMessage(identity, authMessage);
 
       const wsMessage = {
         type: "auth_pubkey",
         data: {
           public_key: identity.publicKey,
+          enc_public_key: identity.encPublicKey,
           username: identity.username || "",
           challenge,
           signature,
@@ -282,9 +283,9 @@ export default class SocketConn {
     }
   };
 
-  sendMessage = (text) => {
+  sendMessage = (data) => {
     if (this.socket?.readyState === WebSocket.OPEN) {
-      this.socket.send(JSON.stringify({ type: "chat", data: { content: text } }));
+      this.socket.send(JSON.stringify({ type: "chat", data }));
     }
   };
 
