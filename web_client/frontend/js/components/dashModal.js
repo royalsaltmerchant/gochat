@@ -347,6 +347,34 @@ export default class DashModal {
               },
             }),
           ]),
+          createElement("div", { class: "settings-section" }, [
+            createElement("h3", {}, "Local Fallback Username"),
+            createElement(
+              "p",
+              { style: "display: block; margin-bottom: 8px; font-size: 0.85rem; color: var(--main-gray);" },
+              "Used as the default username sent during auth when joining a host for the first time."
+            ),
+            createElement("div", { class: "input-container" }, [
+              createElement("label", { for: "local-identity-username" }, "Local Username"),
+              createElement("input", {
+                id: "local-identity-username",
+                name: "localIdentityUsername",
+                type: "text",
+                value: "",
+                placeholder: "Set local fallback username",
+              }),
+            ]),
+            createElement("br"),
+            createElement("button", { class: "btn" }, "Save Local Username", {
+              type: "click",
+              event: () => {
+                const localUsernameElem = this.domComponent.querySelector("#local-identity-username");
+                const localUsername = (localUsernameElem?.value || "").trim();
+                identityManager.setIdentityUsername(localUsername);
+                platform.alert("Local fallback username saved");
+              },
+            }),
+          ]),
           createElement(
             "form",
             { id: "update-username-form" },
@@ -400,8 +428,12 @@ export default class DashModal {
       .then((identity) => {
         const publicKeyElem = this.domComponent.querySelector("#public-key-display");
         const exportElem = this.domComponent.querySelector("#identity-export-display");
+        const localUsernameElem = this.domComponent.querySelector("#local-identity-username");
         if (publicKeyElem) {
           publicKeyElem.value = identity.publicKey || "";
+        }
+        if (localUsernameElem) {
+          localUsernameElem.value = identity.username || "";
         }
         if (exportElem) {
           identityManager
@@ -417,8 +449,12 @@ export default class DashModal {
       .catch(() => {
         const publicKeyElem = this.domComponent.querySelector("#public-key-display");
         const exportElem = this.domComponent.querySelector("#identity-export-display");
+        const localUsernameElem = this.domComponent.querySelector("#local-identity-username");
         if (publicKeyElem) {
           publicKeyElem.value = "";
+        }
+        if (localUsernameElem) {
+          localUsernameElem.value = "";
         }
         if (exportElem) {
           exportElem.value = "";
