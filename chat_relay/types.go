@@ -42,8 +42,12 @@ type Client struct {
 	ClientUUID      string
 	PublicKey       string
 	EncPublicKey    string
+	DeviceID        string
+	DeviceName      string
+	LastSeen        time.Time
 	AuthChallenge   string
 	IP              string
+	IsHostAuthor    bool
 	IsAuthenticated bool
 	SendQueue       chan WSMessage
 	Done            chan struct{}
@@ -176,9 +180,17 @@ type GetDashDataResponse struct {
 }
 
 type GetDashDataSuccess struct {
-	User    DashDataUser     `json:"user"`
-	Spaces  []DashDataSpace  `json:"spaces"`
-	Invites []DashDataInvite `json:"invites"`
+	User          DashDataUser     `json:"user"`
+	Spaces        []DashDataSpace  `json:"spaces"`
+	Invites       []DashDataInvite `json:"invites"`
+	ActiveDevices []ActiveDevice   `json:"active_devices,omitempty"`
+}
+
+type ActiveDevice struct {
+	DeviceID   string `json:"device_id"`
+	DeviceName string `json:"device_name"`
+	LastSeen   string `json:"last_seen"`
+	IsCurrent  bool   `json:"is_current"`
 }
 
 type CreateSpaceClient struct {
@@ -208,8 +220,11 @@ type DeleteSpaceClient struct {
 }
 
 type DeleteSpaceRequest struct {
-	UUID       string `json:"uuid"`
-	ClientUUID string `json:"client_uuid"`
+	UUID                      string `json:"uuid"`
+	RequesterUserID           int    `json:"requester_user_id"`
+	RequesterUserPublicKey    string `json:"requester_user_public_key,omitempty"`
+	RequesterUserEncPublicKey string `json:"requester_user_enc_public_key,omitempty"`
+	ClientUUID                string `json:"client_uuid"`
 }
 
 type CreateChannelClient struct {
@@ -218,9 +233,12 @@ type CreateChannelClient struct {
 }
 
 type CreateChannelRequest struct {
-	Name       string `json:"name"`
-	SpaceUUID  string `json:"space_uuid"`
-	ClientUUID string `json:"client_uuid"`
+	Name                      string `json:"name"`
+	SpaceUUID                 string `json:"space_uuid"`
+	RequesterUserID           int    `json:"requester_user_id"`
+	RequesterUserPublicKey    string `json:"requester_user_public_key,omitempty"`
+	RequesterUserEncPublicKey string `json:"requester_user_enc_public_key,omitempty"`
+	ClientUUID                string `json:"client_uuid"`
 }
 
 type CreateChannelResponse struct {
@@ -244,8 +262,11 @@ type DeleteChannelClient struct {
 }
 
 type DeleteChannelRequest struct {
-	UUID       string `json:"uuid"`
-	ClientUUID string `json:"client_uuid"`
+	UUID                      string `json:"uuid"`
+	RequesterUserID           int    `json:"requester_user_id"`
+	RequesterUserPublicKey    string `json:"requester_user_public_key,omitempty"`
+	RequesterUserEncPublicKey string `json:"requester_user_enc_public_key,omitempty"`
+	ClientUUID                string `json:"client_uuid"`
 }
 
 type DeleteChannelResponse struct {
@@ -266,9 +287,12 @@ type InviteUserClient struct {
 }
 
 type InviteUserRequest struct {
-	PublicKey  string `json:"public_key"`
-	SpaceUUID  string `json:"space_uuid"`
-	ClientUUID string `json:"client_uuid"`
+	PublicKey                 string `json:"public_key"`
+	SpaceUUID                 string `json:"space_uuid"`
+	RequesterUserID           int    `json:"requester_user_id"`
+	RequesterUserPublicKey    string `json:"requester_user_public_key,omitempty"`
+	RequesterUserEncPublicKey string `json:"requester_user_enc_public_key,omitempty"`
+	ClientUUID                string `json:"client_uuid"`
 }
 
 type InviteUserResponse struct {
@@ -389,11 +413,14 @@ type RemoveSpaceUserClient struct {
 }
 
 type RemoveSpaceUserRequest struct {
-	SpaceUUID        string `json:"space_uuid"`
-	UserID           int    `json:"user_id"`
-	UserPublicKey    string `json:"user_public_key,omitempty"`
-	UserEncPublicKey string `json:"user_enc_public_key,omitempty"`
-	ClientUUID       string `json:"client_uuid"`
+	SpaceUUID                 string `json:"space_uuid"`
+	UserID                    int    `json:"user_id"`
+	UserPublicKey             string `json:"user_public_key,omitempty"`
+	UserEncPublicKey          string `json:"user_enc_public_key,omitempty"`
+	RequesterUserID           int    `json:"requester_user_id"`
+	RequesterUserPublicKey    string `json:"requester_user_public_key,omitempty"`
+	RequesterUserEncPublicKey string `json:"requester_user_enc_public_key,omitempty"`
+	ClientUUID                string `json:"client_uuid"`
 }
 
 type RemoveSpaceUserResponse struct {
@@ -467,6 +494,8 @@ type UUIDListRequest struct {
 type AuthPubKeyClient struct {
 	PublicKey    string `json:"public_key"`
 	EncPublicKey string `json:"enc_public_key"`
+	DeviceID     string `json:"device_id,omitempty"`
+	DeviceName   string `json:"device_name,omitempty"`
 	Username     string `json:"username"`
 	Challenge    string `json:"challenge"`
 	Signature    string `json:"signature"`
@@ -474,6 +503,14 @@ type AuthPubKeyClient struct {
 
 type AuthChallenge struct {
 	Challenge string `json:"challenge"`
+}
+
+type RelayHealthCheck struct {
+	Nonce string `json:"nonce"`
+}
+
+type RelayHealthCheckAck struct {
+	Nonce string `json:"nonce"`
 }
 
 type AuthPubKeySuccess struct {

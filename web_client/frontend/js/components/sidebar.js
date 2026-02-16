@@ -123,7 +123,10 @@ class UserAccountComponent {
         event: (e) => {
           this.openDashModal({
             type: "account",
-            data: { user: this.data.user },
+            data: {
+              user: this.data.user,
+              active_devices: this.data.active_devices || [],
+            },
           });
         },
       }),

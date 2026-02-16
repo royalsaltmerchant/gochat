@@ -3,6 +3,8 @@ package main
 import (
 	"gochat/db"
 	"log"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -38,7 +40,7 @@ func registerOrCreateHost(hostUUID, potentialAuthorID string, conn *websocket.Co
 		Hosts[hostUUID] = host
 	}
 
-	if potentialAuthorID != "" {
+	if potentialAuthorID != "" && potentialAuthorID == host.AuthorID {
 		host.ConnByAuthorID[potentialAuthorID] = conn
 
 		// Set host to online
@@ -48,7 +50,7 @@ func registerOrCreateHost(hostUUID, potentialAuthorID string, conn *websocket.Co
 	return host, nil
 }
 
-func registerClient(host *Host, conn *websocket.Conn, clientIP string) *Client {
+func registerClient(host *Host, conn *websocket.Conn, clientIP string, isHostAuthor bool) *Client {
 	host.mu.Lock()
 
 	if oldClient, ok := host.ClientsByConn[conn]; ok {
@@ -74,6 +76,7 @@ func registerClient(host *Host, conn *websocket.Conn, clientIP string) *Client {
 		ClientUUID:      clientUUID,
 		AuthChallenge:   challenge,
 		IP:              clientIP,
+		IsHostAuthor:    isHostAuthor,
 		IsAuthenticated: false,
 		SendQueue:       make(chan WSMessage, 64),
 		Done:            make(chan struct{}),
@@ -119,6 +122,57 @@ func firstNonEmpty(values ...string) string {
 	return ""
 }
 
+func activeDevicesForPublicKeyLocked(host *Host, publicKey string, currentClientUUID string) []ActiveDevice {
+	if publicKey == "" {
+		return nil
+	}
+	type deviceState struct {
+		device   ActiveDevice
+		lastSeen time.Time
+	}
+	byDeviceID := make(map[string]deviceState)
+	for _, candidate := range host.ClientsByConn {
+		if candidate == nil || !candidate.IsAuthenticated || candidate.PublicKey != publicKey {
+			continue
+		}
+		deviceID := strings.TrimSpace(candidate.DeviceID)
+		if deviceID == "" {
+			deviceID = "unknown-" + candidate.ClientUUID
+		}
+		deviceName := strings.TrimSpace(candidate.DeviceName)
+		if deviceName == "" {
+			deviceName = "Unknown Device"
+		}
+		lastSeen := candidate.LastSeen
+		if lastSeen.IsZero() {
+			lastSeen = time.Now().UTC()
+		}
+		next := ActiveDevice{
+			DeviceID:   deviceID,
+			DeviceName: deviceName,
+			LastSeen:   lastSeen.Format(time.RFC3339),
+			IsCurrent:  candidate.ClientUUID == currentClientUUID,
+		}
+		existing, ok := byDeviceID[deviceID]
+		if !ok || lastSeen.After(existing.lastSeen) {
+			byDeviceID[deviceID] = deviceState{device: next, lastSeen: lastSeen}
+			continue
+		}
+		if next.IsCurrent {
+			existing.device.IsCurrent = true
+			byDeviceID[deviceID] = existing
+		}
+	}
+	devices := make([]ActiveDevice, 0, len(byDeviceID))
+	for _, state := range byDeviceID {
+		devices = append(devices, state.device)
+	}
+	sort.Slice(devices, func(i, j int) bool {
+		return devices[i].LastSeen > devices[j].LastSeen
+	})
+	return devices
+}
+
 func handleGetDashData(client *Client, conn *websocket.Conn) {
 	host, exists := GetHost(client.HostUUID)
 	if !exists {
@@ -155,6 +209,7 @@ func handleGetDashDatRes(client *Client, conn *websocket.Conn, wsMsg *WSMessage)
 	}
 
 	if host, exists := GetHost(client.HostUUID); exists {
+		var activeDevices []ActiveDevice
 		host.mu.Lock()
 		joinConn, ok := host.ClientConnsByUUID[data.ClientUUID]
 		if ok {
@@ -176,14 +231,29 @@ func handleGetDashDatRes(client *Client, conn *websocket.Conn, wsMsg *WSMessage)
 				if joinClient.PublicKey != "" {
 					host.ClientsByPublicKey[joinClient.PublicKey] = joinClient
 				}
+				activeDevices = activeDevicesForPublicKeyLocked(host, joinClient.PublicKey, joinClient.ClientUUID)
 			}
 		}
 		for _, space := range data.Spaces {
+			if _, ok := host.Spaces[space.UUID]; !ok {
+				host.Spaces[space.UUID] = &Space{Users: make(map[*websocket.Conn]int)}
+			}
 			for _, channel := range space.Channels {
 				host.ChannelToSpace[channel.UUID] = space.UUID
 			}
 		}
 		host.mu.Unlock()
+
+		SendToClient(client.HostUUID, data.ClientUUID, WSMessage{
+			Type: "dash_data_payload",
+			Data: GetDashDataSuccess{
+				User:          data.User,
+				Spaces:        data.Spaces,
+				Invites:       data.Invites,
+				ActiveDevices: activeDevices,
+			},
+		})
+		return
 	}
 
 	SendToClient(client.HostUUID, data.ClientUUID, WSMessage{
@@ -241,6 +311,12 @@ func handleCreateSpaceRes(client *Client, conn *websocket.Conn, wsMsg *WSMessage
 		return
 	}
 	joinClient := host.ClientsByConn[joinConn]
+	if _, ok := host.Spaces[data.Space.UUID]; !ok {
+		host.Spaces[data.Space.UUID] = &Space{Users: make(map[*websocket.Conn]int)}
+	}
+	for _, channel := range data.Space.Channels {
+		host.ChannelToSpace[channel.UUID] = data.Space.UUID
+	}
 	host.mu.Unlock()
 
 	joinSpace(joinClient, data.Space.UUID)
@@ -264,8 +340,11 @@ func handleDeleteSpace(client *Client, conn *websocket.Conn, wsMsg *WSMessage) {
 	SendToAuthor(client, WSMessage{
 		Type: "delete_space_request",
 		Data: DeleteSpaceRequest{
-			UUID:       data.UUID,
-			ClientUUID: client.ClientUUID,
+			UUID:                      data.UUID,
+			RequesterUserID:           client.UserID,
+			RequesterUserPublicKey:    client.PublicKey,
+			RequesterUserEncPublicKey: client.EncPublicKey,
+			ClientUUID:                client.ClientUUID,
 		},
 	})
 }
@@ -295,9 +374,12 @@ func handleCreateChannel(client *Client, conn *websocket.Conn, wsMsg *WSMessage)
 	SendToAuthor(client, WSMessage{
 		Type: "create_channel_request",
 		Data: CreateChannelRequest{
-			Name:       data.Name,
-			SpaceUUID:  data.SpaceUUID,
-			ClientUUID: client.ClientUUID,
+			Name:                      data.Name,
+			SpaceUUID:                 data.SpaceUUID,
+			RequesterUserID:           client.UserID,
+			RequesterUserPublicKey:    client.PublicKey,
+			RequesterUserEncPublicKey: client.EncPublicKey,
+			ClientUUID:                client.ClientUUID,
 		},
 	})
 }
@@ -342,8 +424,11 @@ func handleDeleteChannel(client *Client, conn *websocket.Conn, wsMsg *WSMessage)
 	SendToAuthor(client, WSMessage{
 		Type: "delete_channel_request",
 		Data: DeleteChannelRequest{
-			UUID:       data.UUID,
-			ClientUUID: client.ClientUUID,
+			UUID:                      data.UUID,
+			RequesterUserID:           client.UserID,
+			RequesterUserPublicKey:    client.PublicKey,
+			RequesterUserEncPublicKey: client.EncPublicKey,
+			ClientUUID:                client.ClientUUID,
 		},
 	})
 }
@@ -385,9 +470,12 @@ func handleInviteUser(client *Client, conn *websocket.Conn, wsMsg *WSMessage) {
 	SendToAuthor(client, WSMessage{
 		Type: "invite_user_request",
 		Data: InviteUserRequest{
-			PublicKey:  data.PublicKey,
-			SpaceUUID:  data.SpaceUUID,
-			ClientUUID: client.ClientUUID,
+			PublicKey:                 data.PublicKey,
+			SpaceUUID:                 data.SpaceUUID,
+			RequesterUserID:           client.UserID,
+			RequesterUserPublicKey:    client.PublicKey,
+			RequesterUserEncPublicKey: client.EncPublicKey,
+			ClientUUID:                client.ClientUUID,
 		},
 	})
 }
@@ -445,9 +533,9 @@ func handleAcceptInvite(client *Client, conn *websocket.Conn, wsMsg *WSMessage) 
 		Type: "accept_invite_request",
 		Data: AcceptInviteRequest{
 			SpaceUserID:      data.SpaceUserID,
-			UserID:           data.UserID,
-			UserPublicKey:    firstNonEmpty(data.UserPublicKey, client.PublicKey),
-			UserEncPublicKey: firstNonEmpty(data.UserEncPublicKey, client.EncPublicKey),
+			UserID:           client.UserID,
+			UserPublicKey:    client.PublicKey,
+			UserEncPublicKey: client.EncPublicKey,
 			ClientUUID:       client.ClientUUID,
 		},
 	})
@@ -474,6 +562,12 @@ func handleAcceptInviteRes(client *Client, conn *websocket.Conn, wsMsg *WSMessag
 		return
 	}
 	joinClient := host.ClientsByConn[joinConn]
+	if _, ok := host.Spaces[data.Space.UUID]; !ok {
+		host.Spaces[data.Space.UUID] = &Space{Users: make(map[*websocket.Conn]int)}
+	}
+	for _, channel := range data.Space.Channels {
+		host.ChannelToSpace[channel.UUID] = data.Space.UUID
+	}
 	host.mu.Unlock()
 
 	joinSpace(joinClient, data.Space.UUID)
@@ -508,9 +602,9 @@ func handleDeclineInvite(client *Client, conn *websocket.Conn, wsMsg *WSMessage)
 		Type: "decline_invite_request",
 		Data: DeclineInviteRequest{
 			SpaceUserID:      data.SpaceUserID,
-			UserID:           data.UserID,
-			UserPublicKey:    firstNonEmpty(data.UserPublicKey, client.PublicKey),
-			UserEncPublicKey: firstNonEmpty(data.UserEncPublicKey, client.EncPublicKey),
+			UserID:           client.UserID,
+			UserPublicKey:    client.PublicKey,
+			UserEncPublicKey: client.EncPublicKey,
 			ClientUUID:       client.ClientUUID,
 		},
 	})
@@ -542,9 +636,9 @@ func handleLeaveSpace(client *Client, conn *websocket.Conn, wsMsg *WSMessage) {
 		Type: "leave_space_request",
 		Data: LeaveSpaceRequest{
 			SpaceUUID:        data.SpaceUUID,
-			UserID:           data.UserID,
-			UserPublicKey:    firstNonEmpty(data.UserPublicKey, client.PublicKey),
-			UserEncPublicKey: firstNonEmpty(data.UserEncPublicKey, client.EncPublicKey),
+			UserID:           client.UserID,
+			UserPublicKey:    client.PublicKey,
+			UserEncPublicKey: client.EncPublicKey,
 			ClientUUID:       client.ClientUUID,
 		},
 	})
@@ -597,6 +691,35 @@ func joinChannel(client *Client, channelUUID string) {
 	}
 
 	host.mu.Lock()
+	spaceUUID, mapped := host.ChannelToSpace[channelUUID]
+	if !mapped {
+		host.mu.Unlock()
+		SendToClient(client.HostUUID, client.ClientUUID, WSMessage{
+			Type: "error",
+			Data: ChatError{Content: "Channel is not accessible"},
+		})
+		return
+	}
+	space, spaceExists := host.Spaces[spaceUUID]
+	if !spaceExists {
+		host.mu.Unlock()
+		SendToClient(client.HostUUID, client.ClientUUID, WSMessage{
+			Type: "error",
+			Data: ChatError{Content: "Space is not accessible"},
+		})
+		return
+	}
+	space.mu.Lock()
+	_, isMember := space.Users[client.Conn]
+	space.mu.Unlock()
+	if !isMember {
+		host.mu.Unlock()
+		SendToClient(client.HostUUID, client.ClientUUID, WSMessage{
+			Type: "error",
+			Data: ChatError{Content: "Unauthorized channel join"},
+		})
+		return
+	}
 
 	if _, ok := host.Channels[channelUUID]; !ok {
 		host.Channels[channelUUID] = &Channel{Users: make(map[*websocket.Conn]int)}
@@ -686,11 +809,14 @@ func handleRemoveSpaceUser(client *Client, conn *websocket.Conn, wsMsg *WSMessag
 	SendToAuthor(client, WSMessage{
 		Type: "remove_space_user_request",
 		Data: RemoveSpaceUserRequest{
-			SpaceUUID:        data.SpaceUUID,
-			UserID:           data.UserID,
-			UserPublicKey:    data.UserPublicKey,
-			UserEncPublicKey: data.UserEncPublicKey,
-			ClientUUID:       client.ClientUUID,
+			SpaceUUID:                 data.SpaceUUID,
+			UserID:                    data.UserID,
+			UserPublicKey:             data.UserPublicKey,
+			UserEncPublicKey:          data.UserEncPublicKey,
+			RequesterUserID:           client.UserID,
+			RequesterUserPublicKey:    client.PublicKey,
+			RequesterUserEncPublicKey: client.EncPublicKey,
+			ClientUUID:                client.ClientUUID,
 		},
 	})
 }
@@ -743,8 +869,12 @@ func handleChatMessage(client *Client, conn *websocket.Conn, wsMsg *WSMessage) {
 		safeSend(client, conn, WSMessage{Type: "error", Data: ChatError{Content: "Invalid chat message data"}})
 		return
 	}
-	if len(data.Envelope) == 0 {
-		safeSend(client, conn, WSMessage{Type: "error", Data: ChatError{Content: "Missing encrypted envelope"}})
+	if !allowChatMessage(client.ClientUUID, time.Now().UTC()) {
+		safeSend(client, conn, WSMessage{Type: "error", Data: ChatError{Content: "Chat rate limit exceeded"}})
+		return
+	}
+	if err := validateEnvelopeForRelay(data.Envelope); err != nil {
+		safeSend(client, conn, WSMessage{Type: "error", Data: ChatError{Content: err.Error()}})
 		return
 	}
 
@@ -762,11 +892,40 @@ func handleChatMessage(client *Client, conn *websocket.Conn, wsMsg *WSMessage) {
 
 	host.mu.Lock()
 	channelUUID, ok := host.ChannelSubscriptions[conn]
-	host.mu.Unlock()
 	if !ok {
+		host.mu.Unlock()
 		SendToClient(client.HostUUID, client.ClientUUID, WSMessage{
 			Type: "error",
 			Data: ChatError{Content: "Failed to connect to the channel"},
+		})
+		return
+	}
+	spaceUUID, mapped := host.ChannelToSpace[channelUUID]
+	if !mapped {
+		host.mu.Unlock()
+		SendToClient(client.HostUUID, client.ClientUUID, WSMessage{
+			Type: "error",
+			Data: ChatError{Content: "Unknown channel mapping"},
+		})
+		return
+	}
+	space, spaceExists := host.Spaces[spaceUUID]
+	if !spaceExists {
+		host.mu.Unlock()
+		SendToClient(client.HostUUID, client.ClientUUID, WSMessage{
+			Type: "error",
+			Data: ChatError{Content: "Unauthorized space access"},
+		})
+		return
+	}
+	space.mu.Lock()
+	_, isMember := space.Users[conn]
+	space.mu.Unlock()
+	host.mu.Unlock()
+	if !isMember {
+		SendToClient(client.HostUUID, client.ClientUUID, WSMessage{
+			Type: "error",
+			Data: ChatError{Content: "Unauthorized channel access"},
 		})
 		return
 	}

@@ -63,6 +63,9 @@ export default class DashboardApp {
     if (!this.data.spaces) {
       this.data.spaces = []; // init spaces
     }
+    if (!Array.isArray(this.data.active_devices)) {
+      this.data.active_devices = [];
+    }
 
     this.sidebar = new SidebarComponent({
       data: this.data,
@@ -90,7 +93,10 @@ export default class DashboardApp {
   updateAccountUsername = (data, hostUUID) => {
     this.data.user.username = data.data.username;
     this.sidebar.userAccountComponent.render();
-    this.openDashModal({ type: "account", data: { user: this.data.user } });
+    this.openDashModal({
+      type: "account",
+      data: { user: this.data.user, active_devices: this.data.active_devices || [] },
+    });
   };
 
   getCurrentSpaceUUID = () => {

@@ -5,10 +5,13 @@ import (
 	"fmt"
 	"gochat/db"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
 )
+
+const maxPersistedEnvelopeBytes = 128 * 1024
 
 func handleSaveChatMessage(wsMsg *WSMessage) {
 	data, err := decodeData[SaveChatMessageRequest](wsMsg.Data)
@@ -24,18 +27,59 @@ func handleSaveChatMessage(wsMsg *WSMessage) {
 		log.Println("Error resolving message user identity:", err)
 		return
 	}
+	messageID := strings.TrimSpace(stringField(data.Envelope, "message_id"))
+	senderAuthPublicKey := strings.TrimSpace(stringField(data.Envelope, "sender_auth_public_key"))
+	if messageID == "" || senderAuthPublicKey == "" {
+		log.Println("Rejecting message without replay-protection fields")
+		return
+	}
+	if user.PublicKey != "" && senderAuthPublicKey != user.PublicKey {
+		log.Println("Rejecting message with mismatched sender auth key")
+		return
+	}
 
-	query := `INSERT INTO messages (channel_uuid, content, user_id, timestamp) VALUES (?, ?, ?, ?)`
+	query := `INSERT INTO messages (channel_uuid, content, user_id, message_id, sender_auth_public_key, timestamp) VALUES (?, ?, ?, ?, ?, ?)`
 	envelopeJSON, err := json.Marshal(data.Envelope)
 	if err != nil {
 		log.Println("Error marshalling encrypted message envelope:", err)
 		return
 	}
+	if len(envelopeJSON) > maxPersistedEnvelopeBytes {
+		log.Printf("Rejecting oversized encrypted envelope: %d bytes", len(envelopeJSON))
+		return
+	}
 
-	_, err = db.ChatDB.Exec(query, data.ChannelUUID, string(envelopeJSON), user.ID, msgTimestamp.Format(time.RFC3339))
+	_, err = db.ChatDB.Exec(
+		query,
+		data.ChannelUUID,
+		string(envelopeJSON),
+		user.ID,
+		messageID,
+		senderAuthPublicKey,
+		msgTimestamp.Format(time.RFC3339),
+	)
 	if err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "unique") {
+			log.Printf("Duplicate message replay ignored for channel %s message_id=%s", data.ChannelUUID, messageID)
+			return
+		}
 		fmt.Println("Error: Database failed to insert message")
 	}
+}
+
+func stringField(values map[string]interface{}, key string) string {
+	if len(values) == 0 {
+		return ""
+	}
+	raw, ok := values[key]
+	if !ok {
+		return ""
+	}
+	text, ok := raw.(string)
+	if !ok {
+		return ""
+	}
+	return text
 }
 
 func handleGetMessages(conn *websocket.Conn, wsMsg *WSMessage) {

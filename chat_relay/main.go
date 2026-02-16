@@ -25,6 +25,19 @@ func rateLimiterrorHandler(c *gin.Context, info ratelimit.Info) {
 	c.String(429, "Too many requests. Try again in "+time.Until(info.ResetTime).String())
 }
 
+func securityHeadersMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Header("X-Content-Type-Options", "nosniff")
+		c.Header("X-Frame-Options", "DENY")
+		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
+		c.Header(
+			"Content-Security-Policy",
+			"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' ws: wss: https:; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
+		)
+		c.Next()
+	}
+}
+
 func main() {
 	_ = godotenv.Load()
 
@@ -57,6 +70,7 @@ func main() {
 	store := ratelimit.InMemoryStore(&ratelimit.InMemoryOptions{Rate: time.Second, Limit: 150})
 	r.Use(ratelimit.RateLimiter(store, &ratelimit.Options{ErrorHandler: rateLimiterrorHandler, KeyFunc: keyFunc}))
 	r.Use(cors.Default())
+	r.Use(securityHeadersMiddleware())
 
 	r.GET("/healthz", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok"})

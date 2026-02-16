@@ -1,4 +1,6 @@
 const IDENTITY_KEY = "parch.chat.identity";
+const DEVICE_ID_KEY = "parch.chat.device_id";
+const LAST_EXPORTED_AT_KEY = "parch.chat.identity.last_exported_at";
 
 function getCrypto() {
   const runtimeCrypto = globalThis?.crypto;
@@ -42,6 +44,42 @@ function readIdentity() {
 
 function writeIdentity(identity) {
   localStorage.setItem(IDENTITY_KEY, JSON.stringify(identity));
+}
+
+function getOrCreateDeviceID() {
+  const existing = localStorage.getItem(DEVICE_ID_KEY);
+  if (typeof existing === "string" && existing.trim() !== "") {
+    return existing.trim();
+  }
+  const generated = toBase64Raw(getCrypto().getRandomValues(new Uint8Array(16)));
+  localStorage.setItem(DEVICE_ID_KEY, generated);
+  return generated;
+}
+
+function detectBrowserName() {
+  const ua = (globalThis?.navigator?.userAgent || "").toLowerCase();
+  if (ua.includes("edg/")) return "Edge";
+  if (ua.includes("firefox/")) return "Firefox";
+  if (ua.includes("safari/") && !ua.includes("chrome/")) return "Safari";
+  if (ua.includes("chrome/")) return "Chrome";
+  return "Browser";
+}
+
+function getDeviceMetadata() {
+  const deviceId = getOrCreateDeviceID();
+  const browser = detectBrowserName();
+  const platform = String(globalThis?.navigator?.platform || "Unknown");
+  const deviceName = `${browser} on ${platform}`.slice(0, 80);
+  return { deviceId, deviceName };
+}
+
+function markIdentityExportedNow() {
+  localStorage.setItem(LAST_EXPORTED_AT_KEY, new Date().toISOString());
+}
+
+function getLastExportedAt() {
+  const value = localStorage.getItem(LAST_EXPORTED_AT_KEY);
+  return typeof value === "string" ? value : "";
 }
 
 function normalizeIdentity(input) {
@@ -239,9 +277,12 @@ function clearIdentity() {
 
 export default {
   getOrCreateIdentity,
+  getDeviceMetadata,
   signAuthMessage,
   verifyAuthSignature,
   exportIdentity,
+  markIdentityExportedNow,
+  getLastExportedAt,
   importIdentity,
   setIdentityUsername,
   clearIdentity,

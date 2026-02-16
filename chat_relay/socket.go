@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -35,6 +36,7 @@ func HandleSocket(c *gin.Context) {
 		log.Println("WebSocket upgrade failed:", err)
 		return
 	}
+	conn.SetReadLimit(256 * 1024)
 	defer conn.Close()
 
 	clientIP := c.ClientIP()
@@ -64,7 +66,14 @@ func HandleSocket(c *gin.Context) {
 				conn.WriteJSON(WSMessage{Type: "join_error", Data: ChatError{Content: "Failed to join host"}})
 				continue
 			}
-			client = registerClient(host, conn, clientIP)
+			isHostAuthor := data.ID != "" && data.ID == host.AuthorID
+			if !isHostAuthor {
+				if err := ensureHostResponsive(host, 2*time.Second); err != nil {
+					conn.WriteJSON(WSMessage{Type: "join_error", Data: ChatError{Content: "Host is offline or unresponsive"}})
+					continue
+				}
+			}
+			client = registerClient(host, conn, clientIP, isHostAuthor)
 			continue
 		}
 
@@ -98,10 +107,14 @@ func cleanupClient(client *Client) {
 	delete(host.ClientsByConn, client.Conn)
 	delete(host.ClientConnsByUUID, client.ClientUUID)
 	delete(host.ClientsByUserID, client.UserID)
+	if client.IsHostAuthor {
+		delete(host.ConnByAuthorID, host.AuthorID)
+	}
 	if client.PublicKey != "" {
 		delete(host.ClientsByPublicKey, client.PublicKey)
 	}
 	host.mu.Unlock()
+	clearChatMessageLimiter(client.ClientUUID)
 
 	close(client.SendQueue)
 	close(client.Done)
@@ -210,22 +223,29 @@ func BroadcastToSpace(hostUUID, spaceUUID string, msg WSMessage) {
 	}
 }
 
-func joinSpace(client *Client, spaceUUID string) {
+func joinSpace(client *Client, spaceUUID string) bool {
 	host, exists := GetHost(client.HostUUID)
 	if !exists {
-		return
+		return false
 	}
 
 	host.mu.Lock()
 	defer host.mu.Unlock()
-	if _, ok := host.Spaces[spaceUUID]; !ok {
-		host.Spaces[spaceUUID] = &Space{Users: make(map[*websocket.Conn]int)}
+	space, ok := host.Spaces[spaceUUID]
+	if !ok {
+		return false
 	}
-	space := host.Spaces[spaceUUID]
 	space.mu.Lock()
 	space.Users[client.Conn] = client.UserID
 	space.mu.Unlock()
-	host.SpaceSubscriptions[client.Conn] = append(host.SpaceSubscriptions[client.Conn], spaceUUID)
+	subs := host.SpaceSubscriptions[client.Conn]
+	for _, existing := range subs {
+		if existing == spaceUUID {
+			return true
+		}
+	}
+	host.SpaceSubscriptions[client.Conn] = append(subs, spaceUUID)
+	return true
 }
 
 func leaveAllSpaces(client *Client) {

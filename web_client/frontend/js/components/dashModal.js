@@ -168,7 +168,7 @@ export default class DashModal {
     ];
   };
 
-  renderAccount = (user) => {
+  renderAccount = (user, activeDevices = []) => {
     const importIdentityText = async (importText) => {
       if (!importText) {
         platform.alert("No identity data provided");
@@ -188,6 +188,41 @@ export default class DashModal {
         console.error(err);
         platform.alert(err?.message || "Failed to import identity");
       }
+    };
+    const formatDateTime = (isoText) => {
+      if (!isoText) return "Never";
+      const date = new Date(isoText);
+      if (Number.isNaN(date.getTime())) return "Unknown";
+      return date.toLocaleString();
+    };
+    const updateLastExportedLabel = () => {
+      const exportMetaElem = this.domComponent.querySelector("#last-exported-at");
+      if (!exportMetaElem) return;
+      exportMetaElem.textContent = formatDateTime(identityManager.getLastExportedAt());
+    };
+    const renderActiveDevices = () => {
+      const listElem = this.domComponent.querySelector("#active-devices-list");
+      if (!listElem) return;
+      listElem.innerHTML = "";
+      if (!Array.isArray(activeDevices) || activeDevices.length === 0) {
+        listElem.append(
+          createElement(
+            "div",
+            { style: "font-size: 0.85rem; color: var(--main-gray);" },
+            "No active device sessions detected on this host."
+          )
+        );
+        return;
+      }
+      const nodes = activeDevices.map((device) => {
+        const label = `${device.device_name || "Unknown Device"}${device.is_current ? " (This device)" : ""}`;
+        const details = `Last seen: ${formatDateTime(device.last_seen || "")}`;
+        return createElement("div", { class: "channel-item" }, [
+          createElement("div", { style: "font-size: 0.92rem; color: var(--bright-white);" }, label),
+          createElement("div", { style: "font-size: 0.8rem; color: var(--main-gray);" }, details),
+        ]);
+      });
+      listElem.append(...nodes);
     };
 
     this.domComponent.append(
@@ -274,6 +309,8 @@ export default class DashModal {
                     exportElem.select();
                     document.execCommand("copy");
                   }
+                  identityManager.markIdentityExportedNow();
+                  updateLastExportedLabel();
                   platform.alert("Identity JSON copied");
                 } catch (_err) {
                   platform.alert("Failed to copy identity JSON");
@@ -294,11 +331,18 @@ export default class DashModal {
                   link.click();
                   link.remove();
                   URL.revokeObjectURL(url);
+                  identityManager.markIdentityExportedNow();
+                  updateLastExportedLabel();
                 } catch (_err) {
                   platform.alert("Failed to generate identity file");
                 }
               },
             }),
+            createElement(
+              "p",
+              { style: "display: block; margin: 8px 0 6px; font-size: 0.82rem; color: var(--main-gray);" },
+              ["Last exported: ", createElement("span", { id: "last-exported-at" }, "Never")]
+            ),
             createElement("br"),
             createElement("textarea", {
               id: "identity-import-input",
@@ -347,6 +391,15 @@ export default class DashModal {
                 }
               },
             }),
+          ]),
+          createElement("div", { class: "settings-section" }, [
+            createElement("h3", {}, "Active Devices"),
+            createElement(
+              "p",
+              { style: "display: block; margin-bottom: 8px; font-size: 0.85rem; color: var(--main-gray);" },
+              "Shows active sessions for this identity on this host."
+            ),
+            createElement("div", { id: "active-devices-list", class: "channels-list" }),
           ]),
           createElement("div", { class: "settings-section" }, [
             createElement("h3", {}, "Local Fallback Username"),
@@ -462,6 +515,8 @@ export default class DashModal {
           exportElem.value = "";
         }
       });
+    updateLastExportedLabel();
+    renderActiveDevices();
   };
 
   renderInvites = (invites, user) => {
@@ -529,7 +584,7 @@ export default class DashModal {
         break;
       case "account":
         if (props.data.user) {
-          this.renderAccount(props.data.user);
+          this.renderAccount(props.data.user, props.data.active_devices || []);
         }
         break;
       case "invites":
