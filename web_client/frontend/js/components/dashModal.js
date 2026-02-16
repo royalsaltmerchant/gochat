@@ -169,9 +169,13 @@ export default class DashModal {
   };
 
   renderAccount = (user, activeDevices = []) => {
-    const importIdentityText = async (importText) => {
+    const importIdentityText = async (importText, passphrase) => {
       if (!importText) {
-        platform.alert("No identity data provided");
+        platform.alert("No backup data provided");
+        return;
+      }
+      if (!passphrase || passphrase.length < 8) {
+        platform.alert("Enter an import passphrase (8+ chars)");
         return;
       }
 
@@ -181,12 +185,12 @@ export default class DashModal {
       if (!confirmed) return;
 
       try {
-        await identityManager.importIdentity(importText);
+        await identityManager.importEncryptedIdentity(importText, passphrase);
         platform.alert("Identity imported. Reloading...");
         window.location.reload();
       } catch (err) {
         console.error(err);
-        platform.alert(err?.message || "Failed to import identity");
+        platform.alert(err?.message || "Failed to import encrypted backup");
       }
     };
     const formatDateTime = (isoText) => {
@@ -275,30 +279,62 @@ export default class DashModal {
             }),
           ]),
           createElement("div", { class: "settings-section" }, [
-            createElement("h3", {}, "Identity Transfer (Private Key)"),
+            createElement("h3", {}, "Encrypted Identity Backup"),
             createElement(
               "p",
               { style: "display: block; margin-bottom: 8px; font-size: 0.85rem; color: var(--light-red);" },
-              "Anyone with your identity JSON can access your account. Share it only with yourself."
+              "Backups are encrypted with your passphrase. If you lose the passphrase and backup file, your identity cannot be recovered."
             ),
             createElement(
               "p",
               { style: "display: block; margin-bottom: 8px; font-size: 0.85rem; color: var(--main-gray);" },
-              "Export on this browser, then import on another browser/device to keep the same identity."
+              "Private keys stay non-exportable during normal use. Export creates an encrypted backup file for device transfer."
             ),
+            createElement("div", { class: "input-container" }, [
+              createElement("label", { for: "identity-export-passphrase" }, "Backup Passphrase"),
+              createElement("input", {
+                id: "identity-export-passphrase",
+                type: "password",
+                placeholder: "At least 8 characters",
+                autocomplete: "new-password",
+              }),
+            ]),
+            createElement("br"),
             createElement("textarea", {
               id: "identity-export-display",
               readonly: "readonly",
               rows: "6",
+              placeholder: "Encrypted backup JSON appears here after generation",
               style: "width: 100%; font-size: 0.78rem; padding: 8px; background: var(--second-dark); color: var(--main-white); border: 1px solid var(--main-gray); border-radius: 4px; resize: vertical; margin-bottom: 8px;",
             }),
-            createElement("button", { class: "btn", id: "copy-identity-btn" }, "Copy Identity JSON", {
+            createElement("button", { class: "btn", id: "generate-identity-backup-btn" }, "Generate Encrypted Backup", {
+              type: "click",
+              event: async () => {
+                const passphraseElem = this.domComponent.querySelector("#identity-export-passphrase");
+                const exportElem = this.domComponent.querySelector("#identity-export-display");
+                const passphrase = (passphraseElem?.value || "").trim();
+                if (passphrase.length < 8) {
+                  platform.alert("Enter a backup passphrase (8+ chars)");
+                  return;
+                }
+                try {
+                  const backupText = await identityManager.exportEncryptedIdentity(passphrase);
+                  if (exportElem) {
+                    exportElem.value = backupText;
+                  }
+                } catch (err) {
+                  console.error(err);
+                  platform.alert(err?.message || "Failed to generate encrypted backup");
+                }
+              },
+            }),
+            createElement("button", { class: "btn", id: "copy-identity-btn", style: "margin-left: 8px;" }, "Copy Backup JSON", {
               type: "click",
               event: async () => {
                 const exportElem = this.domComponent.querySelector("#identity-export-display");
                 const text = (exportElem?.value || "").trim();
                 if (!text) {
-                  platform.alert("Identity export is not ready");
+                  platform.alert("Generate backup first");
                   return;
                 }
                 try {
@@ -311,30 +347,41 @@ export default class DashModal {
                   }
                   identityManager.markIdentityExportedNow();
                   updateLastExportedLabel();
-                  platform.alert("Identity JSON copied");
+                  platform.alert("Encrypted backup copied");
                 } catch (_err) {
-                  platform.alert("Failed to copy identity JSON");
+                  platform.alert("Failed to copy backup");
                 }
               },
             }),
-            createElement("button", { class: "btn", id: "download-identity-btn", style: "margin-left: 8px;" }, "Download Identity File", {
+            createElement("button", { class: "btn", id: "download-identity-btn", style: "margin-left: 8px;" }, "Download Backup File", {
               type: "click",
               event: async () => {
+                const passphraseElem = this.domComponent.querySelector("#identity-export-passphrase");
+                const exportElem = this.domComponent.querySelector("#identity-export-display");
+                const passphrase = (passphraseElem?.value || "").trim();
+                if (passphrase.length < 8) {
+                  platform.alert("Enter your backup passphrase first");
+                  return;
+                }
                 try {
-                  const exportText = await identityManager.exportIdentity();
+                  const exportText = (exportElem?.value || "").trim() || await identityManager.exportEncryptedIdentity(passphrase);
+                  if (exportElem && !exportElem.value) {
+                    exportElem.value = exportText;
+                  }
                   const blob = new Blob([exportText], { type: "application/json" });
                   const url = URL.createObjectURL(blob);
                   const link = document.createElement("a");
                   link.href = url;
-                  link.download = "parch-identity.json";
+                  link.download = "parch-identity-backup.enc.json";
                   document.body.appendChild(link);
                   link.click();
                   link.remove();
                   URL.revokeObjectURL(url);
                   identityManager.markIdentityExportedNow();
                   updateLastExportedLabel();
-                } catch (_err) {
-                  platform.alert("Failed to generate identity file");
+                } catch (err) {
+                  console.error(err);
+                  platform.alert(err?.message || "Failed to generate backup file");
                 }
               },
             }),
@@ -344,26 +391,38 @@ export default class DashModal {
               ["Last exported: ", createElement("span", { id: "last-exported-at" }, "Never")]
             ),
             createElement("br"),
+            createElement("div", { class: "input-container" }, [
+              createElement("label", { for: "identity-import-passphrase" }, "Import Passphrase"),
+              createElement("input", {
+                id: "identity-import-passphrase",
+                type: "password",
+                placeholder: "Passphrase used to encrypt the backup",
+                autocomplete: "off",
+              }),
+            ]),
+            createElement("br"),
             createElement("textarea", {
               id: "identity-import-input",
               rows: "6",
-              placeholder: "Paste identity JSON here to import",
+              placeholder: "Paste encrypted backup JSON here to import",
               style: "width: 100%; font-size: 0.78rem; padding: 8px; background: var(--second-dark); color: var(--a-blue); border: 1px solid var(--main-gray); border-radius: 4px; resize: vertical; margin-bottom: 8px;",
             }),
-            createElement("button", { class: "btn", id: "import-identity-btn" }, "Import Identity JSON", {
+            createElement("button", { class: "btn", id: "import-identity-btn" }, "Import Encrypted Backup", {
               type: "click",
               event: async () => {
                 const importElem = this.domComponent.querySelector("#identity-import-input");
+                const importPassphraseElem = this.domComponent.querySelector("#identity-import-passphrase");
                 const importText = (importElem?.value || "").trim();
+                const passphrase = (importPassphraseElem?.value || "").trim();
 
                 if (!importText) {
-                  platform.alert("Paste identity JSON to import");
+                  platform.alert("Paste encrypted backup JSON to import");
                   return;
                 }
-                await importIdentityText(importText);
+                await importIdentityText(importText, passphrase);
               },
             }),
-            createElement("button", { class: "btn", id: "import-identity-file-btn", style: "margin-left: 8px;" }, "Import Identity File", {
+            createElement("button", { class: "btn", id: "import-identity-file-btn", style: "margin-left: 8px;" }, "Import Backup File", {
               type: "click",
               event: () => {
                 const fileInput = this.domComponent.querySelector("#identity-import-file");
@@ -385,9 +444,12 @@ export default class DashModal {
                 if (!file) return;
                 try {
                   const text = await file.text();
-                  await importIdentityText(text);
+                  const importElem = this.domComponent.querySelector("#identity-import-input");
+                  if (importElem) {
+                    importElem.value = text;
+                  }
                 } catch (_err) {
-                  platform.alert("Failed to read identity file");
+                  platform.alert("Failed to read backup file");
                 }
               },
             }),
@@ -482,23 +544,12 @@ export default class DashModal {
       .getOrCreateIdentity()
       .then((identity) => {
         const publicKeyElem = this.domComponent.querySelector("#public-key-display");
-        const exportElem = this.domComponent.querySelector("#identity-export-display");
         const localUsernameElem = this.domComponent.querySelector("#local-identity-username");
         if (publicKeyElem) {
           publicKeyElem.value = identity.publicKey || "";
         }
         if (localUsernameElem) {
           localUsernameElem.value = identity.username || "";
-        }
-        if (exportElem) {
-          identityManager
-            .exportIdentity()
-            .then((exported) => {
-              exportElem.value = exported;
-            })
-            .catch(() => {
-              exportElem.value = "";
-            });
         }
       })
       .catch(() => {
