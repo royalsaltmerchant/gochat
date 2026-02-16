@@ -87,6 +87,13 @@ async function importOwnEncPrivateKey(encodedKey) {
   );
 }
 
+async function resolveOwnEncPrivateKey(identity) {
+  if (identity?.encPrivateKey) {
+    return importOwnEncPrivateKey(identity.encPrivateKey);
+  }
+  return identityManager.getEncryptionPrivateKey(identity);
+}
+
 async function deriveWrapKey(privateKey, publicKey, envelopeContext) {
   const crypto = getCrypto();
   const sharedSecret = await crypto.subtle.deriveBits(
@@ -128,7 +135,7 @@ async function encryptMessageForSpace(params) {
     recipients,
   } = params;
 
-  if (!identity?.publicKey || !identity?.privateKey || !identity?.encPublicKey || !identity?.encPrivateKey) {
+  if (!identity?.publicKey || !identity?.encPublicKey) {
     throw new Error("Missing sender identity keys");
   }
   if (!spaceUUID || !channelUUID) {
@@ -168,7 +175,7 @@ async function encryptMessageForSpace(params) {
     contentPlain
   );
 
-  const senderEncPrivate = await importOwnEncPrivateKey(identity.encPrivateKey);
+  const senderEncPrivate = await resolveOwnEncPrivateKey(identity);
 
   const envelope = {
     v: 1,
@@ -213,7 +220,7 @@ async function decryptMessageForIdentity(params) {
   if (!envelope?.sender_auth_public_key || !envelope?.sender_enc_public_key || !envelope?.sig) {
     throw new Error("Invalid encrypted envelope");
   }
-  if (!identity?.publicKey || !identity?.encPrivateKey) {
+  if (!identity?.publicKey) {
     throw new Error("Missing recipient identity");
   }
 
@@ -234,7 +241,7 @@ async function decryptMessageForIdentity(params) {
     throw new Error("No wrapped key for this identity");
   }
 
-  const recipientPrivate = await importOwnEncPrivateKey(identity.encPrivateKey);
+  const recipientPrivate = await resolveOwnEncPrivateKey(identity);
   const senderPublic = await importSenderEncPublicKey(envelope.sender_enc_public_key);
   const wrapKey = await deriveWrapKey(recipientPrivate, senderPublic, envelope);
 

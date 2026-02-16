@@ -78,6 +78,29 @@ test("encrypts and decrypts envelope across two identities", async () => {
   assert.equal(alicePlain, "hello e2ee");
 });
 
+test("exports and imports encrypted identity backup", async () => {
+  const original = await createIdentity();
+  const backupText = await identityManager.exportEncryptedIdentity("correct horse battery staple");
+
+  identityManager.clearIdentity();
+  await identityManager.importEncryptedIdentity(backupText, "correct horse battery staple");
+
+  const restored = await identityManager.getOrCreateIdentity();
+  assert.equal(restored.publicKey, original.publicKey);
+  assert.equal(restored.encPublicKey, original.encPublicKey);
+});
+
+test("rejects encrypted backup import with wrong passphrase", async () => {
+  await createIdentity();
+  const backupText = await identityManager.exportEncryptedIdentity("good-passphrase");
+
+  identityManager.clearIdentity();
+  await assert.rejects(
+    () => identityManager.importEncryptedIdentity(backupText, "bad-passphrase"),
+    /decrypt|OperationError|Failed|invalid/i
+  );
+});
+
 test("detects message_id tampering", async () => {
   const alice = await createIdentity();
   const bob = await createIdentity();
