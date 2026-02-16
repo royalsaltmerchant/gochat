@@ -13,6 +13,31 @@ func handleInviteUser(conn *websocket.Conn, wsMsg *WSMessage) {
 		log.Println("error decoding invite_user_request:", err)
 		return
 	}
+	requester, err := resolveHostUserIdentityStrict(
+		data.RequesterUserID,
+		data.RequesterUserPublicKey,
+		data.RequesterUserEncPublicKey,
+	)
+	if err != nil {
+		sendToConn(conn, WSMessage{
+			Type: "error",
+			Data: ChatError{
+				Content:    "Failed to resolve requester identity",
+				ClientUUID: data.ClientUUID,
+			},
+		})
+		return
+	}
+	if err := ensureSpaceAuthor(data.SpaceUUID, requester.ID); err != nil {
+		sendToConn(conn, WSMessage{
+			Type: "error",
+			Data: ChatError{
+				Content:    "Not authorized to invite users to this space",
+				ClientUUID: data.ClientUUID,
+			},
+		})
+		return
+	}
 
 	user, err := lookupHostUserByPublicKey(data.PublicKey)
 	if err != nil {
@@ -87,19 +112,65 @@ func handleRemoveSpaceUser(conn *websocket.Conn, wsMsg *WSMessage) {
 		return
 	}
 
-	user, err := resolveHostUserIdentityStrict(data.UserID, data.UserPublicKey, data.UserEncPublicKey)
+	requester, err := resolveHostUserIdentityStrict(
+		data.RequesterUserID,
+		data.RequesterUserPublicKey,
+		data.RequesterUserEncPublicKey,
+	)
 	if err != nil {
 		sendToConn(conn, WSMessage{
 			Type: "error",
 			Data: ChatError{
-				Content:    "Failed to resolve user identity",
+				Content:    "Failed to resolve requester identity",
+				ClientUUID: data.ClientUUID,
+			},
+		})
+		return
+	}
+	if err := ensureSpaceAuthor(data.SpaceUUID, requester.ID); err != nil {
+		sendToConn(conn, WSMessage{
+			Type: "error",
+			Data: ChatError{
+				Content:    "Not authorized to remove users from this space",
+				ClientUUID: data.ClientUUID,
+			},
+		})
+		return
+	}
+	targetUser, err := resolveHostUserIdentity(data.UserID, data.UserPublicKey, data.UserEncPublicKey, "")
+	if err != nil {
+		sendToConn(conn, WSMessage{
+			Type: "error",
+			Data: ChatError{
+				Content:    "Failed to resolve target user identity",
+				ClientUUID: data.ClientUUID,
+			},
+		})
+		return
+	}
+	var authorID int
+	if err := db.ChatDB.QueryRow(`SELECT author_id FROM spaces WHERE uuid = ?`, data.SpaceUUID).Scan(&authorID); err != nil {
+		sendToConn(conn, WSMessage{
+			Type: "error",
+			Data: ChatError{
+				Content:    "Failed to load space author",
+				ClientUUID: data.ClientUUID,
+			},
+		})
+		return
+	}
+	if targetUser.ID == authorID {
+		sendToConn(conn, WSMessage{
+			Type: "error",
+			Data: ChatError{
+				Content:    "Cannot remove the space author",
 				ClientUUID: data.ClientUUID,
 			},
 		})
 		return
 	}
 
-	res, err := db.ChatDB.Exec("DELETE FROM space_users WHERE space_uuid = ? AND user_id = ?", data.SpaceUUID, user.ID)
+	res, err := db.ChatDB.Exec("DELETE FROM space_users WHERE space_uuid = ? AND user_id = ?", data.SpaceUUID, targetUser.ID)
 	if err != nil {
 		sendToConn(conn, WSMessage{
 			Type: "error",
@@ -121,8 +192,8 @@ func handleRemoveSpaceUser(conn *websocket.Conn, wsMsg *WSMessage) {
 		return
 	}
 
-	data.UserID = user.ID
-	data.UserPublicKey = user.PublicKey
+	data.UserID = targetUser.ID
+	data.UserPublicKey = targetUser.PublicKey
 
 	sendToConn(conn, WSMessage{
 		Type: "remove_space_user_success",

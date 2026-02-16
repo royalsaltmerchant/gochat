@@ -110,6 +110,31 @@ func handleDeleteSpace(conn *websocket.Conn, wsMsg *WSMessage) {
 		log.Println("error decoding delete_space_request:", err)
 		return
 	}
+	requester, err := resolveHostUserIdentityStrict(
+		data.RequesterUserID,
+		data.RequesterUserPublicKey,
+		data.RequesterUserEncPublicKey,
+	)
+	if err != nil {
+		sendToConn(conn, WSMessage{
+			Type: "error",
+			Data: ChatError{
+				Content:    "Failed to resolve requester identity",
+				ClientUUID: data.ClientUUID,
+			},
+		})
+		return
+	}
+	if err := ensureSpaceAuthor(data.UUID, requester.ID); err != nil {
+		sendToConn(conn, WSMessage{
+			Type: "error",
+			Data: ChatError{
+				Content:    "Not authorized to delete this space",
+				ClientUUID: data.ClientUUID,
+			},
+		})
+		return
+	}
 
 	// Delete the space (cascades to channels, messages, space_users)
 	res, err := db.ChatDB.Exec("DELETE FROM spaces WHERE uuid = ?", data.UUID)

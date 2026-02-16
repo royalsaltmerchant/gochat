@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -29,12 +31,24 @@ func decodeData[T any](raw interface{}) (T, error) {
 	return data, err
 }
 
+func isTrustedHostAuthorJoin(r *http.Request, providedAuthorID, expectedAuthorID string) bool {
+	if strings.TrimSpace(providedAuthorID) == "" || strings.TrimSpace(expectedAuthorID) == "" {
+		return false
+	}
+	if providedAuthorID != expectedAuthorID {
+		return false
+	}
+	// Browser websocket clients always send Origin, so they cannot self-identify as host author.
+	return strings.TrimSpace(r.Header.Get("Origin")) == ""
+}
+
 func HandleSocket(c *gin.Context) {
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		log.Println("WebSocket upgrade failed:", err)
 		return
 	}
+	conn.SetReadLimit(256 * 1024)
 	defer conn.Close()
 
 	clientIP := c.ClientIP()
@@ -59,14 +73,27 @@ func HandleSocket(c *gin.Context) {
 				continue
 			}
 
-			host, err := registerOrCreateHost(data.UUID, data.ID, conn)
-			if err != nil {
-				conn.WriteJSON(WSMessage{Type: "join_error", Data: ChatError{Content: "Failed to join host"}})
+				host, err := registerOrCreateHost(data.UUID)
+				if err != nil {
+					conn.WriteJSON(WSMessage{Type: "join_error", Data: ChatError{Content: "Failed to join host"}})
+					continue
+				}
+				isHostAuthor := isTrustedHostAuthorJoin(c.Request, data.ID, host.AuthorID)
+				if !isHostAuthor {
+					if err := ensureHostResponsive(host, 2*time.Second); err != nil {
+						conn.WriteJSON(WSMessage{Type: "join_error", Data: ChatError{Content: "Host is offline or unresponsive"}})
+						continue
+					}
+				}
+				client = registerClient(host, conn, clientIP, isHostAuthor)
+				if isHostAuthor {
+					host.mu.Lock()
+					host.ConnByAuthorID[host.AuthorID] = conn
+					host.mu.Unlock()
+					HandleUpdateHostOnline(host.UUID)
+				}
 				continue
 			}
-			client = registerClient(host, conn, clientIP)
-			continue
-		}
 
 		if client == nil {
 			conn.WriteJSON(WSMessage{Type: "error", Data: ChatError{Content: "Client not initialized"}})
@@ -98,10 +125,14 @@ func cleanupClient(client *Client) {
 	delete(host.ClientsByConn, client.Conn)
 	delete(host.ClientConnsByUUID, client.ClientUUID)
 	delete(host.ClientsByUserID, client.UserID)
+	if client.IsHostAuthor {
+		delete(host.ConnByAuthorID, host.AuthorID)
+	}
 	if client.PublicKey != "" {
 		delete(host.ClientsByPublicKey, client.PublicKey)
 	}
 	host.mu.Unlock()
+	clearChatMessageLimiter(client.ClientUUID)
 
 	close(client.SendQueue)
 	close(client.Done)
@@ -210,22 +241,29 @@ func BroadcastToSpace(hostUUID, spaceUUID string, msg WSMessage) {
 	}
 }
 
-func joinSpace(client *Client, spaceUUID string) {
+func joinSpace(client *Client, spaceUUID string) bool {
 	host, exists := GetHost(client.HostUUID)
 	if !exists {
-		return
+		return false
 	}
 
 	host.mu.Lock()
 	defer host.mu.Unlock()
-	if _, ok := host.Spaces[spaceUUID]; !ok {
-		host.Spaces[spaceUUID] = &Space{Users: make(map[*websocket.Conn]int)}
+	space, ok := host.Spaces[spaceUUID]
+	if !ok {
+		return false
 	}
-	space := host.Spaces[spaceUUID]
 	space.mu.Lock()
 	space.Users[client.Conn] = client.UserID
 	space.mu.Unlock()
-	host.SpaceSubscriptions[client.Conn] = append(host.SpaceSubscriptions[client.Conn], spaceUUID)
+	subs := host.SpaceSubscriptions[client.Conn]
+	for _, existing := range subs {
+		if existing == spaceUUID {
+			return true
+		}
+	}
+	host.SpaceSubscriptions[client.Conn] = append(subs, spaceUUID)
+	return true
 }
 
 func leaveAllSpaces(client *Client) {

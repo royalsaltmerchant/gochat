@@ -92,6 +92,15 @@ func handleSocketMessages(ctx context.Context, conn *websocket.Conn) error {
 			case "auth_challenge":
 				// Host author sessions do not use pubkey auth challenges.
 				continue
+			case "relay_health_check":
+				data, err := decodeData[RelayHealthCheck](wsMsg.Data)
+				if err != nil || data.Nonce == "" {
+					continue
+				}
+				sendToConn(conn, WSMessage{
+					Type: "relay_health_check_ack",
+					Data: RelayHealthCheckAck{Nonce: data.Nonce},
+				})
 			case "update_username_request":
 				handleUpdateUsername(conn, &wsMsg)
 			case "get_dash_data_request":

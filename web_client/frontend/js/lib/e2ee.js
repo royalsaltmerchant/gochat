@@ -38,6 +38,8 @@ function canonicalEnvelopeForSignature(envelope) {
   const canonical = {
     v: envelope.v,
     alg: envelope.alg,
+    message_id: envelope.message_id,
+    sender_timestamp: envelope.sender_timestamp,
     space_uuid: envelope.space_uuid,
     channel_uuid: envelope.channel_uuid,
     sender_auth_public_key: envelope.sender_auth_public_key,
@@ -52,6 +54,11 @@ function canonicalEnvelopeForSignature(envelope) {
   };
 
   return JSON.stringify(canonical);
+}
+
+function createMessageID() {
+  const crypto = getCrypto();
+  return toBase64Raw(crypto.getRandomValues(new Uint8Array(16)));
 }
 
 async function importRecipientEncPublicKey(encodedKey) {
@@ -166,6 +173,8 @@ async function encryptMessageForSpace(params) {
   const envelope = {
     v: 1,
     alg: "p256-hkdf-aesgcm+ed25519",
+    message_id: createMessageID(),
+    sender_timestamp: new Date().toISOString(),
     space_uuid: spaceUUID,
     channel_uuid: channelUUID,
     sender_auth_public_key: identity.publicKey,
@@ -256,4 +265,3 @@ export default {
   decryptMessageForIdentity,
   canonicalEnvelopeForSignature,
 };
-

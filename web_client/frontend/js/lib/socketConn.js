@@ -79,6 +79,10 @@ export default class SocketConn {
         switch (data.type) {
           case "join_ack":
             break;
+          case "join_error":
+            platform.alert(data.data?.error || "Failed to join host");
+            this.returnToHostList();
+            break;
           case "auth_challenge":
             await this.authenticateWithPublicKey(data.data?.challenge);
             break;
@@ -166,6 +170,7 @@ export default class SocketConn {
 
     try {
       const identity = await identityManager.getOrCreateIdentity();
+      const device = identityManager.getDeviceMetadata();
       const authMessage = `parch-chat-auth:${this.hostUUID}:${challenge}:${identity.encPublicKey}`;
       const signature = await identityManager.signAuthMessage(identity, authMessage);
 
@@ -174,6 +179,8 @@ export default class SocketConn {
         data: {
           public_key: identity.publicKey,
           enc_public_key: identity.encPublicKey,
+          device_id: device.deviceId,
+          device_name: device.deviceName,
           username: identity.username || "",
           challenge,
           signature,

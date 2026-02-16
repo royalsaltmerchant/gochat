@@ -2,11 +2,65 @@ package main
 
 import (
 	"log"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
 
+func isAuthorPassthroughType(msgType string) bool {
+	switch msgType {
+	case "get_dash_data_response",
+		"update_username_response",
+		"create_space_response",
+		"delete_space_response",
+		"create_channel_response",
+		"delete_channel_response",
+		"invite_user_success",
+		"accept_invite_success",
+		"decline_invite_success",
+		"leave_space_success",
+		"remove_space_user_success",
+		"get_messages_response",
+		"relay_health_check_ack",
+		"error":
+		return true
+	default:
+		return false
+	}
+}
+
+func allowPreAuthMessage(client *Client, msgType string) bool {
+	if msgType == "auth_pubkey" {
+		return true
+	}
+	return client.IsHostAuthor && isAuthorPassthroughType(msgType)
+}
+
+func touchClientLastSeen(client *Client) {
+	if client == nil || client.HostUUID == "" {
+		return
+	}
+	host, exists := GetHost(client.HostUUID)
+	if !exists {
+		return
+	}
+	host.mu.Lock()
+	client.LastSeen = time.Now().UTC()
+	host.mu.Unlock()
+}
+
 func dispatchMessage(client *Client, conn *websocket.Conn, wsMsg WSMessage) {
+	if !client.IsAuthenticated && !allowPreAuthMessage(client, wsMsg.Type) {
+		safeSend(client, conn, WSMessage{
+			Type: "authentication-error",
+			Data: ChatError{Content: "Authentication required"},
+		})
+		return
+	}
+	if client.IsAuthenticated {
+		touchClientLastSeen(client)
+	}
+
 	switch wsMsg.Type {
 	case "auth_pubkey":
 		handleAuthPubKey(client, conn, &wsMsg)
@@ -74,6 +128,8 @@ func dispatchMessage(client *Client, conn *websocket.Conn, wsMsg WSMessage) {
 		handleGetMessages(client, conn, &wsMsg)
 	case "get_messages_response":
 		handleGetMessagesRes(client, conn, &wsMsg)
+	case "relay_health_check_ack":
+		handleRelayHealthCheckAck(client, conn, &wsMsg)
 	case "error":
 		data, err := decodeData[ChatError](wsMsg.Data)
 		if err != nil {

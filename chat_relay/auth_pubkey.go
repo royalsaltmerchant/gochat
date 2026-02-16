@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"strings"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -89,6 +90,20 @@ func handleAuthPubKey(client *Client, conn *websocket.Conn, wsMsg *WSMessage) {
 
 	userID := deriveSessionUserID(data.PublicKey)
 	username := normalizeUsername(data.Username, data.PublicKey)
+	deviceID := strings.TrimSpace(data.DeviceID)
+	if deviceID == "" {
+		deviceID = "unknown-" + client.ClientUUID
+	}
+	if len(deviceID) > 128 {
+		deviceID = deviceID[:128]
+	}
+	deviceName := strings.TrimSpace(data.DeviceName)
+	if deviceName == "" {
+		deviceName = "Unknown Device"
+	}
+	if len(deviceName) > 80 {
+		deviceName = deviceName[:80]
+	}
 
 	host, exists := GetHost(client.HostUUID)
 	if !exists {
@@ -101,6 +116,9 @@ func handleAuthPubKey(client *Client, conn *websocket.Conn, wsMsg *WSMessage) {
 	client.Username = username
 	client.PublicKey = data.PublicKey
 	client.EncPublicKey = data.EncPublicKey
+	client.DeviceID = deviceID
+	client.DeviceName = deviceName
+	client.LastSeen = time.Now().UTC()
 	if userID > 0 {
 		host.ClientsByUserID[userID] = client
 	}
@@ -136,9 +154,9 @@ func handleUpdateUsername(client *Client, conn *websocket.Conn, wsMsg *WSMessage
 	SendToAuthor(client, WSMessage{
 		Type: "update_username_request",
 		Data: UpdateUsernameRequest{
-			UserID:           data.UserID,
-			UserPublicKey:    firstNonEmpty(data.UserPublicKey, client.PublicKey),
-			UserEncPublicKey: firstNonEmpty(data.UserEncPublicKey, client.EncPublicKey),
+			UserID:           client.UserID,
+			UserPublicKey:    client.PublicKey,
+			UserEncPublicKey: client.EncPublicKey,
 			Username:         newName,
 			ClientUUID:       client.ClientUUID,
 		},

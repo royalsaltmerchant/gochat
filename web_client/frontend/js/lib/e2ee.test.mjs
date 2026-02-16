@@ -60,6 +60,10 @@ test("encrypts and decrypts envelope across two identities", async () => {
       { authPublicKey: bob.publicKey, encPublicKey: bob.encPublicKey },
     ],
   });
+  assert.equal(typeof envelope.message_id, "string");
+  assert.ok(envelope.message_id.length > 0);
+  assert.equal(typeof envelope.sender_timestamp, "string");
+  assert.ok(envelope.sender_timestamp.length > 0);
 
   const bobPlain = await e2ee.decryptMessageForIdentity({
     envelope,
@@ -72,6 +76,29 @@ test("encrypts and decrypts envelope across two identities", async () => {
 
   assert.equal(bobPlain, "hello e2ee");
   assert.equal(alicePlain, "hello e2ee");
+});
+
+test("detects message_id tampering", async () => {
+  const alice = await createIdentity();
+  const bob = await createIdentity();
+
+  const envelope = await e2ee.encryptMessageForSpace({
+    plaintext: "message-id-check",
+    spaceUUID: "space-4",
+    channelUUID: "chan-4",
+    identity: alice,
+    recipients: [
+      { authPublicKey: bob.publicKey, encPublicKey: bob.encPublicKey },
+    ],
+  });
+
+  const tampered = structuredClone(envelope);
+  tampered.message_id = `${tampered.message_id}-tampered`;
+
+  await assert.rejects(
+    () => e2ee.decryptMessageForIdentity({ envelope: tampered, identity: bob }),
+    /Invalid message signature/i
+  );
 });
 
 test("detects ciphertext tampering", async () => {

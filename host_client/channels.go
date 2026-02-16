@@ -17,6 +17,31 @@ func handleCreateChannel(conn *websocket.Conn, wsMsg *WSMessage) {
 
 	// Get UUID and Author ID
 	channelUUID := uuid.New()
+	requester, err := resolveHostUserIdentityStrict(
+		data.RequesterUserID,
+		data.RequesterUserPublicKey,
+		data.RequesterUserEncPublicKey,
+	)
+	if err != nil {
+		sendToConn(conn, WSMessage{
+			Type: "error",
+			Data: ChatError{
+				Content:    "Failed to resolve requester identity",
+				ClientUUID: data.ClientUUID,
+			},
+		})
+		return
+	}
+	if err := ensureSpaceAuthor(data.SpaceUUID, requester.ID); err != nil {
+		sendToConn(conn, WSMessage{
+			Type: "error",
+			Data: ChatError{
+				Content:    "Not authorized to create channels in this space",
+				ClientUUID: data.ClientUUID,
+			},
+		})
+		return
+	}
 
 	var channel DashDataChannel
 
@@ -64,7 +89,23 @@ func handleDeleteChannel(conn *websocket.Conn, wsMsg *WSMessage) {
 		return
 	}
 
-	// Get channel info before deleting
+	requester, err := resolveHostUserIdentityStrict(
+		data.RequesterUserID,
+		data.RequesterUserPublicKey,
+		data.RequesterUserEncPublicKey,
+	)
+	if err != nil {
+		sendToConn(conn, WSMessage{
+			Type: "error",
+			Data: ChatError{
+				Content:    "Failed to resolve requester identity",
+				ClientUUID: data.ClientUUID,
+			},
+		})
+		return
+	}
+
+	// Get channel info before deleting.
 	var channelID int
 	var spaceUUID string
 	err = db.ChatDB.QueryRow(`SELECT id, space_uuid FROM channels WHERE uuid = ?`, data.UUID).Scan(&channelID, &spaceUUID)
@@ -73,6 +114,16 @@ func handleDeleteChannel(conn *websocket.Conn, wsMsg *WSMessage) {
 			Type: "error",
 			Data: ChatError{
 				Content:    "Channel not found in database by UUID",
+				ClientUUID: data.ClientUUID,
+			},
+		})
+		return
+	}
+	if err := ensureSpaceAuthor(spaceUUID, requester.ID); err != nil {
+		sendToConn(conn, WSMessage{
+			Type: "error",
+			Data: ChatError{
+				Content:    "Not authorized to delete this channel",
 				ClientUUID: data.ClientUUID,
 			},
 		})
