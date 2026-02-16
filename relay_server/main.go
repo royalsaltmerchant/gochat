@@ -146,9 +146,9 @@ func main() {
 	r.GET("/call/pricing", func(c *gin.Context) {
 		c.File(filepath.Join(staticDir, "call_pricing.html"))
 	})
-	// Chat non-technical guide page
+	// Redirect old how-it-works URL to landing page (content merged into index)
 	r.GET("/chat/how-it-works", func(c *gin.Context) {
-		c.File(filepath.Join(staticDir, "chat_how_it_works.html"))
+		c.Redirect(301, "/")
 	})
 	// React call room app
 	r.GET("/call/room", func(c *gin.Context) {
