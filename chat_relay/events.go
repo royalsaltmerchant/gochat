@@ -12,7 +12,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-func registerOrCreateHost(hostUUID, potentialAuthorID string, conn *websocket.Conn) (*Host, error) {
+func registerOrCreateHost(hostUUID string) (*Host, error) {
 	hostsMu.Lock()
 	defer hostsMu.Unlock()
 
@@ -38,13 +38,6 @@ func registerOrCreateHost(hostUUID, potentialAuthorID string, conn *websocket.Co
 			SpaceSubscriptions:   make(map[*websocket.Conn][]string),
 		}
 		Hosts[hostUUID] = host
-	}
-
-	if potentialAuthorID != "" && potentialAuthorID == host.AuthorID {
-		host.ConnByAuthorID[potentialAuthorID] = conn
-
-		// Set host to online
-		HandleUpdateHostOnline(hostUUID)
 	}
 
 	return host, nil

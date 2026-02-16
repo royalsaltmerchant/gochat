@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -28,6 +29,17 @@ func decodeData[T any](raw interface{}) (T, error) {
 	}
 	err = json.Unmarshal(bytes, &data)
 	return data, err
+}
+
+func isTrustedHostAuthorJoin(r *http.Request, providedAuthorID, expectedAuthorID string) bool {
+	if strings.TrimSpace(providedAuthorID) == "" || strings.TrimSpace(expectedAuthorID) == "" {
+		return false
+	}
+	if providedAuthorID != expectedAuthorID {
+		return false
+	}
+	// Browser websocket clients always send Origin, so they cannot self-identify as host author.
+	return strings.TrimSpace(r.Header.Get("Origin")) == ""
 }
 
 func HandleSocket(c *gin.Context) {
@@ -61,21 +73,27 @@ func HandleSocket(c *gin.Context) {
 				continue
 			}
 
-			host, err := registerOrCreateHost(data.UUID, data.ID, conn)
-			if err != nil {
-				conn.WriteJSON(WSMessage{Type: "join_error", Data: ChatError{Content: "Failed to join host"}})
-				continue
-			}
-			isHostAuthor := data.ID != "" && data.ID == host.AuthorID
-			if !isHostAuthor {
-				if err := ensureHostResponsive(host, 2*time.Second); err != nil {
-					conn.WriteJSON(WSMessage{Type: "join_error", Data: ChatError{Content: "Host is offline or unresponsive"}})
+				host, err := registerOrCreateHost(data.UUID)
+				if err != nil {
+					conn.WriteJSON(WSMessage{Type: "join_error", Data: ChatError{Content: "Failed to join host"}})
 					continue
 				}
+				isHostAuthor := isTrustedHostAuthorJoin(c.Request, data.ID, host.AuthorID)
+				if !isHostAuthor {
+					if err := ensureHostResponsive(host, 2*time.Second); err != nil {
+						conn.WriteJSON(WSMessage{Type: "join_error", Data: ChatError{Content: "Host is offline or unresponsive"}})
+						continue
+					}
+				}
+				client = registerClient(host, conn, clientIP, isHostAuthor)
+				if isHostAuthor {
+					host.mu.Lock()
+					host.ConnByAuthorID[host.AuthorID] = conn
+					host.mu.Unlock()
+					HandleUpdateHostOnline(host.UUID)
+				}
+				continue
 			}
-			client = registerClient(host, conn, clientIP, isHostAuthor)
-			continue
-		}
 
 		if client == nil {
 			conn.WriteJSON(WSMessage{Type: "error", Data: ChatError{Content: "Client not initialized"}})
