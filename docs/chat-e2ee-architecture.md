@@ -21,7 +21,9 @@ Out of scope:
 ## 2) Components And Data Ownership
 
 - Browser (`web_client`)
-  - Generates/stores identity locally (localStorage).
+  - Generates identity locally.
+  - Stores public identity metadata in `localStorage`.
+  - Stores private key material in a sealed local record (device key vault path when available).
   - Signs auth challenges.
   - Encrypts/decrypts chat messages.
   - Stores optional local fallback username.
@@ -46,27 +48,34 @@ Each browser identity now has:
 - Encryption keypair: ECDH P-256
   - `encPublicKey`, `encPrivateKey`
 - Optional local fallback username
-  - Stored in the same local identity JSON
+  - Stored with local identity metadata
 
 Identity import/export:
-- Export returns JSON with both keypairs.
-- Import validates key material before replacing local identity.
+- Export in account UI produces passphrase-encrypted backup JSON.
+- Import in account UI requires passphrase and validates key material before replacing local identity.
+- Legacy plaintext identity JSON is still migration-compatible for existing local users.
 - Without importing identity on a new browser/device, user appears as a new account identity.
 
 ## 4) Authentication Flow
 
 1. Client connects websocket and sends `join_host`.
-2. Relay returns `auth_challenge`.
-3. Browser signs:
+2. Relay host-availability gate:
+   - If connection is not a trusted host-author session, relay requires host-author responsiveness.
+   - Relay sends `relay_health_check` and waits for `relay_health_check_ack` (timeout: 2 seconds).
+   - If host is offline/unresponsive, relay returns `join_error` and stops.
+3. Relay returns `auth_challenge`.
+4. Browser signs:
    - `parch-chat-auth:<hostUUID>:<challenge>:<encPublicKey>`
-4. Browser sends `auth_pubkey` payload:
+5. Browser sends `auth_pubkey` payload:
    - `public_key`
    - `enc_public_key`
+   - `device_id`
+   - `device_name`
    - `username` (local fallback, optional)
    - `challenge`
    - `signature`
-5. Relay verifies Ed25519 signature against the auth message.
-6. On success, relay marks session authenticated and routes with:
+6. Relay verifies Ed25519 signature against the auth message.
+7. On success, relay marks session authenticated and routes with:
    - derived session `user_id`
    - `public_key`
    - `enc_public_key`
@@ -74,6 +83,7 @@ Identity import/export:
 
 Security property:
 - Binding `enc_public_key` into the signed challenge prevents key-substitution during auth.
+- Browser websocket joins cannot mark host online as host-author by simply supplying `author_id`.
 
 ## 5) Username Semantics
 
@@ -136,12 +146,27 @@ Tamper detection:
 - Signature failure rejects modified metadata/wrapped key fields.
 - AES-GCM authentication rejects ciphertext/IV/tag tampering.
 
+Test coverage:
+- `web_client/frontend/js/lib/e2ee.test.mjs` includes:
+  - message_id tamper rejection
+  - ciphertext tamper rejection
+  - signature tamper rejection
+
 ## 8) Storage And Trust Boundaries
 
 - Relay sees and forwards ciphertext envelope; no plaintext.
 - Host stores ciphertext envelope JSON in `messages.content`.
 - Host still sees membership and identity key metadata needed for routing/invites.
 - Browser is the only place that can decrypt message bodies.
+
+Relay-side abuse controls:
+- websocket read limit: 256 KiB
+- chat rate limit per client session
+- envelope size cap
+- wrapped recipient-key count cap
+
+Host-side storage guard:
+- oversized envelopes are rejected before DB insert
 
 ## 9) What Changed Vs Legacy Chat Auth
 
@@ -161,7 +186,9 @@ Kept unchanged:
 
 Recommended validation after deploy:
 - New browser can authenticate with generated keypair.
-- Account modal shows copyable public key + identity export/import.
+- Account modal shows copyable public key + encrypted backup export/import.
+- Account modal shows `Last exported` and `Active Devices`.
 - Invite by public key succeeds.
 - Messages decrypt for joined members.
 - Tampered payloads fail to decrypt/verify.
+- `join_host` for non-author browser fails quickly when host is offline/unresponsive.
