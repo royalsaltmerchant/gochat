@@ -1,477 +1,1177 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video Call - Parch</title>
-    <!-- Shared Parch design tokens -->
-    <link rel="stylesheet" href="/static/parch-core.css">
-    <!-- Tailwind for utility classes -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        // Tailwind config uses CSS variable values for consistency
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        parch: {
-                            white: 'rgb(235, 235, 235)',
-                            'bright-white': 'rgb(245, 245, 245)',
-                            dark: 'rgb(25, 29, 37)',
-                            'second-dark': 'rgb(21, 24, 31)',
-                            black: 'rgb(19, 20, 24)',
-                            'light-blue': 'rgb(66, 85, 119)',
-                            'second-blue': 'rgb(55, 71, 99)',
-                            'dark-blue': 'rgb(38, 44, 57)',
-                            'accent-blue': 'rgb(157, 179, 211)',
-                            gray: 'rgb(89, 96, 117)',
-                            'light-red': 'rgb(209, 102, 124)',
-                            'dark-red': 'rgb(152, 74, 90)',
-                            yellow: 'rgb(255, 250, 155)',
-                            green: 'rgb(119, 167, 77)',
-                        },
-                    },
-                    fontFamily: {
-                        serif: ['Georgia', 'Cambria', 'Times New Roman', 'Times', 'serif'],
-                    },
-                }
-            }
-        }
-    </script>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Parch Calls — On-demand Video Calls</title>
+
+    <meta
+      name="description"
+      content="Instant video call rooms with no downloads, no scheduling. Start or join a call in seconds. Free 40-minute tier included."
+    />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://parchchat.com/call" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://parchchat.com/call" />
+    <meta property="og:title" content="Parch Calls — On-demand Video Calls" />
+    <meta
+      property="og:description"
+      content="Instant video call rooms with no downloads, no scheduling. Free 40-minute tier included."
+    />
+    <meta property="og:image" content="https://parchchat.com/static/parchclient_icon.webp" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Parch Calls — On-demand Video Calls" />
+    <meta
+      name="twitter:description"
+      content="Instant video call rooms with no downloads, no scheduling. Free 40-minute tier included."
+    />
+    <meta name="twitter:image" content="https://parchchat.com/static/parchclient_icon.webp" />
+
+    <link rel="icon" type="image/webp" href="/static/parchclient_icon.webp" />
+    <link rel="apple-touch-icon" href="/static/parchclient_icon.webp" />
+    <link rel="stylesheet" href="/static/parch-core.css" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Source+Serif+4:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+
     <style>
-        /* Page-specific styles - tokens come from parch-core.css */
-        body {
-            background: linear-gradient(145deg, var(--parch-dark) 0%, var(--parch-second-dark) 40%, var(--parch-black) 100%);
-            color: var(--parch-white);
-            letter-spacing: 0.5px;
+      /* ============================================
+         PAGE FOUNDATIONS
+         ============================================ */
+      :root {
+        color-scheme: dark;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
+        font-weight: 400;
+        color: var(--parch-white);
+        letter-spacing: 0.3px;
+        line-height: 1.6;
+        background:
+          radial-gradient(ellipse 80% 60% at 8% 10%, rgba(66, 85, 119, 0.35), transparent 50%),
+          radial-gradient(ellipse 70% 50% at 92% 14%, rgba(119, 167, 77, 0.15), transparent 45%),
+          radial-gradient(ellipse 50% 40% at 50% 85%, rgba(66, 85, 119, 0.12), transparent 50%),
+          linear-gradient(145deg, var(--parch-dark) 0%, var(--parch-second-dark) 40%, var(--parch-black) 100%);
+        background-attachment: fixed;
+      }
+
+      h1, h2, h3, h4 {
+        font-family: "Playfair Display", Georgia, serif;
+        color: var(--parch-bright-white);
+        letter-spacing: 1.2px;
+        line-height: 1.15;
+        margin: 0;
+      }
+
+      a {
+        color: var(--parch-accent-blue);
+        text-decoration: none;
+        transition: color 0.2s ease;
+      }
+
+      a:hover {
+        text-decoration: underline;
+      }
+
+      a:focus-visible {
+        outline: 2px solid var(--parch-accent-blue);
+        outline-offset: 2px;
+      }
+
+      /* ============================================
+         REVEAL ANIMATION
+         ============================================ */
+      .reveal {
+        opacity: 0;
+        transform: translateY(30px);
+        transition: opacity 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+                    transform 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      }
+
+      .reveal.visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .reveal {
+          opacity: 1;
+          transform: none;
+          transition: none;
         }
+      }
+
+      /* ============================================
+         LAYOUT
+         ============================================ */
+      .container {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 0 24px;
+      }
+
+      /* ============================================
+         NAV HEADER
+         ============================================ */
+      .site-nav {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 10;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px 24px;
+        background: rgba(19, 20, 24, 0.6);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+      }
+
+      .nav-back {
+        font-family: "Source Serif 4", Georgia, serif;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--parch-accent-blue);
+        letter-spacing: 0.5px;
+      }
+
+      .nav-back:hover {
+        text-decoration: none;
+        color: var(--parch-bright-white);
+      }
+
+      .nav-auth {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+
+      .nav-auth-link {
+        font-family: "Source Serif 4", Georgia, serif;
+        font-size: 0.9rem;
+        letter-spacing: 0.5px;
+        color: var(--parch-accent-blue);
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0;
+        transition: color 0.2s ease;
+      }
+
+      .nav-auth-link:hover {
+        color: var(--parch-bright-white);
+      }
+
+      .nav-auth-username {
+        font-family: "Source Serif 4", Georgia, serif;
+        font-size: 0.9rem;
+        letter-spacing: 0.5px;
+        color: var(--parch-bright-white);
+      }
+
+      .nav-auth-signout {
+        font-family: "Source Serif 4", Georgia, serif;
+        font-size: 0.9rem;
+        letter-spacing: 0.5px;
+        color: var(--parch-gray);
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0;
+        transition: color 0.2s ease;
+      }
+
+      .nav-auth-signout:hover {
+        color: var(--parch-light-red);
+      }
+
+      .hidden {
+        display: none !important;
+      }
+
+      /* ============================================
+         AUTH MODAL
+         ============================================ */
+      .auth-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+      }
+
+      .auth-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.6);
+      }
+
+      .auth-card {
+        position: relative;
+        width: 100%;
+        max-width: 380px;
+        padding: 32px;
+        background: linear-gradient(160deg, var(--parch-dark-blue) 0%, var(--parch-second-dark) 100%);
+        border-left: 1px solid var(--parch-gray);
+        border-top: 1px solid var(--parch-gray);
+        border-right: 1px solid var(--parch-black);
+        border-bottom: 1px solid var(--parch-black);
+        border-radius: 14px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      }
+
+      .auth-close {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        background: none;
+        border: none;
+        color: var(--parch-gray);
+        cursor: pointer;
+        padding: 4px;
+        transition: color 0.2s ease;
+      }
+
+      .auth-close:hover {
+        color: var(--parch-bright-white);
+      }
+
+      .auth-close svg {
+        width: 20px;
+        height: 20px;
+      }
+
+      .auth-tabs {
+        display: flex;
+        gap: 24px;
+        margin-bottom: 24px;
+        border-bottom: 1px solid rgba(89, 96, 117, 0.3);
+        padding-bottom: 12px;
+      }
+
+      .auth-tab {
+        font-family: "Source Serif 4", Georgia, serif;
+        font-size: 1rem;
+        letter-spacing: 0.5px;
+        background: none;
+        border: none;
+        border-bottom: 2px solid transparent;
+        padding: 0 0 4px;
+        cursor: pointer;
+        color: var(--parch-gray);
+        transition: color 0.2s ease;
+      }
+
+      .auth-tab.active {
+        color: var(--parch-bright-white);
+        font-weight: 600;
+        border-bottom-color: var(--parch-accent-blue);
+      }
+
+      .auth-form {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .auth-field label {
+        display: block;
+        font-family: "Source Serif 4", Georgia, serif;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--parch-accent-blue);
+        letter-spacing: 0.5px;
+        margin-bottom: 6px;
+      }
+
+      .auth-field input {
+        width: 100%;
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-size: 0.9rem;
+      }
+
+      .auth-error {
+        font-size: 0.85rem;
+        color: var(--parch-light-red);
+        letter-spacing: 0.3px;
+      }
+
+      .auth-submit {
+        width: 100%;
+        padding: 12px;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        background: var(--parch-light-blue);
+        color: var(--parch-bright-white);
+      }
+
+      /* ============================================
+         HERO SECTION (compact)
+         ============================================ */
+      .hero {
+        padding: 120px 0 40px;
+        text-align: center;
+      }
+
+      .hero-inner {
+        max-width: 680px;
+        margin: 0 auto;
+      }
+
+      .hero-kicker {
+        display: inline-block;
+        font-family: "Source Serif 4", Georgia, serif;
+        font-weight: 600;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 3px;
+        color: var(--parch-green);
+        margin-bottom: 20px;
+      }
+
+      .hero h1 {
+        font-size: clamp(2.2rem, 5vw, 3.6rem);
+        font-weight: 900;
+        line-height: 1.08;
+        margin-bottom: 20px;
+      }
+
+      .hero h1 em {
+        font-style: normal;
+        color: var(--parch-accent-blue);
+      }
+
+      .hero-subtitle {
+        font-size: clamp(1rem, 1.6vw, 1.15rem);
+        color: var(--parch-white);
+        opacity: 0.85;
+        line-height: 1.7;
+        max-width: 520px;
+        margin: 0 auto;
+      }
+
+      /* ============================================
+         ACTION SECTION (Start / Join)
+         ============================================ */
+      .action-section {
+        padding: 48px 0 80px;
+      }
+
+      .action-card {
+        max-width: 520px;
+        margin: 0 auto;
+        padding: 36px 32px;
+        background: linear-gradient(160deg, var(--parch-dark-blue) 0%, var(--parch-second-dark) 100%);
+        border-left: 1px solid var(--parch-gray);
+        border-top: 1px solid var(--parch-gray);
+        border-right: 1px solid var(--parch-black);
+        border-bottom: 1px solid var(--parch-black);
+        border-radius: 14px;
+        box-shadow:
+          0 0 20px rgba(66, 85, 119, 0.15),
+          0 8px 32px rgba(0, 0, 0, 0.25);
+      }
+
+      .start-btn {
+        width: 100%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        padding: 16px 28px;
+        border-radius: 8px;
+        font-family: "Source Serif 4", Georgia, serif;
+        font-weight: 600;
+        font-size: 1.1rem;
+        letter-spacing: 0.6px;
+        color: var(--parch-bright-white);
+        background: var(--parch-light-blue);
+      }
+
+      .start-btn svg {
+        width: 22px;
+        height: 22px;
+        flex-shrink: 0;
+      }
+
+      .action-divider {
+        position: relative;
+        margin: 28px 0;
+      }
+
+      .action-divider::before {
+        content: "";
+        display: block;
+        width: 100%;
+        height: 1px;
+        background: rgba(89, 96, 117, 0.4);
+      }
+
+      .action-divider span {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        padding: 0 16px;
+        background: var(--parch-dark-blue);
+        font-family: "Source Serif 4", Georgia, serif;
+        font-size: 0.9rem;
+        color: var(--parch-gray);
+        letter-spacing: 0.5px;
+      }
+
+      .join-label {
+        display: block;
+        font-family: "Source Serif 4", Georgia, serif;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--parch-accent-blue);
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+      }
+
+      .join-row {
+        display: flex;
+        gap: 10px;
+      }
+
+      .join-input {
+        flex: 1;
+        padding: 12px 14px;
+        border-radius: 8px;
+        font-size: 0.95rem;
+      }
+
+      .join-btn {
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-family: "Source Serif 4", Georgia, serif;
+        font-weight: 600;
+        font-size: 0.95rem;
+        letter-spacing: 0.6px;
+        color: var(--parch-bright-white);
+        background: var(--parch-second-blue);
+      }
+
+      .join-error {
+        font-size: 0.85rem;
+        color: var(--parch-light-red);
+        margin-top: 8px;
+        letter-spacing: 0.3px;
+      }
+
+      /* ============================================
+         FEATURES SECTION
+         ============================================ */
+      .features-section {
+        padding: 80px 0 100px;
+      }
+
+      .section-label {
+        font-family: "Source Serif 4", Georgia, serif;
+        font-weight: 600;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 3.5px;
+        color: var(--parch-green);
+        margin-bottom: 16px;
+      }
+
+      .section-title {
+        font-size: clamp(1.8rem, 3.5vw, 2.8rem);
+        font-weight: 700;
+        margin-bottom: 20px;
+      }
+
+      .section-subtitle {
+        font-size: 1.1rem;
+        color: var(--parch-white);
+        opacity: 0.75;
+        max-width: 560px;
+        line-height: 1.65;
+        margin-bottom: 52px;
+      }
+
+      .features-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 24px;
+      }
+
+      .feature-card {
+        padding: 32px 24px;
+        background: linear-gradient(160deg, var(--parch-dark-blue) 0%, var(--parch-second-dark) 100%);
+        border-left: 1px solid var(--parch-gray);
+        border-top: 1px solid var(--parch-gray);
+        border-right: 1px solid var(--parch-black);
+        border-bottom: 1px solid var(--parch-black);
+        border-radius: 14px;
+      }
+
+      .feature-icon {
+        width: 48px;
+        height: 48px;
+        margin-bottom: 20px;
+      }
+
+      .feature-icon svg {
+        width: 100%;
+        height: 100%;
+      }
+
+      .feature-card h3 {
+        font-size: 1.2rem;
+        font-weight: 700;
+        margin-bottom: 10px;
+        letter-spacing: 0.5px;
+      }
+
+      .feature-card p {
+        font-size: 0.92rem;
+        color: var(--parch-white);
+        opacity: 0.75;
+        line-height: 1.6;
+        margin: 0;
+      }
+
+      .features-cta {
+        margin-top: 40px;
+        text-align: center;
+      }
+
+      .features-cta a {
+        font-family: "Source Serif 4", Georgia, serif;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--parch-accent-blue);
+        border-bottom: 1px solid transparent;
+        transition: border-color 0.2s ease, color 0.2s ease;
+      }
+
+      .features-cta a:hover {
+        border-bottom-color: var(--parch-accent-blue);
+        text-decoration: none;
+      }
+
+      /* ============================================
+         FOOTER
+         ============================================ */
+      .site-footer {
+        padding: 40px 0;
+        border-top: 1px solid var(--parch-gray);
+        margin-top: 20px;
+      }
+
+      .footer-inner {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 16px;
+      }
+
+      .footer-links {
+        display: flex;
+        gap: 28px;
+      }
+
+      .footer-links a {
+        font-size: 0.9rem;
+        color: var(--parch-white);
+        opacity: 0.6;
+        transition: opacity 0.2s ease;
+      }
+
+      .footer-links a:hover {
+        opacity: 1;
+        text-decoration: none;
+      }
+
+      .footer-links a:focus-visible {
+        outline: 2px solid var(--parch-accent-blue);
+        outline-offset: 2px;
+      }
+
+      .footer-copy {
+        font-size: 0.85rem;
+        color: var(--parch-gray);
+      }
+
+      /* ============================================
+         STAGGER DELAYS
+         ============================================ */
+      .stagger-1 { transition-delay: 0.1s; }
+      .stagger-2 { transition-delay: 0.2s; }
+      .stagger-3 { transition-delay: 0.3s; }
+      .stagger-4 { transition-delay: 0.4s; }
+      .stagger-5 { transition-delay: 0.5s; }
+      .stagger-6 { transition-delay: 0.6s; }
+
+      @media (prefers-reduced-motion: reduce) {
+        .stagger-1, .stagger-2, .stagger-3, .stagger-4, .stagger-5, .stagger-6 {
+          transition-delay: 0s;
+        }
+      }
+
+      /* ============================================
+         RESPONSIVE
+         ============================================ */
+      @media (max-width: 768px) {
+        body {
+          background-attachment: scroll;
+        }
+
+        .features-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .hero {
+          padding: 100px 0 28px;
+        }
+
+        .hero h1 {
+          font-size: clamp(1.8rem, 7vw, 2.6rem);
+        }
+
+        .action-card {
+          padding: 28px 20px;
+        }
+
+        .features-section {
+          padding: 60px 0 70px;
+        }
+
+        .footer-inner {
+          flex-direction: column;
+          text-align: center;
+        }
+
+        .footer-links {
+          justify-content: center;
+        }
+
+        .auth-card {
+          padding: 24px 20px;
+        }
+      }
+
+      @media (min-width: 769px) and (max-width: 1024px) {
+        .features-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
     </style>
-</head>
-<body class="min-h-screen flex flex-col items-center justify-center p-4">
-    <!-- Auth Header -->
-    <div class="fixed top-0 left-0 right-0 flex justify-end items-center p-4 z-10">
+  </head>
+
+  <body class="parch-noise">
+    <!-- ========== NAV HEADER ========== -->
+    <nav class="site-nav">
+      <a href="/" class="nav-back">&larr; Parch</a>
+      <div class="nav-auth">
         <!-- Logged-out state -->
         <div id="authLoggedOut">
-            <button id="signInBtn" class="text-parch-accent-blue font-serif text-sm tracking-wide hover:text-parch-bright-white transition-colors">
-                Sign In
-            </button>
+          <button id="signInBtn" class="nav-auth-link">Sign In</button>
         </div>
         <!-- Logged-in state -->
-        <div id="authLoggedIn" class="hidden flex items-center gap-4">
-            <span id="authUsername" class="text-parch-bright-white font-serif text-sm tracking-wide"></span>
-            <a href="/call/account" class="text-parch-accent-blue font-serif text-sm tracking-wide hover:text-parch-bright-white transition-colors">Account</a>
-            <button id="signOutBtn" class="text-parch-gray font-serif text-sm tracking-wide hover:text-parch-light-red transition-colors">
-                Sign Out
-            </button>
+        <div id="authLoggedIn" class="hidden">
+          <span id="authUsername" class="nav-auth-username"></span>
+          <a href="/call/account" class="nav-auth-link">Account</a>
+          <button id="signOutBtn" class="nav-auth-signout">Sign Out</button>
         </div>
+      </div>
+    </nav>
+
+    <!-- ========== AUTH MODAL ========== -->
+    <div id="authModal" class="auth-modal hidden">
+      <div id="authBackdrop" class="auth-backdrop"></div>
+      <div class="auth-card">
+        <!-- Close button -->
+        <button id="authCloseBtn" class="auth-close">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+
+        <!-- Tabs -->
+        <div class="auth-tabs">
+          <button id="tabSignIn" class="auth-tab active">Sign In</button>
+          <button id="tabSignUp" class="auth-tab">Sign Up</button>
+        </div>
+
+        <!-- Sign In Form -->
+        <form id="signInForm" class="auth-form">
+          <div class="auth-field">
+            <label for="signInEmail">Email</label>
+            <input type="email" id="signInEmail" required class="parch-input" placeholder="you@example.com" />
+          </div>
+          <div class="auth-field">
+            <label for="signInPassword">Password</label>
+            <input type="password" id="signInPassword" required class="parch-input" placeholder="Enter password" />
+          </div>
+          <p id="signInError" class="auth-error hidden"></p>
+          <button type="submit" class="parch-btn auth-submit">Sign In</button>
+        </form>
+
+        <!-- Sign Up Form -->
+        <form id="signUpForm" class="auth-form hidden">
+          <div class="auth-field">
+            <label for="signUpUsername">Username</label>
+            <input type="text" id="signUpUsername" required class="parch-input" placeholder="Choose a username" />
+          </div>
+          <div class="auth-field">
+            <label for="signUpEmail">Email</label>
+            <input type="email" id="signUpEmail" required class="parch-input" placeholder="you@example.com" />
+          </div>
+          <div class="auth-field">
+            <label for="signUpPassword">Password</label>
+            <input type="password" id="signUpPassword" required class="parch-input" placeholder="Choose a password" />
+          </div>
+          <p id="signUpError" class="auth-error hidden"></p>
+          <button type="submit" class="parch-btn auth-submit">Sign Up</button>
+        </form>
+      </div>
     </div>
 
-    <!-- Auth Modal Overlay -->
-    <div id="authModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div id="authBackdrop" class="absolute inset-0 bg-black/60"></div>
-        <div class="relative parch-card rounded-xl p-6 sm:p-8 shadow-2xl w-full max-w-sm">
-            <!-- Close button -->
-            <button id="authCloseBtn" class="absolute top-3 right-3 text-parch-gray hover:text-parch-bright-white transition-colors">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-            </button>
-
-            <!-- Tabs -->
-            <div class="flex gap-6 mb-6 border-b border-parch-gray/30 pb-3">
-                <button id="tabSignIn" class="font-serif text-base tracking-wide text-parch-bright-white font-semibold border-b-2 border-parch-accent-blue pb-1 transition-colors">
-                    Sign In
-                </button>
-                <button id="tabSignUp" class="font-serif text-base tracking-wide text-parch-gray pb-1 border-b-2 border-transparent transition-colors">
-                    Sign Up
-                </button>
-            </div>
-
-            <!-- Sign In Form -->
-            <form id="signInForm" class="space-y-4">
-                <div>
-                    <label class="block text-parch-accent-blue text-sm font-serif font-medium mb-1.5 tracking-wide">Email</label>
-                    <input type="email" id="signInEmail" required
-                        class="parch-input w-full text-parch-white placeholder-parch-gray/60 rounded-lg px-3 sm:px-4 py-2.5 tracking-wide text-sm"
-                        placeholder="you@example.com">
-                </div>
-                <div>
-                    <label class="block text-parch-accent-blue text-sm font-serif font-medium mb-1.5 tracking-wide">Password</label>
-                    <input type="password" id="signInPassword" required
-                        class="parch-input w-full text-parch-white placeholder-parch-gray/60 rounded-lg px-3 sm:px-4 py-2.5 tracking-wide text-sm"
-                        placeholder="Enter password">
-                </div>
-                <p id="signInError" class="text-parch-light-red text-sm tracking-wide hidden"></p>
-                <button type="submit"
-                    class="parch-btn w-full bg-parch-light-blue text-parch-bright-white font-serif font-semibold py-3 rounded-lg tracking-wide text-sm">
-                    Sign In
-                </button>
-            </form>
-
-            <!-- Sign Up Form -->
-            <form id="signUpForm" class="space-y-4 hidden">
-                <div>
-                    <label class="block text-parch-accent-blue text-sm font-serif font-medium mb-1.5 tracking-wide">Username</label>
-                    <input type="text" id="signUpUsername" required
-                        class="parch-input w-full text-parch-white placeholder-parch-gray/60 rounded-lg px-3 sm:px-4 py-2.5 tracking-wide text-sm"
-                        placeholder="Choose a username">
-                </div>
-                <div>
-                    <label class="block text-parch-accent-blue text-sm font-serif font-medium mb-1.5 tracking-wide">Email</label>
-                    <input type="email" id="signUpEmail" required
-                        class="parch-input w-full text-parch-white placeholder-parch-gray/60 rounded-lg px-3 sm:px-4 py-2.5 tracking-wide text-sm"
-                        placeholder="you@example.com">
-                </div>
-                <div>
-                    <label class="block text-parch-accent-blue text-sm font-serif font-medium mb-1.5 tracking-wide">Password</label>
-                    <input type="password" id="signUpPassword" required
-                        class="parch-input w-full text-parch-white placeholder-parch-gray/60 rounded-lg px-3 sm:px-4 py-2.5 tracking-wide text-sm"
-                        placeholder="Choose a password">
-                </div>
-                <p id="signUpError" class="text-parch-light-red text-sm tracking-wide hidden"></p>
-                <button type="submit"
-                    class="parch-btn w-full bg-parch-light-blue text-parch-bright-white font-serif font-semibold py-3 rounded-lg tracking-wide text-sm">
-                    Sign Up
-                </button>
-            </form>
+    <!-- ========== HERO ========== -->
+    <section class="hero">
+      <div class="container">
+        <div class="hero-inner">
+          <span class="hero-kicker reveal">Parch Calls</span>
+          <h1 class="reveal stagger-1">On-demand <em>Video Calls</em></h1>
+          <p class="hero-subtitle reveal stagger-2">
+            Instant rooms, no downloads, no scheduling. Free tier included.
+          </p>
         </div>
-    </div>
+      </div>
+    </section>
 
-    <div class="max-w-md w-full">
-        <!-- Logo/Title -->
-        <div class="text-center mb-8">
-            <h1 class="text-3xl sm:text-4xl font-serif font-bold text-parch-bright-white mb-2 tracking-wide">
-                Parch On-demand
-            </h1>
-            <p class="text-parch-gray tracking-wide text-sm sm:text-base">
-                Start or join a video call instantly
-            </p>
+    <!-- ========== START / JOIN ========== -->
+    <section class="action-section">
+      <div class="container">
+        <div class="action-card reveal stagger-3">
+          <!-- Start New Call -->
+          <button id="startCallBtn" class="parch-btn start-btn">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+            </svg>
+            Start New Call
+          </button>
+
+          <!-- Divider -->
+          <div class="action-divider">
+            <span>or join existing</span>
+          </div>
+
+          <!-- Join Call -->
+          <label class="join-label" for="joinInput">Enter call link or ID</label>
+          <div class="join-row">
+            <input
+              type="text"
+              id="joinInput"
+              placeholder="Paste link or enter room ID"
+              class="parch-input join-input"
+            />
+            <button id="joinCallBtn" class="parch-btn join-btn">Join</button>
+          </div>
+          <p id="errorMsg" class="join-error hidden">Please enter a valid call link or ID</p>
         </div>
+      </div>
+    </section>
 
-        <!-- Main Card -->
-        <div class="parch-card rounded-xl p-6 sm:p-8 shadow-2xl">
-            <!-- Start New Call -->
-            <div class="mb-8">
-                <button
-                    id="startCallBtn"
-                    class="parch-btn w-full bg-parch-light-blue text-parch-bright-white font-serif font-semibold py-3.5 sm:py-4 px-6 rounded-lg flex items-center justify-center gap-3 tracking-wide text-base sm:text-lg"
-                >
-                    <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-                    </svg>
-                    Start New Call
-                </button>
-            </div>
-
-            <!-- Divider -->
-            <div class="relative mb-8">
-                <div class="absolute inset-0 flex items-center">
-                    <div class="w-full border-t border-parch-gray/40"></div>
-                </div>
-                <div class="relative flex justify-center text-sm">
-                    <span class="px-4 bg-parch-dark-blue text-parch-gray font-serif tracking-wide">or join existing</span>
-                </div>
-            </div>
-
-            <!-- Join Call -->
-            <div>
-                <label class="block text-parch-accent-blue text-sm font-serif font-medium mb-2 tracking-wide">
-                    Enter call link or ID
-                </label>
-                <div class="flex gap-2 sm:gap-3">
-                    <input
-                        type="text"
-                        id="joinInput"
-                        placeholder="Paste link or enter room ID"
-                        class="parch-input flex-1 text-parch-white placeholder-parch-gray/60 rounded-lg px-3 sm:px-4 py-2.5 sm:py-3 tracking-wide text-sm sm:text-base"
-                    >
-                    <button
-                        id="joinCallBtn"
-                        class="parch-btn bg-parch-second-blue text-parch-bright-white font-serif font-semibold px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg tracking-wide"
-                    >
-                        Join
-                    </button>
-                </div>
-                <p id="errorMsg" class="text-parch-light-red text-sm mt-2 hidden tracking-wide">
-                    Please enter a valid call link or ID
-                </p>
-            </div>
-        </div>
-
-        <!-- Footer -->
-        <p class="text-center text-parch-gray/50 text-xs sm:text-sm mt-6 tracking-wide font-serif">
-            Free calls up to 40 minutes. No account required.
-            <a href="/call/pricing" class="text-parch-accent-blue hover:underline">View pricing</a>
+    <!-- ========== FEATURES ========== -->
+    <section class="features-section">
+      <div class="container">
+        <div class="section-label reveal">What You Get</div>
+        <h2 class="section-title reveal stagger-1">Built for simplicity</h2>
+        <p class="section-subtitle reveal stagger-2">
+          No installs, no plugins, no friction. Just open a link and talk.
         </p>
-    </div>
 
+        <div class="features-grid">
+          <!-- Instant rooms -->
+          <div class="feature-card reveal stagger-3">
+            <div class="feature-icon">
+              <svg aria-hidden="true" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="24" cy="24" r="18" stroke="var(--parch-accent-blue)" stroke-width="2" fill="none"/>
+                <path d="M24 14v10l7 4" stroke="var(--parch-accent-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <h3>Instant Rooms</h3>
+            <p>No accounts needed, no downloads. Works in any modern browser. Share a link and you are live.</p>
+          </div>
+
+          <!-- Free 40-minute tier -->
+          <div class="feature-card reveal stagger-4">
+            <div class="feature-icon">
+              <svg aria-hidden="true" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="8" y="12" width="32" height="24" rx="4" stroke="var(--parch-accent-blue)" stroke-width="2" fill="none"/>
+                <path d="M20 20l8 4-8 4V20z" fill="var(--parch-accent-blue)"/>
+              </svg>
+            </div>
+            <h3>Free 40-Minute Tier</h3>
+            <p>Every call gets 40 minutes free with unlimited participants. No credit card required to start.</p>
+          </div>
+
+          <!-- WebRTC powered -->
+          <div class="feature-card reveal stagger-5">
+            <div class="feature-icon">
+              <svg aria-hidden="true" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="24" r="5" stroke="var(--parch-accent-blue)" stroke-width="2" fill="none"/>
+                <circle cx="36" cy="14" r="5" stroke="var(--parch-accent-blue)" stroke-width="2" fill="none"/>
+                <circle cx="36" cy="34" r="5" stroke="var(--parch-accent-blue)" stroke-width="2" fill="none"/>
+                <line x1="17" y1="22" x2="31" y2="16" stroke="var(--parch-accent-blue)" stroke-width="2"/>
+                <line x1="17" y1="26" x2="31" y2="32" stroke="var(--parch-accent-blue)" stroke-width="2"/>
+                <line x1="36" y1="19" x2="36" y2="29" stroke="var(--parch-accent-blue)" stroke-width="2"/>
+              </svg>
+            </div>
+            <h3>WebRTC Powered</h3>
+            <p>Peer-to-peer media streams via SFU for multi-party calls. Low latency, high quality audio and video.</p>
+          </div>
+
+          <!-- Simple pricing -->
+          <div class="feature-card reveal stagger-6">
+            <div class="feature-icon">
+              <svg aria-hidden="true" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="8" y="8" width="32" height="32" rx="6" stroke="var(--parch-accent-blue)" stroke-width="2" fill="none"/>
+                <path d="M24 16v16M18 22c0-2.2 2.7-4 6-4s6 1.8 6 4-2.7 4-6 4-6 1.8-6 4 2.7 4 6 4" stroke="var(--parch-accent-blue)" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <h3>Simple Pricing</h3>
+            <p>Credit packs or monthly subscription for extended calls. No surprise fees, transparent billing.</p>
+          </div>
+        </div>
+
+        <div class="features-cta reveal stagger-6">
+          <a href="/call/pricing">View pricing &amp; plans &rarr;</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== FOOTER ========== -->
+    <footer class="site-footer">
+      <div class="container">
+        <div class="footer-inner">
+          <nav class="footer-links">
+            <a href="/">Parch Home</a>
+            <a href="/call/pricing">Pricing</a>
+          </nav>
+          <div class="footer-copy">&copy; ParchChat.com 2026</div>
+        </div>
+      </div>
+    </footer>
+
+    <!-- ========== INTERSECTION OBSERVER ========== -->
     <script>
-        function generateUUID() {
-            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-                const r = Math.random() * 16 | 0;
-                const v = c === 'x' ? r : (r & 0x3 | 0x8);
-                return v.toString(16);
+      (function () {
+        var prefersReduced = window.matchMedia(
+          "(prefers-reduced-motion: reduce)"
+        ).matches;
+
+        if (prefersReduced) {
+          document.querySelectorAll(".reveal").forEach(function (el) {
+            el.classList.add("visible");
+          });
+          return;
+        }
+
+        var observer = new IntersectionObserver(
+          function (entries) {
+            entries.forEach(function (entry) {
+              if (entry.isIntersecting) {
+                entry.target.classList.add("visible");
+                observer.unobserve(entry.target);
+              }
             });
-        }
+          },
+          {
+            threshold: 0.15,
+            rootMargin: "0px 0px -40px 0px",
+          }
+        );
 
-        function extractRoomId(input) {
-            input = input.trim();
-            if (!input) return null;
-
-            // Check if it's a full URL
-            try {
-                const url = new URL(input);
-                const id = url.searchParams.get('id');
-                if (id) return id;
-            } catch (e) {
-                // Not a valid URL, treat as room ID
-            }
-
-            // Check if it looks like a UUID
-            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-            if (uuidRegex.test(input)) {
-                return input;
-            }
-
-            // Accept any non-empty string as a room ID
-            if (input.length > 0) {
-                return input;
-            }
-
-            return null;
-        }
-
-        function openCallRoom(roomId) {
-            const baseUrl = window.location.origin;
-            const roomUrl = `${baseUrl}/call/room?id=${encodeURIComponent(roomId)}`;
-            window.open(roomUrl, '_blank');
-        }
-
-        // Start New Call
-        document.getElementById('startCallBtn').addEventListener('click', function() {
-            const roomId = generateUUID();
-            openCallRoom(roomId);
+        document.querySelectorAll(".reveal").forEach(function (el) {
+          observer.observe(el);
         });
+      })();
+    </script>
 
-        // Join Call
-        document.getElementById('joinCallBtn').addEventListener('click', function() {
-            const input = document.getElementById('joinInput').value;
-            const roomId = extractRoomId(input);
-            const errorMsg = document.getElementById('errorMsg');
-
-            if (roomId) {
-                errorMsg.classList.add('hidden');
-                openCallRoom(roomId);
-            } else {
-                errorMsg.classList.remove('hidden');
-            }
+    <!-- ========== CALL LOGIC ========== -->
+    <script>
+      function generateUUID() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+          const r = Math.random() * 16 | 0;
+          const v = c === 'x' ? r : (r & 0x3 | 0x8);
+          return v.toString(16);
         });
+      }
 
-        // Handle Enter key in input
-        document.getElementById('joinInput').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                document.getElementById('joinCallBtn').click();
-            }
-        });
+      function extractRoomId(input) {
+        input = input.trim();
+        if (!input) return null;
 
-        // Clear error on input
-        document.getElementById('joinInput').addEventListener('input', function() {
-            document.getElementById('errorMsg').classList.add('hidden');
-        });
-
-        // ---- Auth UI Logic ----
-        const AUTH_TOKEN_KEY = 'call_app:auth_token';
-
-        const authLoggedOut = document.getElementById('authLoggedOut');
-        const authLoggedIn = document.getElementById('authLoggedIn');
-        const authUsername = document.getElementById('authUsername');
-        const authModal = document.getElementById('authModal');
-        const authBackdrop = document.getElementById('authBackdrop');
-        const signInBtn = document.getElementById('signInBtn');
-        const signOutBtn = document.getElementById('signOutBtn');
-        const authCloseBtn = document.getElementById('authCloseBtn');
-        const tabSignIn = document.getElementById('tabSignIn');
-        const tabSignUp = document.getElementById('tabSignUp');
-        const signInForm = document.getElementById('signInForm');
-        const signUpForm = document.getElementById('signUpForm');
-        const signInError = document.getElementById('signInError');
-        const signUpError = document.getElementById('signUpError');
-
-        function showAuthModal() {
-            authModal.classList.remove('hidden');
+        // Check if it's a full URL
+        try {
+          const url = new URL(input);
+          const id = url.searchParams.get('id');
+          if (id) return id;
+        } catch (e) {
+          // Not a valid URL, treat as room ID
         }
 
-        function hideAuthModal() {
-            authModal.classList.add('hidden');
-            signInError.classList.add('hidden');
-            signUpError.classList.add('hidden');
-            signInForm.reset();
-            signUpForm.reset();
+        // Check if it looks like a UUID
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        if (uuidRegex.test(input)) {
+          return input;
         }
 
-        function switchToTab(tab) {
-            if (tab === 'signin') {
-                tabSignIn.classList.replace('text-parch-gray', 'text-parch-bright-white');
-                tabSignIn.classList.add('font-semibold', 'border-parch-accent-blue');
-                tabSignIn.classList.remove('border-transparent');
-                tabSignUp.classList.replace('text-parch-bright-white', 'text-parch-gray');
-                tabSignUp.classList.remove('font-semibold', 'border-parch-accent-blue');
-                tabSignUp.classList.add('border-transparent');
-                signInForm.classList.remove('hidden');
-                signUpForm.classList.add('hidden');
-                signInError.classList.add('hidden');
-                signUpError.classList.add('hidden');
-            } else {
-                tabSignUp.classList.replace('text-parch-gray', 'text-parch-bright-white');
-                tabSignUp.classList.add('font-semibold', 'border-parch-accent-blue');
-                tabSignUp.classList.remove('border-transparent');
-                tabSignIn.classList.replace('text-parch-bright-white', 'text-parch-gray');
-                tabSignIn.classList.remove('font-semibold', 'border-parch-accent-blue');
-                tabSignIn.classList.add('border-transparent');
-                signUpForm.classList.remove('hidden');
-                signInForm.classList.add('hidden');
-                signInError.classList.add('hidden');
-                signUpError.classList.add('hidden');
-            }
+        // Accept any non-empty string as a room ID
+        if (input.length > 0) {
+          return input;
         }
 
-        function showLoggedIn(username) {
-            authLoggedOut.classList.add('hidden');
-            authLoggedIn.classList.remove('hidden');
-            authUsername.textContent = username;
-        }
+        return null;
+      }
 
-        function showLoggedOut() {
-            authLoggedIn.classList.add('hidden');
-            authLoggedOut.classList.remove('hidden');
-            authUsername.textContent = '';
-        }
+      function openCallRoom(roomId) {
+        const baseUrl = window.location.origin;
+        const roomUrl = `${baseUrl}/call/room?id=${encodeURIComponent(roomId)}`;
+        window.open(roomUrl, '_blank');
+      }
 
-        function showError(el, message) {
-            el.textContent = message;
-            el.classList.remove('hidden');
-        }
+      // Start New Call
+      document.getElementById('startCallBtn').addEventListener('click', function() {
+        const roomId = generateUUID();
+        openCallRoom(roomId);
+      });
 
-        // Open modal
-        signInBtn.addEventListener('click', function() {
+      // Join Call
+      document.getElementById('joinCallBtn').addEventListener('click', function() {
+        const input = document.getElementById('joinInput').value;
+        const roomId = extractRoomId(input);
+        const errorMsg = document.getElementById('errorMsg');
+
+        if (roomId) {
+          errorMsg.classList.add('hidden');
+          openCallRoom(roomId);
+        } else {
+          errorMsg.classList.remove('hidden');
+        }
+      });
+
+      // Handle Enter key in input
+      document.getElementById('joinInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+          document.getElementById('joinCallBtn').click();
+        }
+      });
+
+      // Clear error on input
+      document.getElementById('joinInput').addEventListener('input', function() {
+        document.getElementById('errorMsg').classList.add('hidden');
+      });
+    </script>
+
+    <!-- ========== AUTH LOGIC ========== -->
+    <script>
+      // ---- Auth UI Logic ----
+      const AUTH_TOKEN_KEY = 'call_app:auth_token';
+
+      const authLoggedOut = document.getElementById('authLoggedOut');
+      const authLoggedIn = document.getElementById('authLoggedIn');
+      const authUsername = document.getElementById('authUsername');
+      const authModal = document.getElementById('authModal');
+      const authBackdrop = document.getElementById('authBackdrop');
+      const signInBtn = document.getElementById('signInBtn');
+      const signOutBtn = document.getElementById('signOutBtn');
+      const authCloseBtn = document.getElementById('authCloseBtn');
+      const tabSignIn = document.getElementById('tabSignIn');
+      const tabSignUp = document.getElementById('tabSignUp');
+      const signInForm = document.getElementById('signInForm');
+      const signUpForm = document.getElementById('signUpForm');
+      const signInError = document.getElementById('signInError');
+      const signUpError = document.getElementById('signUpError');
+
+      function showAuthModal() {
+        authModal.classList.remove('hidden');
+      }
+
+      function hideAuthModal() {
+        authModal.classList.add('hidden');
+        signInError.classList.add('hidden');
+        signUpError.classList.add('hidden');
+        signInForm.reset();
+        signUpForm.reset();
+      }
+
+      function switchToTab(tab) {
+        if (tab === 'signin') {
+          tabSignIn.classList.add('active');
+          tabSignUp.classList.remove('active');
+          signInForm.classList.remove('hidden');
+          signUpForm.classList.add('hidden');
+          signInError.classList.add('hidden');
+          signUpError.classList.add('hidden');
+        } else {
+          tabSignUp.classList.add('active');
+          tabSignIn.classList.remove('active');
+          signUpForm.classList.remove('hidden');
+          signInForm.classList.add('hidden');
+          signInError.classList.add('hidden');
+          signUpError.classList.add('hidden');
+        }
+      }
+
+      function showLoggedIn(username) {
+        authLoggedOut.classList.add('hidden');
+        authLoggedIn.classList.remove('hidden');
+        authUsername.textContent = username;
+      }
+
+      function showLoggedOut() {
+        authLoggedIn.classList.add('hidden');
+        authLoggedOut.classList.remove('hidden');
+        authUsername.textContent = '';
+      }
+
+      function showError(el, message) {
+        el.textContent = message;
+        el.classList.remove('hidden');
+      }
+
+      // Open modal
+      signInBtn.addEventListener('click', function() {
+        switchToTab('signin');
+        showAuthModal();
+      });
+
+      // Close modal
+      authCloseBtn.addEventListener('click', hideAuthModal);
+      authBackdrop.addEventListener('click', hideAuthModal);
+
+      // Tab switching
+      tabSignIn.addEventListener('click', function() { switchToTab('signin'); });
+      tabSignUp.addEventListener('click', function() { switchToTab('signup'); });
+
+      // Sign In submit
+      signInForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        signInError.classList.add('hidden');
+        const email = document.getElementById('signInEmail').value;
+        const password = document.getElementById('signInPassword').value;
+
+        try {
+          const res = await fetch('/call/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password }),
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            showError(signInError, data.error || 'Sign in failed.');
+            return;
+          }
+          localStorage.setItem(AUTH_TOKEN_KEY, data.token);
+          showLoggedIn(data.username || email);
+          hideAuthModal();
+        } catch (err) {
+          showError(signInError, 'Network error. Please try again.');
+        }
+      });
+
+      // Sign Up submit
+      signUpForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        signUpError.classList.add('hidden');
+        const username = document.getElementById('signUpUsername').value;
+        const email = document.getElementById('signUpEmail').value;
+        const password = document.getElementById('signUpPassword').value;
+
+        try {
+          const res = await fetch('/call/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password, username }),
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            showError(signUpError, data.error || 'Registration failed.');
+            return;
+          }
+          localStorage.setItem(AUTH_TOKEN_KEY, data.token);
+          showLoggedIn(data.username || username);
+          hideAuthModal();
+        } catch (err) {
+          showError(signUpError, 'Network error. Please try again.');
+        }
+      });
+
+      // Sign Out
+      signOutBtn.addEventListener('click', function() {
+        localStorage.removeItem(AUTH_TOKEN_KEY);
+        showLoggedOut();
+      });
+
+      // Session restoration on page load
+      (async function restoreSession() {
+        const token = localStorage.getItem(AUTH_TOKEN_KEY);
+        if (!token) {
+          // Check for ?auth= param to auto-open modal
+          const params = new URLSearchParams(window.location.search);
+          const authParam = params.get('auth');
+          if (authParam === 'signup') {
+            switchToTab('signup');
+            showAuthModal();
+          } else if (authParam === 'signin') {
             switchToTab('signin');
             showAuthModal();
-        });
+          }
+          return;
+        }
 
-        // Close modal
-        authCloseBtn.addEventListener('click', hideAuthModal);
-        authBackdrop.addEventListener('click', hideAuthModal);
-
-        // Tab switching
-        tabSignIn.addEventListener('click', function() { switchToTab('signin'); });
-        tabSignUp.addEventListener('click', function() { switchToTab('signup'); });
-
-        // Sign In submit
-        signInForm.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            signInError.classList.add('hidden');
-            const email = document.getElementById('signInEmail').value;
-            const password = document.getElementById('signInPassword').value;
-
-            try {
-                const res = await fetch('/call/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password }),
-                });
-                const data = await res.json();
-                if (!res.ok) {
-                    showError(signInError, data.error || 'Sign in failed.');
-                    return;
-                }
-                localStorage.setItem(AUTH_TOKEN_KEY, data.token);
-                showLoggedIn(data.username || email);
-                hideAuthModal();
-            } catch (err) {
-                showError(signInError, 'Network error. Please try again.');
+        try {
+          const res = await fetch('/call/login-by-token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token }),
+          });
+          const data = await res.json();
+          if (res.ok && data.username) {
+            showLoggedIn(data.username);
+            // If they came from pricing with ?auth=, redirect to account
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('auth')) {
+              window.location.href = '/call/account';
             }
-        });
-
-        // Sign Up submit
-        signUpForm.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            signUpError.classList.add('hidden');
-            const username = document.getElementById('signUpUsername').value;
-            const email = document.getElementById('signUpEmail').value;
-            const password = document.getElementById('signUpPassword').value;
-
-            try {
-                const res = await fetch('/call/register', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password, username }),
-                });
-                const data = await res.json();
-                if (!res.ok) {
-                    showError(signUpError, data.error || 'Registration failed.');
-                    return;
-                }
-                localStorage.setItem(AUTH_TOKEN_KEY, data.token);
-                showLoggedIn(data.username || username);
-                hideAuthModal();
-            } catch (err) {
-                showError(signUpError, 'Network error. Please try again.');
-            }
-        });
-
-        // Sign Out
-        signOutBtn.addEventListener('click', function() {
+          } else {
             localStorage.removeItem(AUTH_TOKEN_KEY);
-            showLoggedOut();
-        });
-
-        // Session restoration on page load
-        (async function restoreSession() {
-            const token = localStorage.getItem(AUTH_TOKEN_KEY);
-            if (!token) {
-                // Check for ?auth= param to auto-open modal
-                const params = new URLSearchParams(window.location.search);
-                const authParam = params.get('auth');
-                if (authParam === 'signup') {
-                    switchToTab('signup');
-                    showAuthModal();
-                } else if (authParam === 'signin') {
-                    switchToTab('signin');
-                    showAuthModal();
-                }
-                return;
+            const params = new URLSearchParams(window.location.search);
+            const authParam = params.get('auth');
+            if (authParam === 'signup') {
+              switchToTab('signup');
+              showAuthModal();
+            } else if (authParam === 'signin') {
+              switchToTab('signin');
+              showAuthModal();
             }
-
-            try {
-                const res = await fetch('/call/login-by-token', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ token }),
-                });
-                const data = await res.json();
-                if (res.ok && data.username) {
-                    showLoggedIn(data.username);
-                    // If they came from pricing with ?auth=, redirect to account
-                    const params = new URLSearchParams(window.location.search);
-                    if (params.get('auth')) {
-                        window.location.href = '/call/account';
-                    }
-                } else {
-                    localStorage.removeItem(AUTH_TOKEN_KEY);
-                    const params = new URLSearchParams(window.location.search);
-                    const authParam = params.get('auth');
-                    if (authParam === 'signup') {
-                        switchToTab('signup');
-                        showAuthModal();
-                    } else if (authParam === 'signin') {
-                        switchToTab('signin');
-                        showAuthModal();
-                    }
-                }
-            } catch (err) {
-                localStorage.removeItem(AUTH_TOKEN_KEY);
-            }
-        })();
+          }
+        } catch (err) {
+          localStorage.removeItem(AUTH_TOKEN_KEY);
+        }
+      })();
     </script>
-</body>
+  </body>
 </html>
