@@ -493,6 +493,209 @@
   background-color: var(--dark-red);
 }
 
+/* ===== ACCOUNT MODAL ===== */
+
+.account-modal-content {
+  max-width: 980px;
+}
+
+.account-modal-body {
+  gap: 14px;
+}
+
+.account-overview {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1px solid rgba(196, 156, 96, 0.25);
+  border-radius: var(--radius-md);
+  background: linear-gradient(160deg, rgba(196, 156, 96, 0.08), rgba(62, 74, 96, 0.1));
+}
+
+.account-overview-row {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.account-overview-title {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  color: var(--bright-white);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.account-overview-subtitle {
+  font-size: 0.82rem;
+  color: var(--parch-amber-dim);
+}
+
+.account-overview-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.account-meta-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--main-gray);
+}
+
+.account-meta-value {
+  font-size: 0.86rem;
+  color: var(--bright-white);
+}
+
+.account-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.settings-section.account-card {
+  margin-bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.account-card-title {
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--parch-amber);
+  font-weight: 700;
+}
+
+.account-card-title--danger {
+  color: var(--light-red);
+}
+
+.account-help {
+  font-size: 0.82rem;
+  line-height: 1.35;
+  color: var(--main-gray);
+}
+
+.account-warning {
+  font-size: 0.82rem;
+  line-height: 1.35;
+  color: var(--light-yellow);
+}
+
+.account-input-wrap {
+  width: 100%;
+  display: block;
+}
+
+.account-input-wrap .account-input {
+  width: 100%;
+}
+
+.account-textarea {
+  width: 100%;
+  min-height: 120px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--main-gray);
+  background: var(--second-dark);
+  color: var(--main-white);
+  font-size: 0.78rem;
+  resize: vertical;
+}
+
+.account-textarea--compact {
+  min-height: 88px;
+}
+
+.account-textarea:focus {
+  outline: none;
+  border-color: var(--parch-amber-dim);
+  box-shadow: 0 0 0 2px rgba(196, 156, 96, 0.15);
+}
+
+.account-inline-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 0.72rem;
+  color: var(--a-blue);
+  overflow-wrap: anywhere;
+}
+
+.account-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.account-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.account-device-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.account-device-item {
+  display: flex;
+  flex-direction: column;
+  padding: 10px 11px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--main-gray);
+  background: var(--dark-blue);
+  gap: 2px;
+}
+
+.account-device-name {
+  color: var(--bright-white);
+  font-size: 0.9rem;
+}
+
+.account-device-meta {
+  color: var(--main-gray);
+  font-size: 0.78rem;
+}
+
+.account-device-empty {
+  color: var(--main-gray);
+  font-size: 0.85rem;
+}
+
+.account-danger-zone {
+  border-color: rgba(196, 88, 96, 0.4);
+}
+
+@media (max-width: 900px) {
+  .account-modal-content {
+    max-width: 100%;
+  }
+
+  .account-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .account-overview {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .account-overview-meta {
+    align-items: flex-start;
+  }
+}
+
 /* ===== VOICE PANEL ===== */
 
 .voice-elem-container {

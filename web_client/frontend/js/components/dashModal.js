@@ -169,6 +169,46 @@ export default class DashModal {
   };
 
   renderAccount = (user, activeDevices = []) => {
+    const formatDateTime = (isoText) => {
+      if (!isoText) return "Never";
+      const date = new Date(isoText);
+      if (Number.isNaN(date.getTime())) return "Unknown";
+      return date.toLocaleString();
+    };
+
+    const shortKey = (key) => {
+      if (!key || typeof key !== "string") return "Unknown";
+      if (key.length <= 20) return key;
+      return `${key.slice(0, 10)}...${key.slice(-8)}`;
+    };
+
+    const copyText = async (text, sourceElem) => {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        return;
+      }
+      if (!sourceElem) {
+        throw new Error("No copy source");
+      }
+      sourceElem.focus();
+      sourceElem.select();
+      document.execCommand("copy");
+    };
+
+    const generateBackupText = async () => {
+      const passphraseElem = this.domComponent.querySelector("#identity-export-passphrase");
+      const exportElem = this.domComponent.querySelector("#identity-export-display");
+      const passphrase = (passphraseElem?.value || "").trim();
+      if (passphrase.length < 8) {
+        throw new Error("Enter a backup passphrase (8+ chars)");
+      }
+      const backupText = await identityManager.exportEncryptedIdentity(passphrase);
+      if (exportElem) {
+        exportElem.value = backupText;
+      }
+      return backupText;
+    };
+
     const importIdentityText = async (importText, passphrase) => {
       if (!importText) {
         platform.alert("No backup data provided");
@@ -193,17 +233,13 @@ export default class DashModal {
         platform.alert(err?.message || "Failed to import encrypted backup");
       }
     };
-    const formatDateTime = (isoText) => {
-      if (!isoText) return "Never";
-      const date = new Date(isoText);
-      if (Number.isNaN(date.getTime())) return "Unknown";
-      return date.toLocaleString();
-    };
+
     const updateLastExportedLabel = () => {
       const exportMetaElem = this.domComponent.querySelector("#last-exported-at");
       if (!exportMetaElem) return;
       exportMetaElem.textContent = formatDateTime(identityManager.getLastExportedAt());
     };
+
     const renderActiveDevices = () => {
       const listElem = this.domComponent.querySelector("#active-devices-list");
       if (!listElem) return;
@@ -212,7 +248,7 @@ export default class DashModal {
         listElem.append(
           createElement(
             "div",
-            { style: "font-size: 0.85rem; color: var(--main-gray);" },
+            { class: "account-device-empty" },
             "No active device sessions detected on this host."
           )
         );
@@ -221,16 +257,16 @@ export default class DashModal {
       const nodes = activeDevices.map((device) => {
         const label = `${device.device_name || "Unknown Device"}${device.is_current ? " (This device)" : ""}`;
         const details = `Last seen: ${formatDateTime(device.last_seen || "")}`;
-        return createElement("div", { class: "channel-item" }, [
-          createElement("div", { style: "font-size: 0.92rem; color: var(--bright-white);" }, label),
-          createElement("div", { style: "font-size: 0.8rem; color: var(--main-gray);" }, details),
+        return createElement("div", { class: "account-device-item" }, [
+          createElement("div", { class: "account-device-name" }, label),
+          createElement("div", { class: "account-device-meta" }, details),
         ]);
       });
       listElem.append(...nodes);
     };
 
     this.domComponent.append(
-      createElement("div", { class: "modal-content" }, [
+      createElement("div", { class: "modal-content account-modal-content" }, [
         createElement("div", { class: "modal-header" }, [
           createElement("h2", {}, "Account"),
           createElement("button", { class: "close-modal" }, "×", {
@@ -238,304 +274,305 @@ export default class DashModal {
             event: this.close,
           }),
         ]),
-        createElement("div", { class: "modal-body" }, [
-          createElement("h3", {}, `Username: "${user.username}"`),
-          createElement("div", { class: "settings-section" }, [
-            createElement("h3", {}, "Public Key (Share for Invites)"),
-            createElement(
-              "p",
-              { style: "display: block; margin-bottom: 8px; font-size: 0.85rem; color: var(--main-gray);" },
-              "Share this public key with space admins so they can invite you."
-            ),
-            createElement("textarea", {
-              id: "public-key-display",
-              readonly: "readonly",
-              rows: "4",
-              style: "width: 100%; font-size: 0.8rem; padding: 8px; background: var(--second-dark); color: var(--a-blue); border: 1px solid var(--main-gray); border-radius: 4px; resize: vertical;",
-            }),
-            createElement("br"),
-            createElement("button", { class: "btn", id: "copy-public-key-btn" }, "Copy Public Key", {
-              type: "click",
-              event: async () => {
-                const publicKeyElem = this.domComponent.querySelector("#public-key-display");
-                const publicKey = (publicKeyElem?.value || "").trim();
-                if (!publicKey) {
-                  platform.alert("Public key not available yet");
-                  return;
-                }
-                try {
-                  if (navigator.clipboard?.writeText) {
-                    await navigator.clipboard.writeText(publicKey);
-                  } else {
-                    publicKeyElem.focus();
-                    publicKeyElem.select();
-                    document.execCommand("copy");
-                  }
-                  platform.alert("Public key copied");
-                } catch (_err) {
-                  platform.alert("Failed to copy public key");
-                }
-              },
-            }),
+        createElement("div", { class: "modal-body account-modal-body" }, [
+          createElement("div", { class: "account-overview" }, [
+            createElement("div", { class: "account-overview-row" }, [
+              createElement("div", { class: "account-overview-title" }, user.username || "unknown"),
+              createElement("div", { class: "account-overview-subtitle" }, `Host User ID: ${user.id || "unknown"}`),
+            ]),
+            createElement("div", { class: "account-overview-meta" }, [
+              createElement("span", { class: "account-meta-label" }, "Last Exported"),
+              createElement("span", { id: "last-exported-at", class: "account-meta-value" }, "Never"),
+            ]),
           ]),
-          createElement("div", { class: "settings-section" }, [
-            createElement("h3", {}, "Encrypted Identity Backup"),
-            createElement(
-              "p",
-              { style: "display: block; margin-bottom: 8px; font-size: 0.85rem; color: var(--light-red);" },
-              "Backups are encrypted with your passphrase. If you lose the passphrase and backup file, your identity cannot be recovered."
-            ),
-            createElement(
-              "p",
-              { style: "display: block; margin-bottom: 8px; font-size: 0.85rem; color: var(--main-gray);" },
-              "Private keys stay non-exportable during normal use. Export creates an encrypted backup file for device transfer."
-            ),
-            createElement("div", { class: "input-container" }, [
-              createElement("label", { for: "identity-export-passphrase" }, "Backup Passphrase"),
-              createElement("input", {
-                id: "identity-export-passphrase",
-                type: "password",
-                placeholder: "At least 8 characters",
-                autocomplete: "new-password",
+          createElement("div", { class: "account-grid" }, [
+            createElement("div", { class: "settings-section account-card" }, [
+              createElement("div", { class: "account-card-title" }, "Public Key"),
+              createElement(
+                "p",
+                { class: "account-help" },
+                "Share this public key with space admins so they can invite this identity."
+              ),
+              createElement("textarea", {
+                id: "public-key-display",
+                class: "account-textarea account-textarea--compact",
+                readonly: "readonly",
+                rows: "4",
               }),
+              createElement("div", { class: "account-actions" }, [
+                createElement("button", { class: "btn", id: "copy-public-key-btn" }, "Copy Public Key", {
+                  type: "click",
+                  event: async () => {
+                    const publicKeyElem = this.domComponent.querySelector("#public-key-display");
+                    const publicKey = (publicKeyElem?.value || "").trim();
+                    if (!publicKey) {
+                      platform.alert("Public key not available yet");
+                      return;
+                    }
+                    try {
+                      await copyText(publicKey, publicKeyElem);
+                      platform.alert("Public key copied");
+                    } catch (_err) {
+                      platform.alert("Failed to copy public key");
+                    }
+                  },
+                }),
+              ]),
+              createElement(
+                "p",
+                { id: "account-key-fingerprint", class: "account-inline-mono" },
+                `Fingerprint: ${shortKey(user.public_key || "")}`
+              ),
             ]),
-            createElement("br"),
-            createElement("textarea", {
-              id: "identity-export-display",
-              readonly: "readonly",
-              rows: "6",
-              placeholder: "Encrypted backup JSON appears here after generation",
-              style: "width: 100%; font-size: 0.78rem; padding: 8px; background: var(--second-dark); color: var(--main-white); border: 1px solid var(--main-gray); border-radius: 4px; resize: vertical; margin-bottom: 8px;",
-            }),
-            createElement("button", { class: "btn", id: "generate-identity-backup-btn" }, "Generate Encrypted Backup", {
-              type: "click",
-              event: async () => {
-                const passphraseElem = this.domComponent.querySelector("#identity-export-passphrase");
-                const exportElem = this.domComponent.querySelector("#identity-export-display");
-                const passphrase = (passphraseElem?.value || "").trim();
-                if (passphrase.length < 8) {
-                  platform.alert("Enter a backup passphrase (8+ chars)");
-                  return;
-                }
-                try {
-                  const backupText = await identityManager.exportEncryptedIdentity(passphrase);
-                  if (exportElem) {
-                    exportElem.value = backupText;
-                  }
-                } catch (err) {
-                  console.error(err);
-                  platform.alert(err?.message || "Failed to generate encrypted backup");
-                }
-              },
-            }),
-            createElement("button", { class: "btn", id: "copy-identity-btn", style: "margin-left: 8px;" }, "Copy Backup JSON", {
-              type: "click",
-              event: async () => {
-                const exportElem = this.domComponent.querySelector("#identity-export-display");
-                const text = (exportElem?.value || "").trim();
-                if (!text) {
-                  platform.alert("Generate backup first");
-                  return;
-                }
-                try {
-                  if (navigator.clipboard?.writeText) {
-                    await navigator.clipboard.writeText(text);
-                  } else {
-                    exportElem.focus();
-                    exportElem.select();
-                    document.execCommand("copy");
-                  }
-                  identityManager.markIdentityExportedNow();
-                  updateLastExportedLabel();
-                  platform.alert("Encrypted backup copied");
-                } catch (_err) {
-                  platform.alert("Failed to copy backup");
-                }
-              },
-            }),
-            createElement("button", { class: "btn", id: "download-identity-btn", style: "margin-left: 8px;" }, "Download Backup File", {
-              type: "click",
-              event: async () => {
-                const passphraseElem = this.domComponent.querySelector("#identity-export-passphrase");
-                const exportElem = this.domComponent.querySelector("#identity-export-display");
-                const passphrase = (passphraseElem?.value || "").trim();
-                if (passphrase.length < 8) {
-                  platform.alert("Enter your backup passphrase first");
-                  return;
-                }
-                try {
-                  const exportText = (exportElem?.value || "").trim() || await identityManager.exportEncryptedIdentity(passphrase);
-                  if (exportElem && !exportElem.value) {
-                    exportElem.value = exportText;
-                  }
-                  const blob = new Blob([exportText], { type: "application/json" });
-                  const url = URL.createObjectURL(blob);
-                  const link = document.createElement("a");
-                  link.href = url;
-                  link.download = "parch-identity-backup.enc.json";
-                  document.body.appendChild(link);
-                  link.click();
-                  link.remove();
-                  URL.revokeObjectURL(url);
-                  identityManager.markIdentityExportedNow();
-                  updateLastExportedLabel();
-                } catch (err) {
-                  console.error(err);
-                  platform.alert(err?.message || "Failed to generate backup file");
-                }
-              },
-            }),
-            createElement(
-              "p",
-              { style: "display: block; margin: 8px 0 6px; font-size: 0.82rem; color: var(--main-gray);" },
-              ["Last exported: ", createElement("span", { id: "last-exported-at" }, "Never")]
-            ),
-            createElement("br"),
-            createElement("div", { class: "input-container" }, [
-              createElement("label", { for: "identity-import-passphrase" }, "Import Passphrase"),
-              createElement("input", {
-                id: "identity-import-passphrase",
-                type: "password",
-                placeholder: "Passphrase used to encrypt the backup",
-                autocomplete: "off",
+            createElement("div", { class: "settings-section account-card" }, [
+              createElement("div", { class: "account-card-title" }, "Active Devices"),
+              createElement(
+                "p",
+                { class: "account-help" },
+                "Sessions currently active for this identity on this host."
+              ),
+              createElement("div", { id: "active-devices-list", class: "account-device-list" }),
+            ]),
+          ]),
+          createElement("div", { class: "account-grid" }, [
+            createElement("div", { class: "settings-section account-card" }, [
+              createElement("div", { class: "account-card-title" }, "Create Encrypted Backup"),
+              createElement(
+                "p",
+                { class: "account-warning" },
+                "If you lose both backup file and passphrase, this identity cannot be recovered."
+              ),
+              createElement("div", { class: "input-container account-input-wrap" }, [
+                createElement("label", { for: "identity-export-passphrase" }, "Backup Passphrase"),
+                createElement("input", {
+                  id: "identity-export-passphrase",
+                  class: "account-input",
+                  type: "password",
+                  placeholder: "At least 8 characters",
+                  autocomplete: "new-password",
+                }),
+              ]),
+              createElement("textarea", {
+                id: "identity-export-display",
+                class: "account-textarea",
+                readonly: "readonly",
+                rows: "6",
+                placeholder: "Encrypted backup JSON appears here after generation",
               }),
+              createElement("div", { class: "account-actions" }, [
+                createElement("button", { class: "btn", id: "generate-identity-backup-btn" }, "Generate", {
+                  type: "click",
+                  event: async () => {
+                    try {
+                      await generateBackupText();
+                    } catch (err) {
+                      platform.alert(err?.message || "Failed to generate encrypted backup");
+                    }
+                  },
+                }),
+                createElement("button", { class: "btn", id: "copy-identity-btn" }, "Copy Backup", {
+                  type: "click",
+                  event: async () => {
+                    const exportElem = this.domComponent.querySelector("#identity-export-display");
+                    const text = (exportElem?.value || "").trim();
+                    if (!text) {
+                      platform.alert("Generate backup first");
+                      return;
+                    }
+                    try {
+                      await copyText(text, exportElem);
+                      identityManager.markIdentityExportedNow();
+                      updateLastExportedLabel();
+                      platform.alert("Encrypted backup copied");
+                    } catch (_err) {
+                      platform.alert("Failed to copy backup");
+                    }
+                  },
+                }),
+                createElement("button", { class: "btn", id: "download-identity-btn" }, "Download File", {
+                  type: "click",
+                  event: async () => {
+                    try {
+                      const exportElem = this.domComponent.querySelector("#identity-export-display");
+                      const exportText = (exportElem?.value || "").trim() || await generateBackupText();
+                      const blob = new Blob([exportText], { type: "application/json" });
+                      const url = URL.createObjectURL(blob);
+                      const link = document.createElement("a");
+                      link.href = url;
+                      link.download = "parch-identity-backup.enc.json";
+                      document.body.appendChild(link);
+                      link.click();
+                      link.remove();
+                      URL.revokeObjectURL(url);
+                      identityManager.markIdentityExportedNow();
+                      updateLastExportedLabel();
+                    } catch (err) {
+                      platform.alert(err?.message || "Failed to generate backup file");
+                    }
+                  },
+                }),
+              ]),
             ]),
-            createElement("br"),
-            createElement("textarea", {
-              id: "identity-import-input",
-              rows: "6",
-              placeholder: "Paste encrypted backup JSON here to import",
-              style: "width: 100%; font-size: 0.78rem; padding: 8px; background: var(--second-dark); color: var(--a-blue); border: 1px solid var(--main-gray); border-radius: 4px; resize: vertical; margin-bottom: 8px;",
-            }),
-            createElement("button", { class: "btn", id: "import-identity-btn" }, "Import Encrypted Backup", {
-              type: "click",
-              event: async () => {
-                const importElem = this.domComponent.querySelector("#identity-import-input");
-                const importPassphraseElem = this.domComponent.querySelector("#identity-import-passphrase");
-                const importText = (importElem?.value || "").trim();
-                const passphrase = (importPassphraseElem?.value || "").trim();
+            createElement("div", { class: "settings-section account-card" }, [
+              createElement("div", { class: "account-card-title" }, "Restore Encrypted Backup"),
+              createElement(
+                "p",
+                { class: "account-help" },
+                "Importing will replace the current local identity on this browser."
+              ),
+              createElement("div", { class: "input-container account-input-wrap" }, [
+                createElement("label", { for: "identity-import-passphrase" }, "Import Passphrase"),
+                createElement("input", {
+                  id: "identity-import-passphrase",
+                  class: "account-input",
+                  type: "password",
+                  placeholder: "Passphrase used for backup",
+                  autocomplete: "off",
+                }),
+              ]),
+              createElement("textarea", {
+                id: "identity-import-input",
+                class: "account-textarea",
+                rows: "6",
+                placeholder: "Paste encrypted backup JSON here to import",
+              }),
+              createElement("div", { class: "account-actions" }, [
+                createElement("button", { class: "btn", id: "import-identity-btn" }, "Import Backup", {
+                  type: "click",
+                  event: async () => {
+                    const importElem = this.domComponent.querySelector("#identity-import-input");
+                    const importPassphraseElem = this.domComponent.querySelector("#identity-import-passphrase");
+                    const importText = (importElem?.value || "").trim();
+                    const passphrase = (importPassphraseElem?.value || "").trim();
 
-                if (!importText) {
-                  platform.alert("Paste encrypted backup JSON to import");
-                  return;
-                }
-                await importIdentityText(importText, passphrase);
-              },
-            }),
-            createElement("button", { class: "btn", id: "import-identity-file-btn", style: "margin-left: 8px;" }, "Import Backup File", {
-              type: "click",
-              event: () => {
-                const fileInput = this.domComponent.querySelector("#identity-import-file");
-                if (fileInput) {
-                  fileInput.value = "";
-                  fileInput.click();
-                }
-              },
-            }),
-            createElement("input", {
-              id: "identity-import-file",
-              type: "file",
-              accept: "application/json,.json",
-              style: "display: none;",
-            }, null, {
-              type: "change",
-              event: async (event) => {
-                const file = event?.target?.files?.[0];
-                if (!file) return;
-                try {
-                  const text = await file.text();
-                  const importElem = this.domComponent.querySelector("#identity-import-input");
-                  if (importElem) {
-                    importElem.value = text;
-                  }
-                } catch (_err) {
-                  platform.alert("Failed to read backup file");
-                }
-              },
-            }),
-          ]),
-          createElement("div", { class: "settings-section" }, [
-            createElement("h3", {}, "Active Devices"),
-            createElement(
-              "p",
-              { style: "display: block; margin-bottom: 8px; font-size: 0.85rem; color: var(--main-gray);" },
-              "Shows active sessions for this identity on this host."
-            ),
-            createElement("div", { id: "active-devices-list", class: "channels-list" }),
-          ]),
-          createElement("div", { class: "settings-section" }, [
-            createElement("h3", {}, "Local Fallback Username"),
-            createElement(
-              "p",
-              { style: "display: block; margin-bottom: 8px; font-size: 0.85rem; color: var(--main-gray);" },
-              "Used as the default username sent during auth when joining a host for the first time."
-            ),
-            createElement("div", { class: "input-container" }, [
-              createElement("label", { for: "local-identity-username" }, "Local Username"),
+                    if (!importText) {
+                      platform.alert("Paste encrypted backup JSON to import");
+                      return;
+                    }
+                    await importIdentityText(importText, passphrase);
+                  },
+                }),
+                createElement("button", { class: "btn", id: "import-identity-file-btn" }, "Load File", {
+                  type: "click",
+                  event: () => {
+                    const fileInput = this.domComponent.querySelector("#identity-import-file");
+                    if (fileInput) {
+                      fileInput.value = "";
+                      fileInput.click();
+                    }
+                  },
+                }),
+              ]),
               createElement("input", {
-                id: "local-identity-username",
-                name: "localIdentityUsername",
-                type: "text",
-                value: "",
-                placeholder: "Set local fallback username",
+                id: "identity-import-file",
+                type: "file",
+                accept: "application/json,.json",
+                style: "display: none;",
+              }, null, {
+                type: "change",
+                event: async (event) => {
+                  const file = event?.target?.files?.[0];
+                  if (!file) return;
+                  try {
+                    const text = await file.text();
+                    const importElem = this.domComponent.querySelector("#identity-import-input");
+                    if (importElem) {
+                      importElem.value = text;
+                    }
+                  } catch (_err) {
+                    platform.alert("Failed to read backup file");
+                  }
+                },
               }),
             ]),
-            createElement("br"),
-            createElement("button", { class: "btn" }, "Save Local Username", {
-              type: "click",
-              event: () => {
-                const localUsernameElem = this.domComponent.querySelector("#local-identity-username");
-                const localUsername = (localUsernameElem?.value || "").trim();
-                identityManager.setIdentityUsername(localUsername);
-                platform.alert("Local fallback username saved");
-              },
-            }),
           ]),
-          createElement(
-            "form",
-            { id: "update-username-form" },
-            [
-              createElement("fieldset", {}, [
-                createElement("legend", {}, "Update Username"),
-                createElement("div", { class: "input-container" }, [
-                  createElement("label", { for: "username" }, "Username"),
+          createElement("div", { class: "account-grid" }, [
+            createElement("div", { class: "settings-section account-card" }, [
+              createElement("div", { class: "account-card-title" }, "Local Fallback Username"),
+              createElement(
+                "p",
+                { class: "account-help" },
+                "Used as the default username sent during auth when this browser joins a host."
+              ),
+              createElement("div", { class: "input-container account-input-wrap" }, [
+                createElement("label", { for: "local-identity-username" }, "Local Username"),
+                createElement("input", {
+                  id: "local-identity-username",
+                  name: "localIdentityUsername",
+                  class: "account-input",
+                  type: "text",
+                  value: "",
+                  placeholder: "Set local fallback username",
+                }),
+              ]),
+              createElement("div", { class: "account-actions" }, [
+                createElement("button", { class: "btn" }, "Save Local Username", {
+                  type: "click",
+                  event: () => {
+                    const localUsernameElem = this.domComponent.querySelector("#local-identity-username");
+                    const localUsername = (localUsernameElem?.value || "").trim();
+                    identityManager.setIdentityUsername(localUsername);
+                    platform.alert("Local fallback username saved");
+                  },
+                }),
+              ]),
+            ]),
+            createElement("div", { class: "settings-section account-card" }, [
+              createElement("div", { class: "account-card-title" }, "Host Profile Username"),
+              createElement(
+                "p",
+                { class: "account-help" },
+                "This updates your username for this host only."
+              ),
+              createElement("form", { id: "update-username-form", class: "account-form" }, [
+                createElement("div", { class: "input-container account-input-wrap" }, [
+                  createElement("label", { for: "username" }, "Host Username"),
                   createElement("input", {
                     id: "username",
                     name: "username",
+                    class: "account-input",
                     type: "text",
                     required: true,
-                    autofocus: true,
                     value: user.username || "",
                   }),
                 ]),
-                createElement("br"),
-                createElement("button", { type: "submit" }, "Submit"),
-              ]),
-            ],
-            {
-              type: "submit",
-              event: (e) => {
-                e.preventDefault();
-                const formData = new FormData(e.target);
-                const jsonData = Object.fromEntries(formData.entries());
-                jsonData["user_id"] = user.id;
-                jsonData["user_public_key"] = user.public_key || "";
-                jsonData["user_enc_public_key"] = user.enc_public_key || "";
-                this.socketConn.updateUsername(jsonData);
-              },
-            }
-          ),
-          createElement("br"),
-          createElement("button", { class: "btn-red" }, "Reset Identity", {
-            type: "click",
-            event: () => {
-              platform.confirm("Reset local identity key? This creates a new account identity.").then((confirmed) => {
-                if (!confirmed) return;
-                identityManager.clearIdentity();
-                window.location.reload();
-              });
-            },
-          }),
+                createElement("div", { class: "account-actions" }, [
+                  createElement("button", { type: "submit" }, "Update Username"),
+                ]),
+              ], {
+                type: "submit",
+                event: (e) => {
+                  e.preventDefault();
+                  const formData = new FormData(e.target);
+                  const jsonData = Object.fromEntries(formData.entries());
+                  jsonData["user_id"] = user.id;
+                  jsonData["user_public_key"] = user.public_key || "";
+                  jsonData["user_enc_public_key"] = user.enc_public_key || "";
+                  this.socketConn.updateUsername(jsonData);
+                },
+              }),
+            ]),
+          ]),
+          createElement("div", { class: "settings-section account-card account-danger-zone" }, [
+            createElement("div", { class: "account-card-title account-card-title--danger" }, "Danger Zone"),
+            createElement(
+              "p",
+              { class: "account-help" },
+              "Reset identity creates a new keypair and account identity for this browser."
+            ),
+            createElement("div", { class: "account-actions" }, [
+              createElement("button", { class: "btn-red" }, "Reset Identity", {
+                type: "click",
+                event: () => {
+                  platform.confirm("Reset local identity key? This creates a new account identity.").then((confirmed) => {
+                    if (!confirmed) return;
+                    identityManager.clearIdentity();
+                    window.location.reload();
+                  });
+                },
+              }),
+            ]),
+          ]),
         ]),
       ])
     );
@@ -545,17 +582,21 @@ export default class DashModal {
       .then((identity) => {
         const publicKeyElem = this.domComponent.querySelector("#public-key-display");
         const localUsernameElem = this.domComponent.querySelector("#local-identity-username");
+        const keyFingerprint = this.domComponent.querySelector("#account-key-fingerprint");
         if (publicKeyElem) {
           publicKeyElem.value = identity.publicKey || "";
         }
         if (localUsernameElem) {
           localUsernameElem.value = identity.username || "";
         }
+        if (keyFingerprint) {
+          keyFingerprint.textContent = `Fingerprint: ${shortKey(identity.publicKey || "")}`;
+        }
       })
       .catch(() => {
         const publicKeyElem = this.domComponent.querySelector("#public-key-display");
-        const exportElem = this.domComponent.querySelector("#identity-export-display");
         const localUsernameElem = this.domComponent.querySelector("#local-identity-username");
+        const exportElem = this.domComponent.querySelector("#identity-export-display");
         if (publicKeyElem) {
           publicKeyElem.value = "";
         }

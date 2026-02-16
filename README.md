@@ -48,7 +48,9 @@ Chat no longer uses centralized email/password identity.
 - Browser identity:
   - Ed25519 keypair for auth signatures
   - ECDH P-256 keypair for message encryption
+  - Private keys are sealed locally; account transfer uses passphrase-encrypted backup export/import
 - Relay auth:
+  - `join_host` fails fast for non-author clients if host author is offline/unresponsive
   - Relay sends challenge
   - Browser signs `parch-chat-auth:<hostUUID>:<challenge>:<encPublicKey>`
   - Relay verifies and opens session
@@ -60,6 +62,16 @@ Chat no longer uses centralized email/password identity.
   - Relay forwards envelope
   - Host stores envelope JSON (ciphertext)
   - Clients decrypt locally
+- Relay abuse controls:
+  - websocket read limit
+  - per-client chat rate limit
+  - encrypted envelope payload and wrapped-key count limits
+
+Account UI:
+- Public key copy
+- Encrypted identity backup export/import with passphrase
+- `Last exported` timestamp
+- `Active Devices` list for current host sessions
 
 For the full flow with trust boundaries and examples:
 - `docs/chat-e2ee-architecture.md`
