@@ -593,9 +593,25 @@
 .account-input-wrap {
   width: 100%;
   display: block;
+  padding-top: 0;
+}
+
+.account-input-wrap label {
+  position: static;
+  top: auto;
+  left: auto;
+  transform: none;
+  display: block;
+  margin: 0 0 6px;
+  padding: 0;
+  background: transparent;
+  font-size: 0.72rem;
+  letter-spacing: 1px;
+  color: var(--parch-amber-dim);
 }
 
 .account-input-wrap .account-input {
+  float: none;
   width: 100%;
 }
 
