@@ -117,6 +117,9 @@ func main() {
 	r.POST("/call/create-checkout-session", HandleCreateCheckoutSession)
 	r.POST("/call/stripe-webhook", HandleStripeWebhook)
 	r.POST("/call/create-portal-session", HandleCreatePortalSession)
+	// Internal SFU auth endpoints (used by Caddy forward_auth)
+	r.GET("/internal/validate-sfu-token", HandleValidateSFUToken)
+	r.GET("/internal/validate-ip", HandleValidateIP)
 
 	// Static
 	r.GET("/", func(c *gin.Context) {

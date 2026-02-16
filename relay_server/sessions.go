@@ -2,9 +2,11 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/gin-gonic/gin"
 )
 
 type SFUTokenClaims struct {
@@ -75,4 +77,57 @@ func parseSFUJWT(tokenString string, secret string) (*SFUTokenClaims, error) {
 		ChannelUUID: channelUUID,
 		Exp:         int64(exp),
 	}, nil
+}
+
+func ValidateSFUToken(tokenString string, secret string) (*SFUTokenClaims, error) {
+	return parseSFUJWT(tokenString, secret)
+}
+
+// HandleValidateSFUToken validates an SFU access token for Caddy forward_auth.
+func HandleValidateSFUToken(c *gin.Context) {
+	token := c.Query("token")
+	if token == "" {
+		token = c.GetHeader("X-SFU-Token")
+	}
+	if token == "" {
+		c.JSON(400, gin.H{
+			"authorized": false,
+			"error":      "missing token parameter or X-SFU-Token header",
+		})
+		return
+	}
+
+	sfuSecret := os.Getenv("SFU_SECRET")
+	if sfuSecret == "" {
+		c.JSON(500, gin.H{
+			"authorized": false,
+			"error":      "SFU_SECRET not configured",
+		})
+		return
+	}
+
+	claims, err := ValidateSFUToken(token, sfuSecret)
+	if err != nil {
+		c.JSON(403, gin.H{
+			"authorized": false,
+			"error":      err.Error(),
+		})
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"authorized":   true,
+		"user_id":      claims.UserID,
+		"username":     claims.Username,
+		"channel_uuid": claims.ChannelUUID,
+		"exp":          claims.Exp,
+	})
+}
+
+// HandleValidateIP provides explicit fallback behavior for legacy IP-based SFU auth.
+func HandleValidateIP(c *gin.Context) {
+	c.JSON(403, gin.H{
+		"authorized": false,
+		"error":      "IP-based SFU auth is disabled; provide token",
+	})
 }
