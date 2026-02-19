@@ -29,6 +29,7 @@ Parch now runs chat and calls as separate services:
 
 Detailed chat auth + E2EE flow:
 - `docs/chat-e2ee-architecture.md`
+- `docs/chat-e2ee-key-design-decision.md`
 
 ### Components
 
@@ -93,6 +94,9 @@ TURN_API_KEY=optional-api-key-for-turn-endpoint
 SFU_SECRET=your-sfu-jwt-secret
 EMAIL=your-email@gmail.com
 EMAIL_PASSWORD=your-app-password
+SMTP_HOST=smtp.gmail.com                    # optional, defaults to smtp.gmail.com
+SMTP_PORT=587                               # optional, defaults to 587
+PUBLIC_BASE_URL=https://parchchat.com       # optional, used in password-reset links
 
 # chat_relay
 CHAT_RELAY_PORT=8001

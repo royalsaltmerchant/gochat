@@ -112,6 +112,8 @@ func main() {
 	r.POST("/call/register", HandleCallRegister)
 	r.POST("/call/login", HandleCallLogin)
 	r.POST("/call/login-by-token", HandleCallLoginByToken)
+	r.POST("/call/request-reset-email", HandleCallPasswordResetRequest)
+	r.POST("/call/reset-password", HandleCallPasswordReset)
 	r.GET("/call/api/account", HandleCallAccount)
 	// Call app Stripe endpoints
 	r.POST("/call/create-checkout-session", HandleCreateCheckoutSession)
@@ -148,6 +150,13 @@ func main() {
 	// Call pricing page
 	r.GET("/call/pricing", func(c *gin.Context) {
 		c.File(filepath.Join(staticDir, "call_pricing.html"))
+	})
+	// Call reset password page
+	r.GET("/call/reset-password", func(c *gin.Context) {
+		c.File(filepath.Join(staticDir, "call_reset_password.html"))
+	})
+	r.GET("/call/reset-password/", func(c *gin.Context) {
+		c.File(filepath.Join(staticDir, "call_reset_password.html"))
 	})
 	// Redirect old how-it-works URL to landing page (content merged into index)
 	r.GET("/chat/how-it-works", func(c *gin.Context) {
