@@ -319,6 +319,32 @@
         color: var(--parch-bright-white);
       }
 
+      .auth-helper {
+        text-align: right;
+        margin-top: -6px;
+      }
+
+      .auth-helper-link {
+        font-family: "Source Serif 4", Georgia, serif;
+        font-size: 0.84rem;
+        letter-spacing: 0.3px;
+        color: var(--parch-accent-blue);
+        background: none;
+        border: 0;
+        cursor: pointer;
+        padding: 0;
+      }
+
+      .auth-helper-link:hover {
+        text-decoration: underline;
+      }
+
+      .auth-success {
+        font-size: 0.85rem;
+        color: var(--parch-green);
+        letter-spacing: 0.3px;
+      }
+
       /* ============================================
          HERO SECTION (compact)
          ============================================ */
@@ -722,6 +748,9 @@
             <label for="signInPassword">Password</label>
             <input type="password" id="signInPassword" required class="parch-input" placeholder="Enter password" />
           </div>
+          <div class="auth-helper">
+            <button type="button" id="forgotPasswordBtn" class="auth-helper-link">Forgot password?</button>
+          </div>
           <p id="signInError" class="auth-error hidden"></p>
           <button type="submit" class="parch-btn auth-submit">Sign In</button>
         </form>
@@ -742,6 +771,20 @@
           </div>
           <p id="signUpError" class="auth-error hidden"></p>
           <button type="submit" class="parch-btn auth-submit">Sign Up</button>
+        </form>
+
+        <!-- Forgot Password Form -->
+        <form id="forgotForm" class="auth-form hidden">
+          <div class="auth-field">
+            <label for="forgotEmail">Email</label>
+            <input type="email" id="forgotEmail" required class="parch-input" placeholder="you@example.com" />
+          </div>
+          <p id="forgotSuccess" class="auth-success hidden"></p>
+          <p id="forgotError" class="auth-error hidden"></p>
+          <button type="submit" class="parch-btn auth-submit">Send Reset Link</button>
+          <div class="auth-helper">
+            <button type="button" id="forgotBackBtn" class="auth-helper-link">Back to sign in</button>
+          </div>
         </form>
       </div>
     </div>
@@ -1002,8 +1045,13 @@
       const tabSignUp = document.getElementById('tabSignUp');
       const signInForm = document.getElementById('signInForm');
       const signUpForm = document.getElementById('signUpForm');
+      const forgotForm = document.getElementById('forgotForm');
+      const forgotPasswordBtn = document.getElementById('forgotPasswordBtn');
+      const forgotBackBtn = document.getElementById('forgotBackBtn');
       const signInError = document.getElementById('signInError');
       const signUpError = document.getElementById('signUpError');
+      const forgotError = document.getElementById('forgotError');
+      const forgotSuccess = document.getElementById('forgotSuccess');
 
       function showAuthModal() {
         authModal.classList.remove('hidden');
@@ -1013,8 +1061,12 @@
         authModal.classList.add('hidden');
         signInError.classList.add('hidden');
         signUpError.classList.add('hidden');
+        forgotError.classList.add('hidden');
+        forgotSuccess.classList.add('hidden');
         signInForm.reset();
         signUpForm.reset();
+        forgotForm.reset();
+        switchToTab('signin');
       }
 
       function switchToTab(tab) {
@@ -1023,16 +1075,34 @@
           tabSignUp.classList.remove('active');
           signInForm.classList.remove('hidden');
           signUpForm.classList.add('hidden');
+          forgotForm.classList.add('hidden');
           signInError.classList.add('hidden');
           signUpError.classList.add('hidden');
+          forgotError.classList.add('hidden');
+          forgotSuccess.classList.add('hidden');
         } else {
           tabSignUp.classList.add('active');
           tabSignIn.classList.remove('active');
           signUpForm.classList.remove('hidden');
           signInForm.classList.add('hidden');
+          forgotForm.classList.add('hidden');
           signInError.classList.add('hidden');
           signUpError.classList.add('hidden');
+          forgotError.classList.add('hidden');
+          forgotSuccess.classList.add('hidden');
         }
+      }
+
+      function switchToForgot() {
+        tabSignIn.classList.add('active');
+        tabSignUp.classList.remove('active');
+        signInForm.classList.add('hidden');
+        signUpForm.classList.add('hidden');
+        forgotForm.classList.remove('hidden');
+        signInError.classList.add('hidden');
+        signUpError.classList.add('hidden');
+        forgotError.classList.add('hidden');
+        forgotSuccess.classList.add('hidden');
       }
 
       function showLoggedIn(username) {
@@ -1065,6 +1135,8 @@
       // Tab switching
       tabSignIn.addEventListener('click', function() { switchToTab('signin'); });
       tabSignUp.addEventListener('click', function() { switchToTab('signup'); });
+      forgotPasswordBtn.addEventListener('click', function() { switchToForgot(); });
+      forgotBackBtn.addEventListener('click', function() { switchToTab('signin'); });
 
       // Sign In submit
       signInForm.addEventListener('submit', async function(e) {
@@ -1119,6 +1191,31 @@
         }
       });
 
+      // Forgot Password submit
+      forgotForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        forgotError.classList.add('hidden');
+        forgotSuccess.classList.add('hidden');
+        const email = document.getElementById('forgotEmail').value;
+
+        try {
+          const res = await fetch('/call/request-reset-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email }),
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            showError(forgotError, data.error || 'Could not send reset email.');
+            return;
+          }
+          forgotSuccess.textContent = data.message || 'If an account exists for this email, a reset link has been sent.';
+          forgotSuccess.classList.remove('hidden');
+        } catch (err) {
+          showError(forgotError, 'Network error. Please try again.');
+        }
+      });
+
       // Sign Out
       signOutBtn.addEventListener('click', function() {
         localStorage.removeItem(AUTH_TOKEN_KEY);
@@ -1137,6 +1234,9 @@
             showAuthModal();
           } else if (authParam === 'signin') {
             switchToTab('signin');
+            showAuthModal();
+          } else if (authParam === 'forgot') {
+            switchToForgot();
             showAuthModal();
           }
           return;
@@ -1165,6 +1265,9 @@
               showAuthModal();
             } else if (authParam === 'signin') {
               switchToTab('signin');
+              showAuthModal();
+            } else if (authParam === 'forgot') {
+              switchToForgot();
               showAuthModal();
             }
           }

@@ -2,6 +2,9 @@
 
 This document explains how chat works after the hard cut away from centralized chat identity auth.
 
+Related decision record:
+- `docs/chat-e2ee-key-design-decision.md`
+
 Scope:
 - `web_client` (browser chat app)
 - `chat_relay` (routing/signaling)
