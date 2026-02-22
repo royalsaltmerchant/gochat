@@ -30,14 +30,14 @@ func handleAcceptInvite(conn *websocket.Conn, wsMsg *WSMessage) {
 
 	// Get space user
 	var spaceUUID string
-	query := `UPDATE space_users SET joined = 1 WHERE id = ? AND user_id = ? RETURNING space_uuid` // Checking by user_id also ensures they are authorized
+	query := `UPDATE space_users SET joined = 1 WHERE id = ? AND user_id = ? AND joined = 0 RETURNING space_uuid` // Checking by user_id also ensures they are authorized
 	err = db.ChatDB.QueryRow(query, data.SpaceUserID, user.ID).Scan(&spaceUUID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			sendToConn(conn, WSMessage{
 				Type: "error",
 				Data: ChatError{
-					Content:    "Space user not found by id",
+					Content:    "Invite not found or already accepted",
 					ClientUUID: data.ClientUUID,
 				},
 			})

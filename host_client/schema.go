@@ -48,7 +48,6 @@ func ensureHostClientSchema() error {
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_channels_space_uuid ON channels(space_uuid)`,
 		`CREATE INDEX IF NOT EXISTS idx_messages_channel_time ON messages(channel_uuid, timestamp)`,
-		`CREATE INDEX IF NOT EXISTS idx_space_users_space_user ON space_users(space_uuid, user_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_chat_users_public_key ON chat_users(public_key)`,
 	}
 
@@ -81,6 +80,25 @@ func ensureHostClientSchema() error {
 	}
 	if _, err := db.ChatDB.Exec(`UPDATE chat_users SET updated_at = COALESCE(updated_at, CURRENT_TIMESTAMP)`); err != nil {
 		return fmt.Errorf("failed to backfill chat_users.updated_at: %w", err)
+	}
+	if _, err := db.ChatDB.Exec(`
+		DELETE FROM space_users
+		 WHERE id NOT IN (
+			SELECT MIN(id)
+			  FROM space_users
+			 GROUP BY space_uuid, user_id
+		 )
+	`); err != nil {
+		return fmt.Errorf("failed to dedupe space_users before unique index: %w", err)
+	}
+	if _, err := db.ChatDB.Exec(`DROP INDEX IF EXISTS idx_space_users_space_user`); err != nil {
+		return fmt.Errorf("failed to drop legacy non-unique space_users index: %w", err)
+	}
+	if _, err := db.ChatDB.Exec(`
+		CREATE UNIQUE INDEX IF NOT EXISTS idx_space_users_unique_space_user
+			ON space_users(space_uuid, user_id)
+	`); err != nil {
+		return fmt.Errorf("failed to create unique space_users index: %w", err)
 	}
 	if _, err := db.ChatDB.Exec(`
 		CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_channel_sender_msgid

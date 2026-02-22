@@ -35,22 +35,23 @@ type Space struct {
 }
 
 type Client struct {
-	Conn            *websocket.Conn
-	Username        string
-	UserID          int
-	HostUUID        string
-	ClientUUID      string
-	PublicKey       string
-	EncPublicKey    string
-	DeviceID        string
-	DeviceName      string
-	LastSeen        time.Time
-	AuthChallenge   string
-	IP              string
-	IsHostAuthor    bool
-	IsAuthenticated bool
-	SendQueue       chan WSMessage
-	Done            chan struct{}
+	Conn             *websocket.Conn
+	Username         string
+	UserID           int
+	HostUUID         string
+	ClientUUID       string
+	PublicKey        string
+	EncPublicKey     string
+	AuthorizedSpaces map[string]struct{}
+	DeviceID         string
+	DeviceName       string
+	LastSeen         time.Time
+	AuthChallenge    string
+	IP               string
+	IsHostAuthor     bool
+	IsAuthenticated  bool
+	SendQueue        chan WSMessage
+	Done             chan struct{}
 }
 
 func (c *Client) WritePump() {
