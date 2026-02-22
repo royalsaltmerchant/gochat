@@ -73,27 +73,27 @@ func HandleSocket(c *gin.Context) {
 				continue
 			}
 
-				host, err := registerOrCreateHost(data.UUID)
-				if err != nil {
-					conn.WriteJSON(WSMessage{Type: "join_error", Data: ChatError{Content: "Failed to join host"}})
-					continue
-				}
-				isHostAuthor := isTrustedHostAuthorJoin(c.Request, data.ID, host.AuthorID)
-				if !isHostAuthor {
-					if err := ensureHostResponsive(host, 2*time.Second); err != nil {
-						conn.WriteJSON(WSMessage{Type: "join_error", Data: ChatError{Content: "Host is offline or unresponsive"}})
-						continue
-					}
-				}
-				client = registerClient(host, conn, clientIP, isHostAuthor)
-				if isHostAuthor {
-					host.mu.Lock()
-					host.ConnByAuthorID[host.AuthorID] = conn
-					host.mu.Unlock()
-					HandleUpdateHostOnline(host.UUID)
-				}
+			host, err := registerOrCreateHost(data.UUID)
+			if err != nil {
+				conn.WriteJSON(WSMessage{Type: "join_error", Data: ChatError{Content: "Failed to join host"}})
 				continue
 			}
+			isHostAuthor := isTrustedHostAuthorJoin(c.Request, data.ID, host.AuthorID)
+			if !isHostAuthor {
+				if err := ensureHostResponsive(host, 2*time.Second); err != nil {
+					conn.WriteJSON(WSMessage{Type: "join_error", Data: ChatError{Content: "Host is offline or unresponsive"}})
+					continue
+				}
+			}
+			client = registerClient(host, conn, clientIP, isHostAuthor)
+			if isHostAuthor {
+				host.mu.Lock()
+				host.ConnByAuthorID[host.AuthorID] = conn
+				host.mu.Unlock()
+				HandleUpdateHostOnline(host.UUID)
+			}
+			continue
+		}
 
 		if client == nil {
 			conn.WriteJSON(WSMessage{Type: "error", Data: ChatError{Content: "Client not initialized"}})
@@ -249,6 +249,11 @@ func joinSpace(client *Client, spaceUUID string) bool {
 
 	host.mu.Lock()
 	defer host.mu.Unlock()
+	if !client.IsHostAuthor {
+		if _, ok := client.AuthorizedSpaces[spaceUUID]; !ok {
+			return false
+		}
+	}
 	space, ok := host.Spaces[spaceUUID]
 	if !ok {
 		return false

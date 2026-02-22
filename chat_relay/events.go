@@ -64,15 +64,16 @@ func registerClient(host *Host, conn *websocket.Conn, clientIP string, isHostAut
 	clientUUID := uuid.New().String()
 	challenge := newAuthChallenge()
 	client := &Client{
-		Conn:            conn,
-		HostUUID:        host.UUID,
-		ClientUUID:      clientUUID,
-		AuthChallenge:   challenge,
-		IP:              clientIP,
-		IsHostAuthor:    isHostAuthor,
-		IsAuthenticated: false,
-		SendQueue:       make(chan WSMessage, 64),
-		Done:            make(chan struct{}),
+		Conn:             conn,
+		HostUUID:         host.UUID,
+		ClientUUID:       clientUUID,
+		AuthChallenge:    challenge,
+		IP:               clientIP,
+		IsHostAuthor:     isHostAuthor,
+		IsAuthenticated:  false,
+		AuthorizedSpaces: make(map[string]struct{}),
+		SendQueue:        make(chan WSMessage, 64),
+		Done:             make(chan struct{}),
 	}
 
 	host.ClientsByConn[conn] = client
@@ -166,6 +167,112 @@ func activeDevicesForPublicKeyLocked(host *Host, publicKey string, currentClient
 	return devices
 }
 
+func setClientAuthorizedSpacesLocked(client *Client, spaces []DashDataSpace) {
+	if client == nil {
+		return
+	}
+	next := make(map[string]struct{}, len(spaces))
+	for _, space := range spaces {
+		if strings.TrimSpace(space.UUID) == "" {
+			continue
+		}
+		next[space.UUID] = struct{}{}
+	}
+	client.AuthorizedSpaces = next
+}
+
+func grantClientSpaceAccessLocked(client *Client, spaceUUID string) {
+	if client == nil || strings.TrimSpace(spaceUUID) == "" {
+		return
+	}
+	if client.AuthorizedSpaces == nil {
+		client.AuthorizedSpaces = make(map[string]struct{})
+	}
+	client.AuthorizedSpaces[spaceUUID] = struct{}{}
+}
+
+func pruneClientFromSpaceLocked(host *Host, target *Client, spaceUUID string) {
+	if host == nil || target == nil || strings.TrimSpace(spaceUUID) == "" {
+		return
+	}
+	if space, ok := host.Spaces[spaceUUID]; ok {
+		space.mu.Lock()
+		delete(space.Users, target.Conn)
+		space.mu.Unlock()
+	}
+
+	subs := host.SpaceSubscriptions[target.Conn]
+	if len(subs) == 0 {
+		return
+	}
+	filtered := make([]string, 0, len(subs))
+	for _, sub := range subs {
+		if sub != spaceUUID {
+			filtered = append(filtered, sub)
+		}
+	}
+	if len(filtered) == 0 {
+		delete(host.SpaceSubscriptions, target.Conn)
+		return
+	}
+	host.SpaceSubscriptions[target.Conn] = filtered
+}
+
+func removeSpaceStateLocked(host *Host, spaceUUID string) {
+	if host == nil || strings.TrimSpace(spaceUUID) == "" {
+		return
+	}
+
+	if space, ok := host.Spaces[spaceUUID]; ok {
+		space.mu.Lock()
+		for conn := range space.Users {
+			delete(space.Users, conn)
+		}
+		space.mu.Unlock()
+	}
+
+	for conn, subs := range host.SpaceSubscriptions {
+		filtered := make([]string, 0, len(subs))
+		for _, sub := range subs {
+			if sub != spaceUUID {
+				filtered = append(filtered, sub)
+			}
+		}
+		if len(filtered) == 0 {
+			delete(host.SpaceSubscriptions, conn)
+			continue
+		}
+		host.SpaceSubscriptions[conn] = filtered
+	}
+
+	for channelUUID, mappedSpaceUUID := range host.ChannelToSpace {
+		if mappedSpaceUUID != spaceUUID {
+			continue
+		}
+		delete(host.ChannelToSpace, channelUUID)
+		if channel, ok := host.Channels[channelUUID]; ok {
+			channel.mu.Lock()
+			for conn := range channel.Users {
+				delete(channel.Users, conn)
+				if current := host.ChannelSubscriptions[conn]; current == channelUUID {
+					delete(host.ChannelSubscriptions, conn)
+				}
+			}
+			channel.mu.Unlock()
+			delete(host.Channels, channelUUID)
+		}
+	}
+
+	for _, candidate := range host.ClientsByConn {
+		if candidate == nil {
+			continue
+		}
+		delete(candidate.AuthorizedSpaces, spaceUUID)
+	}
+
+	delete(host.Spaces, spaceUUID)
+}
+
 func handleGetDashData(client *Client, conn *websocket.Conn) {
 	host, exists := GetHost(client.HostUUID)
 	if !exists {
@@ -223,6 +330,13 @@ func handleGetDashDatRes(client *Client, conn *websocket.Conn, wsMsg *WSMessage)
 				}
 				if joinClient.PublicKey != "" {
 					host.ClientsByPublicKey[joinClient.PublicKey] = joinClient
+				}
+				setClientAuthorizedSpacesLocked(joinClient, data.Spaces)
+				currentSubs := append([]string(nil), host.SpaceSubscriptions[joinClient.Conn]...)
+				for _, subscribedSpaceUUID := range currentSubs {
+					if _, stillAllowed := joinClient.AuthorizedSpaces[subscribedSpaceUUID]; !stillAllowed {
+						pruneClientFromSpaceLocked(host, joinClient, subscribedSpaceUUID)
+					}
 				}
 				activeDevices = activeDevicesForPublicKeyLocked(host, joinClient.PublicKey, joinClient.ClientUUID)
 			}
@@ -304,9 +418,15 @@ func handleCreateSpaceRes(client *Client, conn *websocket.Conn, wsMsg *WSMessage
 		return
 	}
 	joinClient := host.ClientsByConn[joinConn]
+	if joinClient == nil {
+		host.mu.Unlock()
+		log.Printf("SendToClient: client state missing\n")
+		return
+	}
 	if _, ok := host.Spaces[data.Space.UUID]; !ok {
 		host.Spaces[data.Space.UUID] = &Space{Users: make(map[*websocket.Conn]int)}
 	}
+	grantClientSpaceAccessLocked(joinClient, data.Space.UUID)
 	for _, channel := range data.Space.Channels {
 		host.ChannelToSpace[channel.UUID] = data.Space.UUID
 	}
@@ -350,6 +470,15 @@ func handleDeleteSpaceRes(client *Client, conn *websocket.Conn, wsMsg *WSMessage
 	}
 
 	clientUUID := data["ClientUUID"]
+	spaceUUID := data["SpaceUUID"]
+
+	if spaceUUID != "" {
+		if host, exists := GetHost(client.HostUUID); exists {
+			host.mu.Lock()
+			removeSpaceStateLocked(host, spaceUUID)
+			host.mu.Unlock()
+		}
+	}
 
 	SendToClient(client.HostUUID, clientUUID, WSMessage{
 		Type: "delete_space_success",
@@ -555,9 +684,15 @@ func handleAcceptInviteRes(client *Client, conn *websocket.Conn, wsMsg *WSMessag
 		return
 	}
 	joinClient := host.ClientsByConn[joinConn]
+	if joinClient == nil {
+		host.mu.Unlock()
+		log.Printf("SendToClient: client state missing\n")
+		return
+	}
 	if _, ok := host.Spaces[data.Space.UUID]; !ok {
 		host.Spaces[data.Space.UUID] = &Space{Users: make(map[*websocket.Conn]int)}
 	}
+	grantClientSpaceAccessLocked(joinClient, data.Space.UUID)
 	for _, channel := range data.Space.Channels {
 		host.ChannelToSpace[channel.UUID] = data.Space.UUID
 	}
@@ -668,7 +803,16 @@ func handleLeaveSpaceRes(client *Client, conn *websocket.Conn, wsMsg *WSMessage)
 		return
 	}
 
-	leaveSpace(host, client, data.SpaceUUID)
+	host.mu.Lock()
+	leaveConn, ok := host.ClientConnsByUUID[data.ClientUUID]
+	if ok {
+		leaveClient := host.ClientsByConn[leaveConn]
+		if leaveClient != nil {
+			delete(leaveClient.AuthorizedSpaces, data.SpaceUUID)
+			pruneClientFromSpaceLocked(host, leaveClient, data.SpaceUUID)
+		}
+	}
+	host.mu.Unlock()
 
 }
 
@@ -768,7 +912,13 @@ func handleJoinAllSpaces(client *Client, conn *websocket.Conn, wsMsg *WSMessage)
 	}
 
 	for _, uuid := range data.SpaceUUIDs {
-		joinSpace(client, uuid)
+		if !joinSpace(client, uuid) {
+			safeSend(client, conn, WSMessage{
+				Type: "error",
+				Data: ChatError{Content: "One or more spaces are not accessible"},
+			})
+			return
+		}
 	}
 
 	SendToClient(client.HostUUID, client.ClientUUID, WSMessage{
@@ -843,6 +993,12 @@ func handleRemoveSpaceUserRes(client *Client, conn *websocket.Conn, wsMsg *WSMes
 
 	host.mu.Lock()
 	removeClient, ok := findHostClientByIdentity(host, data.UserID, data.UserPublicKey)
+	if ok && removeClient != nil {
+		delete(removeClient.AuthorizedSpaces, data.SpaceUUID)
+		pruneClientFromSpaceLocked(host, removeClient, data.SpaceUUID)
+	} else {
+		ok = false
+	}
 	host.mu.Unlock()
 
 	if ok {
@@ -851,7 +1007,6 @@ func handleRemoveSpaceUserRes(client *Client, conn *websocket.Conn, wsMsg *WSMes
 			Type: "leave_space_success",
 			Data: "",
 		})
-		leaveSpace(host, removeClient, data.SpaceUUID)
 	}
 
 }

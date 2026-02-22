@@ -1,8 +1,10 @@
 package main
 
 import (
+	"database/sql"
 	"gochat/db"
 	"log"
+	"strings"
 
 	"github.com/gorilla/websocket"
 )
@@ -50,6 +52,47 @@ func handleInviteUser(conn *websocket.Conn, wsMsg *WSMessage) {
 		})
 		return
 	}
+	if user.ID == requester.ID {
+		sendToConn(conn, WSMessage{
+			Type: "error",
+			Data: ChatError{
+				Content:    "Cannot invite yourself to your own space",
+				ClientUUID: data.ClientUUID,
+			},
+		})
+		return
+	}
+
+	var existingJoined int
+	err = db.ChatDB.QueryRow(
+		`SELECT joined FROM space_users WHERE space_uuid = ? AND user_id = ?`,
+		data.SpaceUUID,
+		user.ID,
+	).Scan(&existingJoined)
+	if err == nil {
+		msg := "User already has a pending invite"
+		if existingJoined == 1 {
+			msg = "User is already in this space"
+		}
+		sendToConn(conn, WSMessage{
+			Type: "error",
+			Data: ChatError{
+				Content:    msg,
+				ClientUUID: data.ClientUUID,
+			},
+		})
+		return
+	}
+	if err != sql.ErrNoRows {
+		sendToConn(conn, WSMessage{
+			Type: "error",
+			Data: ChatError{
+				Content:    "Database error validating invite target",
+				ClientUUID: data.ClientUUID,
+			},
+		})
+		return
+	}
 	var spaceUser DashDataInvite
 
 	// First, insert into space_users
@@ -65,6 +108,16 @@ RETURNING id, space_uuid, user_id, joined
 		&spaceUser.Joined,
 	)
 	if err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "unique") {
+			sendToConn(conn, WSMessage{
+				Type: "error",
+				Data: ChatError{
+					Content:    "User already has space access or a pending invite",
+					ClientUUID: data.ClientUUID,
+				},
+			})
+			return
+		}
 		log.Println("Insert error:", err)
 		sendToConn(conn, WSMessage{
 			Type: "error",

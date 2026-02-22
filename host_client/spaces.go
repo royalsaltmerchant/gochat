@@ -163,6 +163,7 @@ func handleDeleteSpace(conn *websocket.Conn, wsMsg *WSMessage) {
 		Type: "delete_space_response",
 		Data: map[string]interface{}{
 			"ClientUUID": data.ClientUUID,
+			"SpaceUUID":  data.UUID,
 		},
 	})
 }
