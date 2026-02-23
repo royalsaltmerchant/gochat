@@ -58,7 +58,7 @@ export default class HostForm {
 
   renderHostList = (data) => {
     if (!data || !data.hosts || !data.hosts.length) {
-      return [createElement("div", {}, "...No Hosts")];
+      return [createElement("div", { class: "host-empty-state" }, "No saved hosts yet.")];
     }
 
     const hosts = data.hosts;
@@ -132,7 +132,12 @@ export default class HostForm {
     }
 
     this.domComponent.append(
-      createElement("h2", {}, "Select From Known Hosts"),
+      createElement("h2", {}, "Connect to a Host"),
+      createElement(
+        "p",
+        { class: "host-screen-subtitle" },
+        "Choose a saved host or add a new host key. Relay access is granted only after host challenge auth and per-space capability checks."
+      ),
       createElement("br"),
       createElement("button", {}, "Refresh", {
         type: "click",
@@ -145,9 +150,9 @@ export default class HostForm {
         ...this.renderHostList(hostsData),
       ]),
       createElement("br"),
-      createElement("div", {}, "Or"),
+      createElement("div", { class: "host-divider-text" }, "Or"),
       createElement("br"),
-      createElement("button", { class: "" }, "Add New Host", {
+      createElement("button", { class: "" }, "Add Host Key", {
         type: "click",
         event: () => {
           this.render({ type: "new" });
@@ -158,7 +163,12 @@ export default class HostForm {
 
   renderNewHostForm = () => {
     this.domComponent.append(
-      createElement("h2", {}, "Enter Host Key"),
+      createElement("h2", {}, "Add Host Key"),
+      createElement(
+        "p",
+        { class: "host-screen-subtitle" },
+        "Paste the key shared by your host operator. You will only connect if that host is online and authenticated."
+      ),
       createElement(
         "form",
         {
@@ -167,9 +177,9 @@ export default class HostForm {
         },
         [
           createElement("fieldset", {}, [
-            createElement("legend", {}, "New Host"),
+            createElement("legend", {}, "Host Connection"),
             createElement("div", { class: "input-container" }, [
-              createElement("label", { for: "hostKey" }, "Host Key"),
+              createElement("label", { for: "hostKey" }, "Host Access Key"),
               createElement("input", {
                 type: "text",
                 id: "hostKey",
@@ -201,7 +211,7 @@ export default class HostForm {
         }
       ),
       createElement("br"),
-      createElement("button", {}, "Return To List", {
+      createElement("button", {}, "Back To Hosts", {
         type: "click",
         event: () => {
           this.render({ type: "known" });

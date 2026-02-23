@@ -7,7 +7,7 @@
 
     <meta
       name="description"
-      content="Parch is a decentralized, end-to-end encrypted chat platform. Browser-generated keys, zero-knowledge authentication, sealed envelopes. The server never sees plaintext."
+      content="Parch is a user-hosted, end-to-end encrypted chat platform. Browser-generated keys, host challenge auth, signed capability tokens, sealed envelopes. The relay never sees plaintext."
     />
     <meta name="robots" content="index, follow" />
     <link rel="canonical" href="https://parchchat.com/" />
@@ -17,7 +17,7 @@
     <meta property="og:title" content="Parch — End-to-End Encrypted Chat" />
     <meta
       property="og:description"
-      content="Decentralized E2EE chat. Browser-generated keys, public-key identity, zero-knowledge relay. Your messages never leave your device unencrypted."
+      content="User-hosted E2EE chat. Browser-generated keys, host challenge auth, public-key identity, signed capability tokens. Messages never leave your device unencrypted."
     />
     <meta property="og:image" content="https://parchchat.com/static/parchclient_icon.webp" />
 
@@ -25,7 +25,7 @@
     <meta name="twitter:title" content="Parch — End-to-End Encrypted Chat" />
     <meta
       name="twitter:description"
-      content="Decentralized E2EE chat. Browser-generated keys, public-key identity, zero-knowledge relay."
+      content="User-hosted E2EE chat. Browser-generated keys, public-key identity, host challenge auth, signed capability tokens."
     />
     <meta name="twitter:image" content="https://parchchat.com/static/parchclient_icon.webp" />
 
@@ -999,8 +999,8 @@
           <h1 class="reveal stagger-1">Your messages.<br />Your keys.<br /><em>Your server.</em></h1>
           <p class="hero-subtitle reveal stagger-2">
             Parch chat requires no email logins — your browser generates your cryptographic identity,
-            and only the intended recipients can read your messages.
-            The relay sees only ciphertext.
+            the relay validates signed host/user challenges plus short-lived space capabilities,
+            and only intended recipients can read your messages.
           </p>
           <div class="hero-actions reveal stagger-3">
             <a class="btn" href="https://chat.parchchat.com/client">Open Web Chat</a>
@@ -1086,7 +1086,7 @@
         <div class="section-label reveal">Section 2</div>
         <h2 class="section-title reveal stagger-1">Prove you own your keys</h2>
         <p class="section-subtitle reveal stagger-2">
-          Zero-knowledge challenge-response. The host never sees your private key.
+          Challenge-response on both sides: host to relay, then browser to relay.
         </p>
 
         <div class="content-card reveal stagger-3">
@@ -1094,33 +1094,42 @@
             <div class="auth-step">
               <div class="auth-step-number">1</div>
               <div class="auth-step-content">
-                <h4>Host sends a challenge</h4>
-                <p>When you connect, the host generates a random challenge string and sends it to your browser.</p>
+                <h4>Host authenticates to relay</h4>
+                <p>The host signs a relay-issued challenge with its host signing key to become the active host session.</p>
+                <code class="auth-signature-format">parch-host-auth:&lt;hostUUID&gt;:&lt;challenge&gt;</code>
               </div>
             </div>
 
             <div class="auth-step">
               <div class="auth-step-number">2</div>
               <div class="auth-step-content">
-                <h4>Browser signs the challenge</h4>
-                <p>Your browser constructs a structured message and signs it with your Ed25519 private key.</p>
-                <code class="auth-signature-format">parch-chat-auth:&lt;hostUUID&gt;:&lt;challenge&gt;:&lt;encPublicKey&gt;</code>
-                <p>The encryption public key is bound into the signed payload, preventing key substitution attacks.</p>
+                <h4>Relay issues browser challenge</h4>
+                <p>After host responsiveness is confirmed, relay sends your browser an auth challenge.</p>
               </div>
             </div>
 
             <div class="auth-step">
               <div class="auth-step-number">3</div>
               <div class="auth-step-content">
-                <h4>Host verifies the signature</h4>
-                <p>The host checks the signature against your public key. If it matches, you are authenticated — no password ever transmitted.</p>
+                <h4>Browser signs challenge + encryption key</h4>
+                <p>Your browser signs a structured message with its Ed25519 private key.</p>
+                <code class="auth-signature-format">parch-chat-auth:&lt;hostUUID&gt;:&lt;challenge&gt;:&lt;encPublicKey&gt;</code>
+                <p>The encryption public key is bound into the signed payload, preventing key substitution attacks.</p>
+              </div>
+            </div>
+
+            <div class="auth-step">
+              <div class="auth-step-number">4</div>
+              <div class="auth-step-content">
+                <h4>Relay verifies and gates actions</h4>
+                <p>Relay verifies signatures, then requires host-signed capability tokens for space-scoped actions like joining channels, sending chat, and reading history.</p>
               </div>
             </div>
           </div>
 
           <div class="auth-detail">
             <p>
-              By including your encryption public key in the signed challenge, the protocol ensures that the encryption key presented during authentication is genuinely owned by the same identity. This prevents man-in-the-middle key substitution — an attacker cannot swap in their own encryption key without invalidating the signature.
+              Capability tokens are short-lived and space-scoped. The host issues them for your authenticated public key, and relay validates signature, scope, and expiry before routing sensitive actions.
             </p>
           </div>
 
@@ -1221,7 +1230,7 @@
         </div>
 
         <div class="encryption-badges reveal stagger-8">
-          <span class="badge badge-green"><span class="badge-dot"></span> Per-message forward secrecy</span>
+          <span class="badge badge-green"><span class="badge-dot"></span> Per-message content keys</span>
           <span class="badge badge-blue"><span class="badge-dot"></span> Authenticated encryption</span>
         </div>
       </div>
@@ -1273,10 +1282,11 @@
             <div class="trust-role">Transit Layer</div>
             <h3>Relay</h3>
             <ul>
-              <li class="trust-yes">Verifies Ed25519 signatures</li>
+              <li class="trust-yes">Verifies host and user signatures</li>
+              <li class="trust-yes">Validates signed capability tokens</li>
               <li class="trust-yes">Routes sealed envelopes</li>
               <li class="trust-no">Cannot read message contents</li>
-              <li class="trust-no">Sees only ciphertext</li>
+              <li class="trust-no">Sees ciphertext + routing metadata</li>
             </ul>
           </div>
 
@@ -1296,7 +1306,8 @@
             <h3>Host</h3>
             <ul>
               <li class="trust-yes">Stores encrypted envelopes</li>
-              <li class="trust-yes">Manages space permissions</li>
+              <li class="trust-yes">Manages membership and invites</li>
+              <li class="trust-yes">Issues space capability tokens</li>
               <li class="trust-no">Cannot read message contents</li>
               <li class="trust-no">Sees only ciphertext</li>
             </ul>
@@ -1318,6 +1329,7 @@
           <h3>Before you begin</h3>
           <ul class="notes-list">
             <li><strong>Back up your identity file.</strong> If you lose your private keys, you lose access to all encrypted chat history tied to that identity. Export your identity and store it somewhere safe.</li>
+            <li><strong>Capabilities expire by design.</strong> Space permissions are carried in short-lived signed tokens and refreshed automatically. Expiry limits replay windows after membership changes.</li>
             <li><strong>New members cannot read old messages.</strong> Encryption keys are generated per-message with the current member list. Someone invited after a conversation has already happened will not be able to decrypt prior messages.</li>
             <li><strong>Tampered messages are rejected automatically.</strong> Every envelope carries an Ed25519 signature. If any part of the envelope has been modified in transit or storage, the signature check fails and the message is discarded.</li>
           </ul>

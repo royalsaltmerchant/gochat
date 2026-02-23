@@ -70,68 +70,53 @@ func HandleGetHost(c *gin.Context) {
 	})
 }
 
-func HandleUpdateHostOffline(c *gin.Context) { // external
-	uuid := c.Param("uuid")
-
-	var req struct {
-		AuthorID string `json:"author_id" binding:"required"`
-	}
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
-		return
-	}
-
-	query := `UPDATE hosts SET online = 0 WHERE uuid = ? AND author_id = ?`
-	res, err := db.HostDB.Exec(query, uuid, req.AuthorID)
+func setHostOnlineState(uuid string, online int) {
+	query := `UPDATE hosts SET online = ? WHERE uuid = ?`
+	res, err := db.HostDB.Exec(query, online, uuid)
 	if err != nil {
-		log.Println("Database error updating host offline")
-		c.JSON(500, gin.H{"error": "Database error updating host offline"})
+		log.Println("Database error updating host online state")
 		return
 	}
-
 	if rows, _ := res.RowsAffected(); rows == 0 {
-		log.Println("Database error updating host offline")
-		c.JSON(500, gin.H{"error": "Database error updating host offline"})
+		log.Println("Database error updating host online state")
 		return
 	}
 }
 
 func HandleUpdateHostOnline(uuid string) { // internal
-	query := `UPDATE hosts SET online = 1 WHERE uuid = ?`
-	res, err := db.HostDB.Exec(query, uuid)
-	if err != nil {
-		log.Println("Database error updating host online")
-		return
-	}
+	setHostOnlineState(uuid, 1)
+}
 
-	if rows, _ := res.RowsAffected(); rows == 0 {
-		log.Println("Database error updating host online")
-		return
-	}
+func HandleUpdateHostOffline(uuid string) { // internal
+	setHostOnlineState(uuid, 0)
 }
 
 func HandleRegisterHost(c *gin.Context) {
 	var req struct {
-		Name string `json:"name" binding:"required"`
+		Name             string `json:"name" binding:"required"`
+		SigningPublicKey string `json:"signing_public_key" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
+	trimmedSigningKey := strings.TrimSpace(req.SigningPublicKey)
+	if trimmedSigningKey == "" {
+		c.JSON(400, gin.H{"error": "signing_public_key is required"})
+		return
+	}
 
 	hostUUID := uuid.New().String()
-	authorID := uuid.New().String()
 
 	var host ClientHost
 	query := `
-		INSERT INTO hosts (uuid, name, author_id)
+		INSERT INTO hosts (uuid, name, signing_public_key)
 		VALUES (?, ?, ?)
-		RETURNING id, uuid, name, author_id
+		RETURNING id, uuid, name, signing_public_key
 	`
-	err := db.HostDB.QueryRow(query, hostUUID, req.Name, authorID).
-		Scan(&host.ID, &host.UUID, &host.Name, &host.AuthorID)
+	err := db.HostDB.QueryRow(query, hostUUID, req.Name, trimmedSigningKey).
+		Scan(&host.ID, &host.UUID, &host.Name, &host.SigningPublicKey)
 
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Failed to register host"})

@@ -23,7 +23,7 @@ class ChatApp {
 
     this.render();
     const anchorTime = new Date().toISOString();
-    this.socketConn.getMessages(anchorTime);
+    this.socketConn.getMessages(anchorTime, this.chatBoxComponent?.space?.uuid);
   };
 
   render = () => {
@@ -57,6 +57,7 @@ class ChatBoxComponent {
         id: "chat-box-messages",
       }),
       channelUUID: this.channelUUID,
+      spaceUUID: this.space?.uuid || "",
       socketConn: this.socketConn,
     });
 
@@ -119,7 +120,7 @@ class ChatBoxComponent {
                         recipients,
                       });
 
-                      this.socketConn.sendMessage({ envelope });
+                      this.socketConn.sendMessage({ envelope }, this.space?.uuid);
                       textarea.value = "";
                       textarea.style.height = "auto";
                       textarea.focus();
@@ -144,6 +145,7 @@ class ChatBoxMessagesComponent {
   constructor(props) {
     this.chatBoxMessages = [];
     this.channelUUID = props.channelUUID;
+    this.spaceUUID = props.spaceUUID || "";
     this.socketConn = props.socketConn;
 
     this.messageRequestSize = 50;
@@ -185,7 +187,7 @@ class ChatBoxMessagesComponent {
 
     this.isLoading = true;
     const oldestTimestamp = this.chatBoxMessages[0].timestamp;
-    this.socketConn.getMessages(oldestTimestamp);
+    this.socketConn.getMessages(oldestTimestamp, this.spaceUUID);
   };
 
   scrollDown = () => {

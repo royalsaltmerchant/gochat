@@ -130,7 +130,10 @@ export default class DashModal {
                   event: () => {
                     platform.confirm("Are you sure you want to delete this channel?").then((confirmed) => {
                       if (confirmed) {
-                        this.socketConn.deleteChannel({ uuid: channel.uuid });
+                        this.socketConn.deleteChannel({
+                          uuid: channel.uuid,
+                          space_uuid: space.uuid,
+                        });
                       }
                     });
                   },

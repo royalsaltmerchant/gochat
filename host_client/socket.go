@@ -2,8 +2,11 @@ package main
 
 import (
 	"context"
+	"crypto/ed25519"
+	"encoding/base64"
 	"encoding/json"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -21,13 +24,13 @@ func decodeData[T any](raw interface{}) (T, error) {
 }
 
 // Entry point for the client
-func SocketClient(ctx context.Context, hostUUID string, authorID string) error {
-	runClientLoop(ctx, hostUUID, authorID)
+func SocketClient(ctx context.Context, hostUUID string) error {
+	runClientLoop(ctx, hostUUID)
 	return nil
 }
 
 // Reconnect loop
-func runClientLoop(ctx context.Context, hostUUID string, authorID string) {
+func runClientLoop(ctx context.Context, hostUUID string) {
 
 	for {
 		select {
@@ -44,7 +47,7 @@ func runClientLoop(ctx context.Context, hostUUID string, authorID string) {
 			}
 			log.Println("Connected successfully")
 
-			if err := joinHost(conn, hostUUID, authorID); err != nil {
+			if err := joinHost(conn, hostUUID); err != nil {
 				log.Println("Failed to join host:", err)
 				conn.Close()
 				time.Sleep(2 * time.Second)
@@ -92,6 +95,17 @@ func handleSocketMessages(ctx context.Context, conn *websocket.Conn) error {
 			case "auth_challenge":
 				// Host author sessions do not use pubkey auth challenges.
 				continue
+			case "host_auth_challenge":
+				data, err := decodeData[HostAuthChallenge](wsMsg.Data)
+				if err != nil || strings.TrimSpace(data.Challenge) == "" {
+					log.Println("Invalid host_auth_challenge payload")
+					continue
+				}
+				if err := sendHostAuth(conn, data.Challenge); err != nil {
+					log.Println("Failed to send host_auth:", err)
+				}
+			case "host_auth_success":
+				log.Println("host_auth_success")
 			case "relay_health_check":
 				data, err := decodeData[RelayHealthCheck](wsMsg.Data)
 				if err != nil || data.Nonce == "" {
@@ -144,12 +158,12 @@ func sendToConn(conn *websocket.Conn, msg WSMessage) {
 }
 
 // Join host message
-func joinHost(conn *websocket.Conn, hostUUID string, authorID string) error {
+func joinHost(conn *websocket.Conn, hostUUID string) error {
 	payload := WSMessage{
 		Type: "join_host",
 		Data: JoinHostPayload{
 			UUID: hostUUID,
-			ID:   authorID,
+			Role: "host",
 		},
 	}
 	msgBytes, err := json.Marshal(payload)
@@ -157,4 +171,25 @@ func joinHost(conn *websocket.Conn, hostUUID string, authorID string) error {
 		return err
 	}
 	return conn.WriteMessage(websocket.TextMessage, msgBytes)
+}
+
+func sendHostAuth(conn *websocket.Conn, challenge string) error {
+	priv, err := currentSigningPrivateKey()
+	if err != nil {
+		return err
+	}
+	message := hostAuthMessage(currentHostUUID, challenge)
+	signature := ed25519.Sign(priv, []byte(message))
+	payload := WSMessage{
+		Type: "host_auth",
+		Data: HostAuthClient{
+			Challenge: challenge,
+			Signature: base64.RawStdEncoding.EncodeToString(signature),
+		},
+	}
+	return conn.WriteJSON(payload)
+}
+
+func hostAuthMessage(hostUUID, challenge string) string {
+	return "parch-host-auth:" + hostUUID + ":" + challenge
 }

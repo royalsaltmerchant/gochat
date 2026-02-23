@@ -33,11 +33,11 @@ type Message struct {
 }
 
 type Host struct {
-	ID       int
-	UUID     string
-	Name     string
-	AuthorID string
-	Online   int
+	ID               int
+	UUID             string
+	Name             string
+	SigningPublicKey string
+	Online           int
 }
 
 type SpaceUser struct {
@@ -61,7 +61,7 @@ type ChatError struct {
 
 type JoinHostPayload struct {
 	UUID string `json:"uuid"`
-	ID   string `json:"id"`
+	Role string `json:"role,omitempty"`
 }
 
 type RelayHealthCheck struct {
@@ -70,6 +70,15 @@ type RelayHealthCheck struct {
 
 type RelayHealthCheckAck struct {
 	Nonce string `json:"nonce"`
+}
+
+type HostAuthChallenge struct {
+	Challenge string `json:"challenge"`
+}
+
+type HostAuthClient struct {
+	Challenge string `json:"challenge"`
+	Signature string `json:"signature"`
 }
 
 type UpdateUsernameRequest struct {
@@ -120,6 +129,25 @@ type DashDataInvite struct {
 	Name          string `json:"name"`
 }
 
+type SpaceCapability struct {
+	SpaceUUID string   `json:"space_uuid"`
+	Token     string   `json:"token"`
+	Scopes    []string `json:"scopes"`
+	ExpiresAt int64    `json:"expires_at"`
+}
+
+type SpaceCapabilityClaims struct {
+	Version      int      `json:"v"`
+	HostUUID     string   `json:"host_uuid"`
+	SpaceUUID    string   `json:"space_uuid"`
+	SubjectKey   string   `json:"sub"`
+	Scopes       []string `json:"scopes"`
+	ExpiresAt    int64    `json:"exp"`
+	IssuedAt     int64    `json:"iat"`
+	TokenID      string   `json:"jti"`
+	ChannelScope string   `json:"channel_scope"`
+}
+
 type DashDataSpace struct {
 	ID       int               `json:"id"`
 	UUID     string            `json:"uuid"`
@@ -130,10 +158,11 @@ type DashDataSpace struct {
 }
 
 type GetDashDataResponse struct {
-	User       DashDataUser     `json:"user"`
-	Spaces     []DashDataSpace  `json:"spaces"`
-	Invites    []DashDataInvite `json:"invites"`
-	ClientUUID string           `json:"client_uuid"`
+	User         DashDataUser      `json:"user"`
+	Spaces       []DashDataSpace   `json:"spaces"`
+	Invites      []DashDataInvite  `json:"invites"`
+	Capabilities []SpaceCapability `json:"capabilities,omitempty"`
+	ClientUUID   string            `json:"client_uuid"`
 }
 
 type CreateSpaceRequest struct {
@@ -146,8 +175,9 @@ type CreateSpaceRequest struct {
 }
 
 type CreateSpaceResponse struct {
-	Space      DashDataSpace `json:"space"`
-	ClientUUID string        `json:"client_uuid"`
+	Space      DashDataSpace   `json:"space"`
+	Capability SpaceCapability `json:"capability,omitempty"`
+	ClientUUID string          `json:"client_uuid"`
 }
 
 type DeleteSpaceRequest struct {
@@ -215,10 +245,11 @@ type AcceptInviteRequest struct {
 }
 
 type AcceptInviteResponse struct {
-	SpaceUserID int           `json:"space_user_id"`
-	User        DashDataUser  `json:"user"`
-	Space       DashDataSpace `json:"space"`
-	ClientUUID  string        `json:"client_uuid"`
+	SpaceUserID int             `json:"space_user_id"`
+	User        DashDataUser    `json:"user"`
+	Space       DashDataSpace   `json:"space"`
+	Capability  SpaceCapability `json:"capability,omitempty"`
+	ClientUUID  string          `json:"client_uuid"`
 }
 
 type DeclineInviteRequest struct {

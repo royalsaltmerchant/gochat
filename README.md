@@ -51,10 +51,16 @@ Chat no longer uses centralized email/password identity.
   - ECDH P-256 keypair for message encryption
   - Private keys are sealed locally; account transfer uses passphrase-encrypted backup export/import
 - Relay auth:
-  - `join_host` fails fast for non-author clients if host author is offline/unresponsive
-  - Relay sends challenge
+  - Host client joins with `role: "host"` and completes `host_auth` by signing `parch-host-auth:<hostUUID>:<challenge>`
+  - Relay only marks host online after that host-signing-key challenge succeeds
+  - Browser `join_host` checks host responsiveness
+  - Relay sends user challenge
   - Browser signs `parch-chat-auth:<hostUUID>:<challenge>:<encPublicKey>`
   - Relay verifies and opens session
+- Capability authorization:
+  - Host issues short-lived signed space capability tokens on dashboard fetch
+  - Browser attaches capability token on `join_channel`, `chat`, and `get_messages`
+  - Relay verifies signature/scope/expiry before routing channel actions
 - Invites:
   - Done by public key
   - Host resolves public key to host-local user identity
@@ -160,6 +166,12 @@ Useful Caddy commands:
 go run ./chat_relay
 ```
 
+Integration tests:
+
+```bash
+./scripts/test-chat-relay-integration.sh
+```
+
 Then open:
 - `http://localhost:8001/client`
 
@@ -251,9 +263,9 @@ Build and deploy from local machine:
 ./scripts/deploy-relay.sh
 ```
 
-If you are migrating an existing host to a fresh `chat_relay.db`, ensure the host row exists in `hosts` using the same `uuid` and `author_id` from `~/.config/ParchHost/host_config.json`:
+If you are migrating an existing host to a fresh `chat_relay.db`, ensure the host row exists in `hosts` using the same `uuid` and `signing_public_key` from `~/.config/ParchHost/host_config.json`:
 
 ```bash
 sqlite3 /root/go_chat/chat_relay/chat_relay.db \
-  "INSERT OR IGNORE INTO hosts (uuid,name,author_id,online) VALUES ('<host_uuid>','<host_name>','<author_id>',1);"
+  "INSERT OR IGNORE INTO hosts (uuid,name,signing_public_key,online) VALUES ('<host_uuid>','<host_name>','<signing_public_key>',0);"
 ```

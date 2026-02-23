@@ -7,6 +7,7 @@ import (
 func LoadOrInitHostConfigCLI() (*HostConfig, error) {
 	// Try loading existing config first
 	if cfg, err := loadExistingConfig(); err == nil {
+		_ = saveConfig(cfg)
 		return cfg, nil
 	}
 
@@ -21,19 +22,24 @@ func LoadOrInitHostConfigCLI() (*HostConfig, error) {
 	if name == "" {
 		return nil, fmt.Errorf("host name cannot be empty")
 	}
+	tmpCfg := &HostConfig{Name: name}
+	if err := ensureHostSigningKeys(tmpCfg); err != nil {
+		return nil, fmt.Errorf("failed to initialize host signing keys: %w", err)
+	}
 
 	// Register with relay
 	fmt.Println("Registering with relay server...")
-	uuid, authorID, err := registerHostWithRelay(name)
+	uuid, err := registerHostWithRelay(name, tmpCfg.SigningPublicKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to register host with relay: %w", err)
 	}
 
 	cfg := &HostConfig{
-		UUID:     uuid,
-		AuthorID: authorID,
-		Name:     name,
-		DBFile:   dbPath,
+		UUID:              uuid,
+		Name:              name,
+		DBFile:            dbPath,
+		SigningPublicKey:  tmpCfg.SigningPublicKey,
+		SigningPrivateKey: tmpCfg.SigningPrivateKey,
 	}
 
 	// Save config

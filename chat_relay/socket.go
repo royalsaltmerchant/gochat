@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"strings"
@@ -20,6 +21,7 @@ var upgrader = websocket.Upgrader{
 
 var Hosts = map[string]*Host{}
 var hostsMu sync.Mutex
+var ErrHostSigningKeyMissing = errors.New("host signing key is missing")
 
 func decodeData[T any](raw interface{}) (T, error) {
 	var data T
@@ -31,14 +33,11 @@ func decodeData[T any](raw interface{}) (T, error) {
 	return data, err
 }
 
-func isTrustedHostAuthorJoin(r *http.Request, providedAuthorID, expectedAuthorID string) bool {
-	if strings.TrimSpace(providedAuthorID) == "" || strings.TrimSpace(expectedAuthorID) == "" {
+func isHostChallengeCandidate(r *http.Request, role string) bool {
+	if !strings.EqualFold(strings.TrimSpace(role), "host") {
 		return false
 	}
-	if providedAuthorID != expectedAuthorID {
-		return false
-	}
-	// Browser websocket clients always send Origin, so they cannot self-identify as host author.
+	// Browser websocket clients always send Origin. Host client runs outside browser.
 	return strings.TrimSpace(r.Header.Get("Origin")) == ""
 }
 
@@ -75,23 +74,21 @@ func HandleSocket(c *gin.Context) {
 
 			host, err := registerOrCreateHost(data.UUID)
 			if err != nil {
+				if errors.Is(err, ErrHostSigningKeyMissing) {
+					conn.WriteJSON(WSMessage{Type: "join_error", Data: ChatError{Content: "Host is not upgraded for capability auth"}})
+					continue
+				}
 				conn.WriteJSON(WSMessage{Type: "join_error", Data: ChatError{Content: "Failed to join host"}})
 				continue
 			}
-			isHostAuthor := isTrustedHostAuthorJoin(c.Request, data.ID, host.AuthorID)
-			if !isHostAuthor {
+			isHostCandidate := isHostChallengeCandidate(c.Request, data.Role)
+			if !isHostCandidate {
 				if err := ensureHostResponsive(host, 2*time.Second); err != nil {
 					conn.WriteJSON(WSMessage{Type: "join_error", Data: ChatError{Content: "Host is offline or unresponsive"}})
 					continue
 				}
 			}
-			client = registerClient(host, conn, clientIP, isHostAuthor)
-			if isHostAuthor {
-				host.mu.Lock()
-				host.ConnByAuthorID[host.AuthorID] = conn
-				host.mu.Unlock()
-				HandleUpdateHostOnline(host.UUID)
-			}
+			client = registerClient(host, conn, clientIP, isHostCandidate)
 			continue
 		}
 
@@ -122,16 +119,21 @@ func cleanupClient(client *Client) {
 	}
 
 	host.mu.Lock()
+	shouldMarkOffline := false
 	delete(host.ClientsByConn, client.Conn)
 	delete(host.ClientConnsByUUID, client.ClientUUID)
 	delete(host.ClientsByUserID, client.UserID)
-	if client.IsHostAuthor {
-		delete(host.ConnByAuthorID, host.AuthorID)
+	if client.IsHostAuthor && host.AuthorConn == client.Conn {
+		host.AuthorConn = nil
+		shouldMarkOffline = true
 	}
 	if client.PublicKey != "" {
 		delete(host.ClientsByPublicKey, client.PublicKey)
 	}
 	host.mu.Unlock()
+	if shouldMarkOffline {
+		HandleUpdateHostOffline(host.UUID)
+	}
 	clearChatMessageLimiter(client.ClientUUID)
 
 	close(client.SendQueue)
@@ -190,13 +192,18 @@ func SendToAuthor(client *Client, msg WSMessage) {
 	}
 
 	host.mu.Lock()
-	hostConn, ok := host.ConnByAuthorID[host.AuthorID]
-	if !ok {
+	hostConn := host.AuthorConn
+	if hostConn == nil {
 		host.mu.Unlock()
 		SendToClient(client.HostUUID, client.ClientUUID, WSMessage{Type: "author_error", Data: ChatError{Content: "Failed to connect to the host"}})
 		return
 	}
 	authorClient := host.ClientsByConn[hostConn]
+	if authorClient == nil || !authorClient.IsHostAuthor {
+		host.mu.Unlock()
+		SendToClient(client.HostUUID, client.ClientUUID, WSMessage{Type: "author_error", Data: ChatError{Content: "Failed to connect to the host"}})
+		return
+	}
 	host.mu.Unlock()
 
 	safeSend(authorClient, hostConn, msg)
@@ -249,11 +256,6 @@ func joinSpace(client *Client, spaceUUID string) bool {
 
 	host.mu.Lock()
 	defer host.mu.Unlock()
-	if !client.IsHostAuthor {
-		if _, ok := client.AuthorizedSpaces[spaceUUID]; !ok {
-			return false
-		}
-	}
 	space, ok := host.Spaces[spaceUUID]
 	if !ok {
 		return false

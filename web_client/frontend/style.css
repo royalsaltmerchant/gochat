@@ -429,6 +429,24 @@ button:focus {
   color: var(--bright-white);
 }
 
+.host-screen-subtitle {
+  display: block;
+  max-width: 540px;
+  margin-top: 8px;
+  text-align: center;
+  color: var(--main-white);
+  opacity: 0.78;
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.host-divider-text {
+  color: var(--main-gray);
+  font-size: 0.88rem;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
 .host-list-index {
   display: flex;
   flex-direction: column;
@@ -460,6 +478,12 @@ button:focus {
   background: var(--dark-blue);
 }
 
+.host-empty-state {
+  padding: 16px;
+  color: var(--main-gray);
+  text-align: center;
+}
+
 .host-item-name {
   margin-left: 14px;
   font-size: 1rem;
@@ -484,6 +508,22 @@ button:focus {
 
 .host-offline-span {
   background-color: var(--main-gray);
+}
+
+@media (max-width: 680px) {
+  .host-form-container {
+    padding: 56px 16px 24px;
+  }
+
+  .host-list-index {
+    width: 100%;
+    max-width: 420px;
+  }
+
+  .host-screen-subtitle {
+    max-width: 100%;
+    font-size: 0.9rem;
+  }
 }
 
 

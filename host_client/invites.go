@@ -79,12 +79,29 @@ func handleAcceptInvite(conn *websocket.Conn, wsMsg *WSMessage) {
 
 	AppendspaceChannelsAndUsers(&space)
 
+	caps, err := issueSpaceCapabilitiesForUser(user, []DashDataSpace{space})
+	if err != nil {
+		sendToConn(conn, WSMessage{
+			Type: "error",
+			Data: ChatError{
+				Content:    "Failed to issue capability token for accepted invite",
+				ClientUUID: data.ClientUUID,
+			},
+		})
+		return
+	}
+	capability := SpaceCapability{}
+	if len(caps) > 0 {
+		capability = caps[0]
+	}
+
 	sendToConn(conn, WSMessage{
 		Type: "accept_invite_success",
 		Data: AcceptInviteResponse{
 			SpaceUserID: data.SpaceUserID,
 			User:        user,
 			Space:       space,
+			Capability:  capability,
 			ClientUUID:  data.ClientUUID,
 		},
 	})

@@ -106,7 +106,7 @@ export default class DashboardApp {
   loadChannel = (spaceUUID, channelUUID) => {
     this.currentSpaceUUID = spaceUUID;
 
-    this.socketConn.joinChannel(channelUUID); // Join the socket to the channel
+    this.socketConn.joinChannel(spaceUUID, channelUUID); // Join the socket to the channel
     this.sidebar.spaceUserListComponent.render(); // Update the users list
     this.mainContent.renderChannel(channelUUID);
   };
