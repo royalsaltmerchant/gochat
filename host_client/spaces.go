@@ -93,11 +93,27 @@ func handleCreateSpace(conn *websocket.Conn, wsMsg *WSMessage) {
 	}
 
 	AppendspaceChannelsAndUsers(&space)
+	caps, err := issueSpaceCapabilitiesForUser(user, []DashDataSpace{space})
+	if err != nil {
+		sendToConn(conn, WSMessage{
+			Type: "error",
+			Data: ChatError{
+				Content:    "Failed to issue capability token for new space",
+				ClientUUID: data.ClientUUID,
+			},
+		})
+		return
+	}
+	capability := SpaceCapability{}
+	if len(caps) > 0 {
+		capability = caps[0]
+	}
 
 	sendToConn(conn, WSMessage{
 		Type: "create_space_response",
 		Data: CreateSpaceResponse{
 			Space:      space,
+			Capability: capability,
 			ClientUUID: data.ClientUUID,
 		},
 	})
@@ -207,6 +223,17 @@ func handleGetDashData(conn *websocket.Conn, wsMsg *WSMessage) {
 	for i := range userSpaces {
 		AppendspaceChannelsAndUsers(&userSpaces[i])
 	}
+	spaceCapabilities, err := issueSpaceCapabilitiesForUser(user, userSpaces)
+	if err != nil {
+		sendToConn(conn, WSMessage{
+			Type: "error",
+			Data: ChatError{
+				Content:    "Failed to issue capability tokens",
+				ClientUUID: data.ClientUUID,
+			},
+		})
+		return
+	}
 
 	// Collect invites (space_users.joined = 0) + space.name
 	query := `
@@ -296,9 +323,10 @@ func handleGetDashData(conn *websocket.Conn, wsMsg *WSMessage) {
 				PublicKey:    user.PublicKey,
 				EncPublicKey: user.EncPublicKey,
 			},
-			Spaces:     userSpaces,
-			Invites:    spaceInvites,
-			ClientUUID: data.ClientUUID,
+			Spaces:       userSpaces,
+			Invites:      spaceInvites,
+			Capabilities: spaceCapabilities,
+			ClientUUID:   data.ClientUUID,
 		},
 	})
 }

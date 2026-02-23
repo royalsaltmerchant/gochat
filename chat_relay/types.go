@@ -10,12 +10,12 @@ import (
 
 type Host struct {
 	UUID                 string
-	AuthorID             string
+	SigningPublicKey     string
+	AuthorConn           *websocket.Conn
 	ClientsByConn        map[*websocket.Conn]*Client
 	ClientConnsByUUID    map[string]*websocket.Conn
 	ClientsByUserID      map[int]*Client
 	ClientsByPublicKey   map[string]*Client
-	ConnByAuthorID       map[string]*websocket.Conn
 	Channels             map[string]*Channel
 	ChannelToSpace       map[string]string
 	Spaces               map[string]*Space
@@ -35,23 +35,24 @@ type Space struct {
 }
 
 type Client struct {
-	Conn             *websocket.Conn
-	Username         string
-	UserID           int
-	HostUUID         string
-	ClientUUID       string
-	PublicKey        string
-	EncPublicKey     string
-	AuthorizedSpaces map[string]struct{}
-	DeviceID         string
-	DeviceName       string
-	LastSeen         time.Time
-	AuthChallenge    string
-	IP               string
-	IsHostAuthor     bool
-	IsAuthenticated  bool
-	SendQueue        chan WSMessage
-	Done             chan struct{}
+	Conn              *websocket.Conn
+	Username          string
+	UserID            int
+	HostUUID          string
+	ClientUUID        string
+	PublicKey         string
+	EncPublicKey      string
+	DeviceID          string
+	DeviceName        string
+	LastSeen          time.Time
+	AuthChallenge     string
+	HostAuthChallenge string
+	IP                string
+	IsHostCandidate   bool
+	IsHostAuthor      bool
+	IsAuthenticated   bool
+	SendQueue         chan WSMessage
+	Done              chan struct{}
 }
 
 func (c *Client) WritePump() {
@@ -81,15 +82,17 @@ type WSMessage struct {
 
 type JoinHost struct {
 	UUID string `json:"uuid"`
-	ID   string `json:"id"`
+	Role string `json:"role,omitempty"`
 }
 
 type JoinUUID struct {
-	UUID string `json:"uuid"`
+	UUID            string `json:"uuid"`
+	CapabilityToken string `json:"capability_token,omitempty"`
 }
 
 type ChatData struct {
-	Envelope map[string]interface{} `json:"envelope"`
+	Envelope        map[string]interface{} `json:"envelope"`
+	CapabilityToken string                 `json:"capability_token,omitempty"`
 }
 
 type ChatPayload struct {
@@ -165,6 +168,25 @@ type DashDataInvite struct {
 	Name          string `json:"name"`
 }
 
+type SpaceCapability struct {
+	SpaceUUID string   `json:"space_uuid"`
+	Token     string   `json:"token"`
+	Scopes    []string `json:"scopes"`
+	ExpiresAt int64    `json:"expires_at"`
+}
+
+type SpaceCapabilityClaims struct {
+	Version      int      `json:"v"`
+	HostUUID     string   `json:"host_uuid"`
+	SpaceUUID    string   `json:"space_uuid"`
+	SubjectKey   string   `json:"sub"`
+	Scopes       []string `json:"scopes"`
+	ExpiresAt    int64    `json:"exp"`
+	IssuedAt     int64    `json:"iat"`
+	TokenID      string   `json:"jti"`
+	ChannelScope string   `json:"channel_scope"`
+}
+
 type GetDashDataRequest struct {
 	UserID           int    `json:"user_id"`
 	UserPublicKey    string `json:"user_public_key,omitempty"`
@@ -174,17 +196,19 @@ type GetDashDataRequest struct {
 }
 
 type GetDashDataResponse struct {
-	User       DashDataUser     `json:"user"`
-	Spaces     []DashDataSpace  `json:"spaces"`
-	Invites    []DashDataInvite `json:"invites"`
-	ClientUUID string           `json:"client_uuid"`
+	User         DashDataUser      `json:"user"`
+	Spaces       []DashDataSpace   `json:"spaces"`
+	Invites      []DashDataInvite  `json:"invites"`
+	Capabilities []SpaceCapability `json:"capabilities,omitempty"`
+	ClientUUID   string            `json:"client_uuid"`
 }
 
 type GetDashDataSuccess struct {
-	User          DashDataUser     `json:"user"`
-	Spaces        []DashDataSpace  `json:"spaces"`
-	Invites       []DashDataInvite `json:"invites"`
-	ActiveDevices []ActiveDevice   `json:"active_devices,omitempty"`
+	User          DashDataUser      `json:"user"`
+	Spaces        []DashDataSpace   `json:"spaces"`
+	Invites       []DashDataInvite  `json:"invites"`
+	Capabilities  []SpaceCapability `json:"capabilities,omitempty"`
+	ActiveDevices []ActiveDevice    `json:"active_devices,omitempty"`
 }
 
 type ActiveDevice struct {
@@ -208,16 +232,19 @@ type CreateSpaceRequest struct {
 }
 
 type CreateSpaceResponse struct {
-	Space      DashDataSpace `json:"space"`
-	ClientUUID string        `json:"client_uuid"`
+	Space      DashDataSpace   `json:"space"`
+	Capability SpaceCapability `json:"capability,omitempty"`
+	ClientUUID string          `json:"client_uuid"`
 }
 
 type CreateSpaceSuccess struct {
-	Space DashDataSpace `json:"space"`
+	Space      DashDataSpace   `json:"space"`
+	Capability SpaceCapability `json:"capability,omitempty"`
 }
 
 type DeleteSpaceClient struct {
-	UUID string `json:"uuid"`
+	UUID            string `json:"uuid"`
+	CapabilityToken string `json:"capability_token,omitempty"`
 }
 
 type DeleteSpaceRequest struct {
@@ -229,8 +256,9 @@ type DeleteSpaceRequest struct {
 }
 
 type CreateChannelClient struct {
-	Name      string `json:"name"`
-	SpaceUUID string `json:"space_uuid"`
+	Name            string `json:"name"`
+	SpaceUUID       string `json:"space_uuid"`
+	CapabilityToken string `json:"capability_token,omitempty"`
 }
 
 type CreateChannelRequest struct {
@@ -259,7 +287,9 @@ type CreateChannelUpdate struct {
 }
 
 type DeleteChannelClient struct {
-	UUID string `json:"uuid"`
+	UUID            string `json:"uuid"`
+	SpaceUUID       string `json:"space_uuid,omitempty"`
+	CapabilityToken string `json:"capability_token,omitempty"`
 }
 
 type DeleteChannelRequest struct {
@@ -283,8 +313,9 @@ type DeleteChannelUpdate struct {
 }
 
 type InviteUserClient struct {
-	PublicKey string `json:"public_key"`
-	SpaceUUID string `json:"space_uuid"`
+	PublicKey       string `json:"public_key"`
+	SpaceUUID       string `json:"space_uuid"`
+	CapabilityToken string `json:"capability_token,omitempty"`
 }
 
 type InviteUserRequest struct {
@@ -329,16 +360,18 @@ type AcceptInviteRequest struct {
 }
 
 type AcceptInviteResponse struct {
-	SpaceUserID int           `json:"space_user_id"`
-	User        DashDataUser  `json:"user"`
-	Space       DashDataSpace `json:"space"`
-	ClientUUID  string        `json:"client_uuid"`
+	SpaceUserID int             `json:"space_user_id"`
+	User        DashDataUser    `json:"user"`
+	Space       DashDataSpace   `json:"space"`
+	Capability  SpaceCapability `json:"capability,omitempty"`
+	ClientUUID  string          `json:"client_uuid"`
 }
 
 type AcceptInviteSuccess struct {
-	SpaceUserID int           `json:"space_user_id"`
-	User        DashDataUser  `json:"user"`
-	Space       DashDataSpace `json:"space"`
+	SpaceUserID int             `json:"space_user_id"`
+	User        DashDataUser    `json:"user"`
+	Space       DashDataSpace   `json:"space"`
+	Capability  SpaceCapability `json:"capability,omitempty"`
 }
 
 type AcceptInviteUpdate struct {
@@ -403,7 +436,8 @@ type LeaveSpaceUpdate struct {
 }
 
 type JoinAllSpacesClient struct {
-	SpaceUUIDs []string `json:"space_uuids"`
+	SpaceUUIDs       []string          `json:"space_uuids"`
+	CapabilityTokens map[string]string `json:"capability_tokens,omitempty"`
 }
 
 type RemoveSpaceUserClient struct {
@@ -411,6 +445,7 @@ type RemoveSpaceUserClient struct {
 	UserID           int    `json:"user_id"`
 	UserPublicKey    string `json:"user_public_key,omitempty"`
 	UserEncPublicKey string `json:"user_enc_public_key,omitempty"`
+	CapabilityToken  string `json:"capability_token,omitempty"`
 }
 
 type RemoveSpaceUserRequest struct {
@@ -447,7 +482,8 @@ type SaveChatMessageRequest struct {
 }
 
 type GetMessagesClient struct {
-	BeforeUnixTime string `json:"before_unix_time"`
+	BeforeUnixTime  string `json:"before_unix_time"`
+	CapabilityToken string `json:"capability_token,omitempty"`
 }
 
 type GetMessagesRequest struct {
@@ -481,11 +517,11 @@ type GetMessagesSuccess struct {
 }
 
 type ClientHost struct {
-	ID       int    `json:"id"`
-	UUID     string `json:"uuid"`
-	Name     string `json:"name"`
-	AuthorID string `json:"author_id"`
-	Online   bool   `json:"online"`
+	ID               int    `json:"id"`
+	UUID             string `json:"uuid"`
+	Name             string `json:"name"`
+	SigningPublicKey string `json:"signing_public_key,omitempty"`
+	Online           bool   `json:"online"`
 }
 
 type UUIDListRequest struct {
@@ -504,6 +540,15 @@ type AuthPubKeyClient struct {
 
 type AuthChallenge struct {
 	Challenge string `json:"challenge"`
+}
+
+type HostAuthChallenge struct {
+	Challenge string `json:"challenge"`
+}
+
+type HostAuthClient struct {
+	Challenge string `json:"challenge"`
+	Signature string `json:"signature"`
 }
 
 type RelayHealthCheck struct {

@@ -39,6 +39,7 @@ var officialSpaceName = envOrDefault("OFFICIAL_SPACE_NAME", "Parch Community")
 var officialSpaceChannels = []string{"general", "feedback", "announcements"}
 
 var currentHostUUID string
+var runtimeHostConfig *HostConfig
 
 func isOfficialHostInstance() bool {
 	if officialHostUUID == "" {

@@ -43,16 +43,17 @@ func resolveHostHealthCheck(nonce string) {
 
 func ensureHostResponsive(host *Host, timeout time.Duration) error {
 	host.mu.Lock()
-	authorConn, ok := host.ConnByAuthorID[host.AuthorID]
-	if !ok {
+	authorConn := host.AuthorConn
+	if authorConn == nil {
 		host.mu.Unlock()
 		return fmt.Errorf("host author is offline")
 	}
 	authorClient := host.ClientsByConn[authorConn]
-	host.mu.Unlock()
-	if authorClient == nil {
+	if authorClient == nil || !authorClient.IsHostAuthor {
+		host.mu.Unlock()
 		return fmt.Errorf("host author session missing")
 	}
+	host.mu.Unlock()
 
 	nonce := uuid.NewString()
 	done := registerHostHealthCheck(nonce)
@@ -72,6 +73,9 @@ func ensureHostResponsive(host *Host, timeout time.Duration) error {
 }
 
 func handleRelayHealthCheckAck(client *Client, conn *websocket.Conn, wsMsg *WSMessage) {
+	if client == nil || !client.IsHostAuthor {
+		return
+	}
 	data, err := decodeData[RelayHealthCheckAck](wsMsg.Data)
 	if err != nil {
 		return

@@ -30,7 +30,7 @@ func isAuthorPassthroughType(msgType string) bool {
 }
 
 func allowPreAuthMessage(client *Client, msgType string) bool {
-	if msgType == "auth_pubkey" {
+	if msgType == "auth_pubkey" || msgType == "host_auth" {
 		return true
 	}
 	return client.IsHostAuthor && isAuthorPassthroughType(msgType)
@@ -64,6 +64,8 @@ func dispatchMessage(client *Client, conn *websocket.Conn, wsMsg WSMessage) {
 	switch wsMsg.Type {
 	case "auth_pubkey":
 		handleAuthPubKey(client, conn, &wsMsg)
+	case "host_auth":
+		handleHostAuth(client, conn, &wsMsg)
 	case "get_dash_data":
 		handleGetDashData(client, conn)
 	case "get_dash_data_response":
@@ -119,7 +121,7 @@ func dispatchMessage(client *Client, conn *websocket.Conn, wsMsg WSMessage) {
 			return
 		}
 		leaveChannel(client)
-		joinChannel(client, data.UUID)
+		joinChannel(client, data.UUID, data.CapabilityToken)
 	case "leave_channel":
 		leaveChannel(client)
 	case "chat":

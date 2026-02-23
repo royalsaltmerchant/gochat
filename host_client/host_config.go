@@ -2,19 +2,24 @@ package main
 
 import (
 	"bytes"
+	"crypto/ed25519"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type HostConfig struct {
-	UUID     string `json:"uuid"`
-	AuthorID string `json:"author_id"`
-	Name     string `json:"name"`
-	DBFile   string `json:"db_file"`
+	UUID              string `json:"uuid"`
+	Name              string `json:"name"`
+	DBFile            string `json:"db_file"`
+	SigningPublicKey  string `json:"signing_public_key,omitempty"`
+	SigningPrivateKey string `json:"signing_private_key,omitempty"`
 }
 
 func getAppSupportPathFor(filename string) (string, error) {
@@ -52,6 +57,9 @@ func loadExistingConfig() (*HostConfig, error) {
 	if cfg.UUID == "" {
 		return nil, fmt.Errorf("invalid config: missing UUID")
 	}
+	if err := ensureHostSigningKeys(&cfg); err != nil {
+		return nil, err
+	}
 
 	// Update DB path to current location
 	dbPath, err := getAppSupportPathFor(dbName)
@@ -77,28 +85,54 @@ func saveConfig(cfg *HostConfig) error {
 	return os.WriteFile(configPath, data, 0644)
 }
 
-func registerHostWithRelay(name string) (uuid string, authorID string, err error) {
+func generateHostSigningKeyPair() (publicKey string, privateKey string, err error) {
+	pub, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		return "", "", err
+	}
+	return base64.RawStdEncoding.EncodeToString(pub), base64.RawStdEncoding.EncodeToString(priv), nil
+}
+
+func ensureHostSigningKeys(cfg *HostConfig) error {
+	if cfg == nil {
+		return fmt.Errorf("missing host config")
+	}
+	if strings.TrimSpace(cfg.SigningPublicKey) != "" && strings.TrimSpace(cfg.SigningPrivateKey) != "" {
+		return nil
+	}
+	publicKey, privateKey, err := generateHostSigningKeyPair()
+	if err != nil {
+		return fmt.Errorf("failed to generate host signing keypair: %w", err)
+	}
+	cfg.SigningPublicKey = publicKey
+	cfg.SigningPrivateKey = privateKey
+	return nil
+}
+
+func registerHostWithRelay(name string, signingPublicKey string) (uuid string, err error) {
 	url := relayBaseURL.String() + "/api/register_host"
-	payload := map[string]string{"name": name}
+	payload := map[string]string{
+		"name":               name,
+		"signing_public_key": signingPublicKey,
+	}
 	jsonData, _ := json.Marshal(payload)
 
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
-		return "", "", err
+		return "", err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusCreated {
-		return "", "", fmt.Errorf("relay returned status %d", resp.StatusCode)
+		return "", fmt.Errorf("relay returned status %d", resp.StatusCode)
 	}
 
 	var result struct {
-		UUID     string `json:"uuid"`
-		AuthorID string `json:"author_id"`
+		UUID string `json:"uuid"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", "", err
+		return "", err
 	}
 
-	return result.UUID, result.AuthorID, nil
+	return result.UUID, nil
 }

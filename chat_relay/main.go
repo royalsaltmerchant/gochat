@@ -83,7 +83,6 @@ func main() {
 
 	r.GET("/api/host/:uuid", HandleGetHost)
 	r.POST("/api/hosts_by_uuids", HandleGetHostsByUUIDs)
-	r.POST("/api/host_offline/:uuid", HandleUpdateHostOffline)
 	r.POST("/api/register_host", HandleRegisterHost)
 
 	r.GET("/client", func(c *gin.Context) {

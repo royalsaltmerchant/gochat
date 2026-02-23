@@ -61,12 +61,27 @@ Identity import/export:
 
 ## 4) Authentication Flow
 
-1. Client connects websocket and sends `join_host`.
+### 4.1 Host-to-relay auth
+
+1. Host client opens websocket and sends `join_host` with `role: "host"`.
+2. Relay treats this as a host-auth candidate only when:
+   - role is `host`, and
+   - request has no browser `Origin` header.
+3. Relay sends `host_auth_challenge`.
+4. Host signs:
+   - `parch-host-auth:<hostUUID>:<challenge>`
+5. Host sends `host_auth` with challenge + signature.
+6. Relay verifies signature using `hosts.signing_public_key`.
+7. On success, relay marks that connection as the host-author socket and sets host online.
+
+### 4.2 Browser-to-relay auth
+
+1. Browser client opens websocket and sends `join_host`.
 2. Relay host-availability gate:
-   - If connection is not a trusted host-author session, relay requires host-author responsiveness.
-   - Relay sends `relay_health_check` and waits for `relay_health_check_ack` (timeout: 2 seconds).
-   - If host is offline/unresponsive, relay returns `join_error` and stops.
-3. Relay returns `auth_challenge`.
+   - relay sends `relay_health_check` to authenticated host-author socket
+   - waits for `relay_health_check_ack` (timeout: 2 seconds)
+   - if host is offline/unresponsive, relay returns `join_error`
+3. Relay sends `auth_challenge`.
 4. Browser signs:
    - `parch-chat-auth:<hostUUID>:<challenge>:<encPublicKey>`
 5. Browser sends `auth_pubkey` payload:
@@ -77,16 +92,12 @@ Identity import/export:
    - `username` (local fallback, optional)
    - `challenge`
    - `signature`
-6. Relay verifies Ed25519 signature against the auth message.
-7. On success, relay marks session authenticated and routes with:
-   - derived session `user_id`
-   - `public_key`
-   - `enc_public_key`
-   - normalized username
+6. Relay verifies Ed25519 signature and authenticates the session.
+7. Relay routes subsequent events with session identity (`user_id`, auth key, enc key, normalized username).
 
-Security property:
-- Binding `enc_public_key` into the signed challenge prevents key-substitution during auth.
-- Browser websocket joins cannot mark host online as host-author by simply supplying `author_id`.
+Security properties:
+- Host online state is bound to possession of the host signing private key (not a database `author_id` value).
+- Binding `enc_public_key` into browser signed challenge prevents key-substitution during auth.
 
 ## 5) Username Semantics
 
@@ -102,7 +113,47 @@ Result:
 - Same identity across multiple hosts can have different usernames per host.
 - Same host, multiple browsers with imported same identity resolve to same host user.
 
-## 6) Invite Semantics
+## 6) Capability Token Authorization
+
+Host issues short-lived per-space capability tokens and relay verifies them for realtime channel actions.
+
+Issuance:
+- Tokens are issued by host in:
+  - `get_dash_data_response` (all joined spaces)
+  - `create_space_success` and `accept_invite_success` (newly joined spaces)
+- Token TTL is currently 5 minutes.
+- Claims include:
+  - version
+  - `host_uuid`
+  - `space_uuid`
+  - subject auth public key (`sub`)
+  - scopes
+  - expiry + issued-at
+  - token id
+  - optional channel scope (currently `*`)
+
+Relay enforcement (current):
+- `join_channel` requires scope: `join_channel`
+- `chat` requires scope: `send_message`
+- `get_messages` requires scope: `read_history`
+- `create_channel` requires scope: `create_channel`
+- `delete_channel` requires scope: `delete_channel`
+- `invite_user` requires scope: `invite_user`
+- `remove_space_user` requires scope: `remove_space_user`
+- `delete_space` requires scope: `delete_space`
+
+Relay validates:
+- host signature on token
+- host/space/subject binding
+- expiry and issued-at sanity
+- required scope and channel scope match
+
+Client refresh behavior:
+- Browser caches capabilities keyed by `space_uuid`.
+- Before capability-gated actions, browser refreshes via `get_dash_data` if token is near expiry.
+- On `Unauthorized ...` relay error, browser retries once after forced capability refresh.
+
+## 7) Invite Semantics
 
 Invite target:
 - Invites are by **public key** (not email).
@@ -119,7 +170,7 @@ Invite acceptance:
 Official host/space:
 - Host can auto-create pending invite for official space on dashboard fetch when not already joined/invited.
 
-## 7) E2EE Message Format And Flow
+## 8) E2EE Message Format And Flow
 
 ### 7.1 Envelope
 
@@ -155,7 +206,7 @@ Test coverage:
   - ciphertext tamper rejection
   - signature tamper rejection
 
-## 8) Storage And Trust Boundaries
+## 9) Storage And Trust Boundaries
 
 - Relay sees and forwards ciphertext envelope; no plaintext.
 - Host stores ciphertext envelope JSON in `messages.content`.
@@ -171,7 +222,7 @@ Relay-side abuse controls:
 Host-side storage guard:
 - oversized envelopes are rejected before DB insert
 
-## 9) What Changed Vs Legacy Chat Auth
+## 10) What Changed Vs Legacy Chat Auth
 
 Removed for chat path:
 - email/password login
@@ -181,7 +232,7 @@ Kept unchanged:
 - `relay_server` + `call_app` user/email auth and billing paths
 - call infrastructure (SFU/TURN/call APIs)
 
-## 10) Operational Notes
+## 11) Operational Notes
 
 - Build web bundle into `chat_relay/static/client`.
 - Deploy `chat_relay` and `host_client` from local scripts.
@@ -194,4 +245,4 @@ Recommended validation after deploy:
 - Invite by public key succeeds.
 - Messages decrypt for joined members.
 - Tampered payloads fail to decrypt/verify.
-- `join_host` for non-author browser fails quickly when host is offline/unresponsive.
+- `join_host` for browser clients fails quickly when host is offline/unresponsive.
