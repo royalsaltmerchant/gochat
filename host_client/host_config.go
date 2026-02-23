@@ -109,9 +109,10 @@ func ensureHostSigningKeys(cfg *HostConfig) error {
 	return nil
 }
 
-func registerHostWithRelay(name string, signingPublicKey string) (uuid string, err error) {
+func registerHostWithRelay(hostUUID string, name string, signingPublicKey string) (uuid string, err error) {
 	url := relayBaseURL.String() + "/api/register_host"
 	payload := map[string]string{
+		"uuid":               strings.TrimSpace(hostUUID),
 		"name":               name,
 		"signing_public_key": signingPublicKey,
 	}
@@ -123,7 +124,7 @@ func registerHostWithRelay(name string, signingPublicKey string) (uuid string, e
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusCreated {
+	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("relay returned status %d", resp.StatusCode)
 	}
 
@@ -135,4 +136,22 @@ func registerHostWithRelay(name string, signingPublicKey string) (uuid string, e
 	}
 
 	return result.UUID, nil
+}
+
+func ensureHostRegisteredWithRelay(cfg *HostConfig) error {
+	if cfg == nil {
+		return fmt.Errorf("missing host config")
+	}
+	hostUUID := strings.TrimSpace(cfg.UUID)
+	if hostUUID == "" {
+		return fmt.Errorf("missing host UUID")
+	}
+	registeredUUID, err := registerHostWithRelay(hostUUID, cfg.Name, cfg.SigningPublicKey)
+	if err != nil {
+		return err
+	}
+	if registeredUUID != hostUUID {
+		return fmt.Errorf("relay returned mismatched host UUID")
+	}
+	return nil
 }

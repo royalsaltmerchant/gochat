@@ -5,6 +5,7 @@ import (
 	"crypto/ed25519"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"log"
 	"strings"
 	"time"
@@ -92,6 +93,18 @@ func handleSocketMessages(ctx context.Context, conn *websocket.Conn) error {
 					continue
 				}
 				log.Println("join_ack:", data)
+			case "join_error":
+				data, err := decodeData[ChatError](wsMsg.Data)
+				if err != nil {
+					return fmt.Errorf("join host failed")
+				}
+				errMsg := strings.TrimSpace(data.Content)
+				if strings.Contains(strings.ToLower(errMsg), "not upgraded for capability auth") && runtimeHostConfig != nil {
+					if syncErr := ensureHostRegisteredWithRelay(runtimeHostConfig); syncErr != nil {
+						log.Printf("Failed to sync host registration after join_error: %v", syncErr)
+					}
+				}
+				return fmt.Errorf("join host failed: %s", errMsg)
 			case "auth_challenge":
 				// Host author sessions do not use pubkey auth challenges.
 				continue

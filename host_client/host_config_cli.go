@@ -2,11 +2,15 @@ package main
 
 import (
 	"fmt"
+	"log"
 )
 
 func LoadOrInitHostConfigCLI() (*HostConfig, error) {
 	// Try loading existing config first
 	if cfg, err := loadExistingConfig(); err == nil {
+		if err := ensureHostRegisteredWithRelay(cfg); err != nil {
+			log.Printf("Warning: failed to sync host registration with relay: %v", err)
+		}
 		_ = saveConfig(cfg)
 		return cfg, nil
 	}
@@ -29,7 +33,7 @@ func LoadOrInitHostConfigCLI() (*HostConfig, error) {
 
 	// Register with relay
 	fmt.Println("Registering with relay server...")
-	uuid, err := registerHostWithRelay(name, tmpCfg.SigningPublicKey)
+	uuid, err := registerHostWithRelay("", name, tmpCfg.SigningPublicKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to register host with relay: %w", err)
 	}
