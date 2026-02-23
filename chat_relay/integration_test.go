@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"gochat/db"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -32,6 +33,9 @@ type authorPeer struct {
 	inbox   chan WSMessage
 	writeMu sync.Mutex
 	stop    chan struct{}
+	done    chan struct{}
+	closeMu sync.Mutex
+	closed  bool
 }
 
 func newRelayIntegrationEnv(t *testing.T) *relayIntegrationEnv {
@@ -43,7 +47,11 @@ func newRelayIntegrationEnvWithSigningKey(t *testing.T, withSigningKey bool) *re
 	t.Helper()
 
 	gin.SetMode(gin.TestMode)
-	dbPath := filepath.Join(t.TempDir(), "relay_integration.sqlite")
+	tempDir, err := os.MkdirTemp("", "relay-integration-*")
+	if err != nil {
+		t.Fatalf("create temp dir: %v", err)
+	}
+	dbPath := filepath.Join(tempDir, "relay_integration.sqlite")
 	hostDB, err := db.InitSQLite(dbPath)
 	if err != nil {
 		t.Fatalf("init sqlite: %v", err)
@@ -100,7 +108,24 @@ func newRelayIntegrationEnvWithSigningKey(t *testing.T, withSigningKey bool) *re
 	server := httptest.NewServer(r)
 
 	t.Cleanup(func() {
+		server.CloseClientConnections()
+
+		hostsMu.Lock()
+		for _, host := range Hosts {
+			if host == nil {
+				continue
+			}
+			host.mu.Lock()
+			for conn := range host.ClientsByConn {
+				_ = conn.Close()
+			}
+			host.mu.Unlock()
+		}
+		hostsMu.Unlock()
+
 		server.Close()
+		time.Sleep(50 * time.Millisecond)
+
 		hostsMu.Lock()
 		Hosts = prevHosts
 		hostsMu.Unlock()
@@ -119,6 +144,8 @@ func newRelayIntegrationEnvWithSigningKey(t *testing.T, withSigningKey bool) *re
 
 		db.HostDB = prevHostDB
 		_ = hostDB.Close()
+
+		removeAllWithRetry(tempDir, 5, 100*time.Millisecond)
 	})
 
 	return &relayIntegrationEnv{
@@ -227,6 +254,7 @@ func (e *relayIntegrationEnv) connectAuthor(t *testing.T) *authorPeer {
 		conn:  conn,
 		inbox: make(chan WSMessage, 64),
 		stop:  make(chan struct{}),
+		done:  make(chan struct{}),
 	}
 	peer.start()
 	t.Cleanup(func() {
@@ -237,10 +265,11 @@ func (e *relayIntegrationEnv) connectAuthor(t *testing.T) *authorPeer {
 
 func (a *authorPeer) start() {
 	go func() {
+		defer close(a.done)
+		defer close(a.inbox)
 		for {
 			msg, err := readOneMessage(a.conn, testReadTimeout)
 			if err != nil {
-				close(a.inbox)
 				return
 			}
 
@@ -265,8 +294,20 @@ func (a *authorPeer) start() {
 }
 
 func (a *authorPeer) close() {
+	a.closeMu.Lock()
+	if a.closed {
+		a.closeMu.Unlock()
+		return
+	}
+	a.closed = true
 	close(a.stop)
 	_ = a.conn.Close()
+	a.closeMu.Unlock()
+
+	select {
+	case <-a.done:
+	case <-time.After(2 * time.Second):
+	}
 }
 
 func (a *authorPeer) mustSend(msg WSMessage) {
@@ -337,6 +378,21 @@ func mustReadType(t *testing.T, conn *websocket.Conn, msgType string, timeout ti
 		if msg.Type == msgType {
 			return msg
 		}
+	}
+}
+
+func removeAllWithRetry(path string, attempts int, delay time.Duration) {
+	if path == "" {
+		return
+	}
+	if attempts < 1 {
+		attempts = 1
+	}
+	for i := 0; i < attempts; i++ {
+		if err := os.RemoveAll(path); err == nil {
+			return
+		}
+		time.Sleep(delay)
 	}
 }
 
