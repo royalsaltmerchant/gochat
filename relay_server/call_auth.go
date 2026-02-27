@@ -2,16 +2,18 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
+	"errors"
 	"gochat/db"
 	"os"
 	"strings"
 	"time"
 
-	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
+	jwt "github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
+
+var errUnauthorized = errors.New("unauthorized")
 
 // HandleCallRegister handles POST /call/register
 func HandleCallRegister(c *gin.Context) {
@@ -138,21 +140,12 @@ func HandleCallLoginByToken(c *gin.Context) {
 
 	jwtSecret := os.Getenv("JWT_SECRET")
 
-	token, err := jwt.Parse(json.Token, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
+	claims := jwt.MapClaims{}
+	token, err := jwt.ParseWithClaims(json.Token, claims, func(token *jwt.Token) (interface{}, error) {
 		return []byte(jwtSecret), nil
-	})
-
+	}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}))
 	if err != nil || !token.Valid {
 		c.JSON(401, gin.H{"error": "Invalid or expired token"})
-		return
-	}
-
-	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok {
-		c.JSON(401, gin.H{"error": "Invalid token claims"})
 		return
 	}
 
@@ -200,36 +193,28 @@ func HandleCallAccount(c *gin.Context) {
 func extractUserIDFromAuth(c *gin.Context) (int, error) {
 	authHeader := c.GetHeader("Authorization")
 	if authHeader == "" {
-		return 0, fmt.Errorf("missing Authorization header")
+		return 0, errUnauthorized
 	}
 
 	parts := strings.SplitN(authHeader, " ", 2)
 	if len(parts) != 2 || parts[0] != "Bearer" {
-		return 0, fmt.Errorf("invalid Authorization header format")
+		return 0, errUnauthorized
 	}
 
 	tokenString := parts[1]
 	jwtSecret := os.Getenv("JWT_SECRET")
 
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
+	claims := jwt.MapClaims{}
+	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
 		return []byte(jwtSecret), nil
-	})
-
+	}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}))
 	if err != nil || !token.Valid {
-		return 0, fmt.Errorf("invalid or expired token")
-	}
-
-	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok {
-		return 0, fmt.Errorf("invalid token claims")
+		return 0, errUnauthorized
 	}
 
 	userIDFloat, ok := claims["userID"].(float64)
 	if !ok {
-		return 0, fmt.Errorf("invalid user ID in token")
+		return 0, errUnauthorized
 	}
 
 	return int(userIDFloat), nil

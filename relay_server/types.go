@@ -34,7 +34,6 @@ type JoinCallRoomClient struct {
 	DisplayName string `json:"display_name"`
 	StreamID    string `json:"stream_id"`
 	Token       string `json:"token,omitempty"`
-	AnonToken   string `json:"anon_token,omitempty"`
 }
 
 type LeaveCallRoomClient struct {

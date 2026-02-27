@@ -76,6 +76,8 @@ func main() {
 		port = "8000"
 	}
 	dbName := os.Getenv("HOST_DB_FILE")
+	allowedOrigins := parseAllowedOriginsFromEnv(os.Getenv("ALLOWED_ORIGINS"))
+	setAllowedWebSocketOrigins(allowedOrigins)
 	staticDir := resolveStaticDir()
 	log.Printf("Using static directory: %s", staticDir)
 
@@ -101,7 +103,14 @@ func main() {
 	}))
 
 	// CORS
-	r.Use(cors.Default())
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     allowedOrigins,
+		AllowMethods:     []string{"GET", "POST", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
 
 	// WebSocket route for call room signaling
 	r.GET("/ws", func(c *gin.Context) {

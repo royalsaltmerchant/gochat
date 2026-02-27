@@ -30,7 +30,7 @@ sfu.parchchat.com {
 	@hasToken query token=*
 	handle @hasToken {
 		forward_auth localhost:8000 {
-			uri /internal/validate-sfu-token?token={query.token}
+			uri /internal/validate-sfu-token?token={query.token}&channel_uuid={query.channel_uuid}
 		}
 		reverse_proxy localhost:7000 {
 			header_up Host {host}
