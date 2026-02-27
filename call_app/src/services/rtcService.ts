@@ -54,7 +54,7 @@ export default class RTCService {
    */
   initWithCredentials(credentials: VoiceCredentials): void {
     // Include SFU token in the WebSocket URL for authentication
-    this.sfuUrl = `${sfuBaseURLWS}?token=${encodeURIComponent(credentials.sfu_token)}`;
+    this.sfuUrl = `${sfuBaseURLWS}?token=${encodeURIComponent(credentials.sfu_token)}&channel_uuid=${encodeURIComponent(credentials.channel_uuid)}`;
 
     this.peerConfig = {
       codec: 'vp8',
@@ -114,6 +114,7 @@ export default class RTCService {
             const constraints: Constraints = {
               resolution: 'fhd',
               codec: 'vp8',
+              simulcast: true,
               audio: this.mediaConstraintForDevice(audioDeviceId),
               video: this.mediaConstraintForDevice(videoDeviceId),
             };
@@ -125,6 +126,7 @@ export default class RTCService {
             this.localStream = await LocalStream.getUserMedia({
               resolution: 'fhd',
               codec: 'vp8',
+              simulcast: true,
               audio: this.mediaConstraintForDevice(storedAudioDeviceId),
               video: this.mediaConstraintForDevice(storedVideoDeviceId),
             });

@@ -12,7 +12,6 @@ import {
   setStoredDeviceId,
 } from '../config/mediaStorage';
 import { useAuth } from '../contexts/AuthContext';
-import { getAnonToken } from '../config/anonToken';
 
 interface CallRoomProps {
   roomId: string;
@@ -180,7 +179,7 @@ export function CallRoom({ roomId }: CallRoomProps) {
     // Join WebSocket room first - this triggers voice_credentials to be sent
     // Use token from context, or fall back to localStorage in case auth restore is still in-flight
     const authToken = token || localStorage.getItem('call_app:auth_token') || undefined;
-    joinRoom(roomId, name, tempStreamId, authToken, getAnonToken());
+    joinRoom(roomId, name, tempStreamId, authToken);
   }, [roomId, wsConnected, joinRoom, token]);
 
   const handleLeave = useCallback(() => {

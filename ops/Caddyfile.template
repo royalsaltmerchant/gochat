@@ -22,5 +22,18 @@ chat.parchchat.com {
 
 # SFU websocket endpoint for call_app
 sfu.parchchat.com {
-	reverse_proxy 127.0.0.1:7000
+	@hasToken query token=*
+	handle @hasToken {
+		forward_auth 127.0.0.1:8000 {
+			uri /internal/validate-sfu-token?token={query.token}&channel_uuid={query.channel_uuid}
+		}
+		reverse_proxy 127.0.0.1:7000
+	}
+
+	handle {
+		forward_auth 127.0.0.1:8000 {
+			uri /internal/validate-ip
+		}
+		reverse_proxy 127.0.0.1:7000
+	}
 }

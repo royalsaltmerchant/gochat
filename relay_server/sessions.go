@@ -3,10 +3,11 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
-	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
+	jwt "github.com/golang-jwt/jwt/v5"
 )
 
 type SFUTokenClaims struct {
@@ -47,19 +48,12 @@ func generateSFUJWT(claims SFUTokenClaims, secret string) (string, error) {
 }
 
 func parseSFUJWT(tokenString string, secret string) (*SFUTokenClaims, error) {
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
+	claims := jwt.MapClaims{}
+	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
 		return []byte(secret), nil
-	})
+	}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}))
 	if err != nil || !token.Valid {
 		return nil, fmt.Errorf("invalid token")
-	}
-
-	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok {
-		return nil, fmt.Errorf("invalid claims")
 	}
 
 	exp, ok := claims["exp"].(float64)
@@ -111,6 +105,15 @@ func HandleValidateSFUToken(c *gin.Context) {
 		c.JSON(403, gin.H{
 			"authorized": false,
 			"error":      err.Error(),
+		})
+		return
+	}
+
+	requestedChannel := strings.TrimSpace(c.Query("channel_uuid"))
+	if requestedChannel != "" && claims.ChannelUUID != requestedChannel {
+		c.JSON(403, gin.H{
+			"authorized": false,
+			"error":      "token channel_uuid does not match requested channel_uuid",
 		})
 		return
 	}

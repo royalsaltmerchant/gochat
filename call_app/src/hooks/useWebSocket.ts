@@ -37,7 +37,7 @@ export interface UseWebSocketReturn {
   maxDuration: number | null;
   timeWarning: boolean;
   timeExpired: boolean;
-  joinRoom: (roomId: string, displayName: string, streamId: string, token?: string, anonToken?: string) => void;
+  joinRoom: (roomId: string, displayName: string, streamId: string, token?: string) => void;
   leaveRoom: (roomId: string) => void;
   updateMedia: (roomId: string, isAudioOn: boolean, isVideoOn: boolean) => void;
   updateStreamId: (roomId: string, streamId: string) => void;
@@ -181,7 +181,7 @@ export function useWebSocket(): UseWebSocketReturn {
     }
   }, []);
 
-  const joinRoom = useCallback((roomId: string, displayName: string, streamId: string, token?: string, anonToken?: string) => {
+  const joinRoom = useCallback((roomId: string, displayName: string, streamId: string, token?: string) => {
     currentRoomRef.current = roomId;
     sendMessage({
       type: 'join_call_room',
@@ -190,7 +190,6 @@ export function useWebSocket(): UseWebSocketReturn {
         display_name: displayName,
         stream_id: streamId,
         ...(token && { token }),
-        ...(anonToken && { anon_token: anonToken }),
       },
     });
   }, [sendMessage]);

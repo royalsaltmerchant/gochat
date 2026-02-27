@@ -1,30 +1,23 @@
 package main
 
 import (
-	"fmt"
 	"gochat/db"
 	"log"
 	"os"
 	"time"
 
-	jwt "github.com/dgrijalva/jwt-go"
+	jwt "github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
 func lookupUserTier(tokenString string) (int, string, int) {
 	jwtSecret := os.Getenv("JWT_SECRET")
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method")
-		}
+	claims := jwt.MapClaims{}
+	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
 		return []byte(jwtSecret), nil
-	})
+	}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}))
 	if err != nil || !token.Valid {
-		return 0, "", 0
-	}
-	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok {
 		return 0, "", 0
 	}
 	userIDFloat, ok := claims["userID"].(float64)
@@ -97,7 +90,6 @@ func handleJoinCallRoom(conn *websocket.Conn, wsMsg *WSMessage) {
 		room = &CallRoom{
 			ID:           data.RoomID,
 			CreatorID:    creatorID,
-			CreatorToken: data.AnonToken,
 			Tier:         tier,
 			CreatedAt:    time.Now(),
 			MaxDuration:  maxDuration,

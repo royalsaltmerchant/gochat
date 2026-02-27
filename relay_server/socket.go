@@ -14,7 +14,7 @@ import (
 
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
-		return true
+		return isWebSocketOriginAllowed(r.Header.Get("Origin"))
 	},
 }
 
@@ -25,7 +25,6 @@ var callRoomsMu sync.Mutex
 type CallRoom struct {
 	ID           string
 	CreatorID    int    // user ID if logged in, 0 if anonymous
-	CreatorToken string // localStorage token for free users
 	Tier         string // "free" or "premium"
 	CreatedAt    time.Time
 	MaxDuration  time.Duration // 40min for free, up to 6hr for premium
