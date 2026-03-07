@@ -1,78 +1,128 @@
-import createElement from "./createElement.js";
+import { Component, createElement } from "../lib/foundation.js";
 import platform from "../platform/index.js";
 
-export default class SidebarComponent {
+export default class SidebarComponent extends Component {
   constructor(props) {
+    super({
+      domElem: props.domElem || createElement("div", { class: "sidebar" }),
+      autoInit: false,
+      autoRender: props.autoRender,
+    });
+
     this.data = props.data;
     this.socketConn = props.socketConn;
     this.returnToHostList = props.returnToHostList;
     this.openDashModal = props.openDashModal;
     this.closeDashModal = props.closeDashModal;
     this.getCurrentSpaceUUID = props.getCurrentSpaceUUID;
-    this.spaceComponents = [];
-    this.domComponent = props.domComponent;
     this.openSpaceSettings = props.openSpaceSettings;
     this.loadChannel = props.loadChannel;
 
-    this.render();
+    this.spaceComponents = [];
+    this.userAccountComponent = null;
+    this.spaceUserListComponent = null;
+    this._spaceChildKeys = new Set();
   }
 
-  initSpaceComponents = () => {
-    if (this.data.spaces) {
-      this.spaceComponents = this.data.spaces.map(
-        (space) =>
+  syncSpaceComponents = () => {
+    const spaces = Array.isArray(this.data?.spaces) ? this.data.spaces : [];
+    const nextSpaceKeys = new Set();
+
+    this.spaceComponents = spaces.map((space) => {
+      const childKey = `space:${space.uuid}`;
+      nextSpaceKeys.add(childKey);
+
+      return this.useChild(
+        childKey,
+        () =>
           new SpaceItemComponent({
-            domComponent: createElement("div", { class: "space-item" }),
-            space: space,
+            domElem: createElement("div", { class: "space-item" }),
+            space,
             user: this.data.user,
             openSpaceSettings: this.openSpaceSettings,
             loadChannel: this.loadChannel,
-          })
+            autoRender: false,
+          }),
+        (child) => {
+          child.space = space;
+          child.user = this.data.user;
+          child.openSpaceSettings = this.openSpaceSettings;
+          child.loadChannel = this.loadChannel;
+        }
       );
+    });
+
+    for (const staleKey of this._spaceChildKeys) {
+      if (!nextSpaceKeys.has(staleKey)) {
+        this.dropChild(staleKey);
+      }
     }
+
+    this._spaceChildKeys = nextSpaceKeys;
+    return this.spaceComponents;
   };
 
-  addSpace = (space) => {
-    const comp = new SpaceItemComponent({
-      domComponent: createElement("div", { class: "space-item" }),
-      space: space,
-      user: this.data.user,
-      openSpaceSettings: this.openSpaceSettings,
-      loadChannel: this.loadChannel,
-    });
-    this.spaceComponents.push(comp);
-    this.render();
+  addSpace = async (space) => {
+    if (!Array.isArray(this.data.spaces)) {
+      this.data.spaces = [];
+    }
+    this.data.spaces.push(space);
+    await this.render();
   };
 
-  render = () => {
-    this.domComponent.innerHTML = "";
+  render = async () => {
+    const spaceComponents = this.syncSpaceComponents();
+    await Promise.all(spaceComponents.map((comp) => comp.render()));
 
-    this.initSpaceComponents();
+    const userAccountComponent = this.useChild(
+      "user-account",
+      () =>
+        new UserAccountComponent({
+          data: this.data,
+          returnToHostList: this.returnToHostList,
+          openDashModal: this.openDashModal,
+          domElem: createElement("div", { class: "user-component" }),
+          autoRender: false,
+        }),
+      (child) => {
+        child.data = this.data;
+        child.returnToHostList = this.returnToHostList;
+        child.openDashModal = this.openDashModal;
+      }
+    );
 
-    this.userAccountComponent = new UserAccountComponent({
-      data: this.data,
-      returnToHostList: this.returnToHostList,
-      openDashModal: this.openDashModal,
-      domComponent: createElement("div", { class: "user-component" }),
-    });
+    const spaceUserListComponent = this.useChild(
+      "space-user-list",
+      () =>
+        new SpaceUserListComponent({
+          data: this.data,
+          socketConn: this.socketConn,
+          getCurrentSpaceUUID: this.getCurrentSpaceUUID,
+          domElem: createElement("div", {
+            class: "space-users-list",
+            id: "space-users-list",
+          }),
+          autoRender: false,
+        }),
+      (child) => {
+        child.data = this.data;
+        child.socketConn = this.socketConn;
+        child.getCurrentSpaceUUID = this.getCurrentSpaceUUID;
+      }
+    );
 
-    this.spaceUserListComponent = new SpaceUserListComponent({
-      data: this.data,
-      socketConn: this.socketConn,
-      getCurrentSpaceUUID: this.getCurrentSpaceUUID,
-      domComponent: createElement("div", {
-        class: "space-users-list",
-        id: "space-users-list",
-      }),
-    });
+    await userAccountComponent.render();
+    await spaceUserListComponent.render();
 
-    // Spaces
-    this.domComponent.append(
+    this.userAccountComponent = userAccountComponent;
+    this.spaceUserListComponent = spaceUserListComponent;
+
+    return [
       createElement("div", { class: "sidebar-spaces-container" }, [
         createElement(
           "div",
           { id: "spaces-list" },
-          this.spaceComponents.map((comp) => comp.domComponent)
+          this.spaceComponents.map((comp) => comp.domElem)
         ),
         createElement(
           "button",
@@ -85,42 +135,40 @@ export default class SidebarComponent {
                 type: "prompt",
                 data: { message: "Please enter Space 'Name'" },
               }).then((value) => {
-                if (value) {
-                  value.trim();
-                  this.socketConn.createSpace({
-                    name: value,
-                  });
-                }
+                if (!value) return;
+                this.socketConn.createSpace({
+                  name: value.trim(),
+                });
               });
             },
           }
         ),
       ]),
       createElement("br"),
-      this.spaceUserListComponent.domComponent,
+      spaceUserListComponent.domElem,
       createElement("hr"),
-      this.userAccountComponent.domComponent
-    );
+      userAccountComponent.domElem,
+    ];
   };
 }
 
-class UserAccountComponent {
+class UserAccountComponent extends Component {
   constructor(props) {
+    super({
+      domElem: props.domElem || createElement("div", { class: "user-component" }),
+      autoInit: false,
+      autoRender: props.autoRender,
+    });
     this.data = props.data;
     this.returnToHostList = props.returnToHostList;
     this.openDashModal = props.openDashModal;
-    this.domComponent = props.domComponent;
-
-    this.render();
   }
 
-  render = () => {
-    this.domComponent.innerHTML = "";
-
-    this.domComponent.append(
+  render = async () => {
+    return [
       createElement("a", { href: "#" }, "Account", {
         type: "click",
-        event: (e) => {
+        event: () => {
           this.openDashModal({
             type: "account",
             data: {
@@ -132,7 +180,7 @@ class UserAccountComponent {
       }),
       createElement("a", { href: "#" }, "Invites", {
         type: "click",
-        event: (e) => {
+        event: () => {
           this.openDashModal({
             type: "invites",
             data: { invites: this.data.invites, user: this.data.user },
@@ -141,26 +189,29 @@ class UserAccountComponent {
       }),
       createElement("a", { href: "#" }, "<- Host List", {
         type: "click",
-        event: (e) => {
+        event: () => {
           this.returnToHostList();
         },
-      })
-    );
+      }),
+    ];
   };
 }
 
-class SpaceUserListComponent {
+class SpaceUserListComponent extends Component {
   constructor(props) {
+    super({
+      domElem:
+        props.domElem || createElement("div", { class: "space-users-list", id: "space-users-list" }),
+      autoInit: false,
+      autoRender: props.autoRender,
+    });
     this.data = props.data;
     this.socketConn = props.socketConn;
     this.getCurrentSpaceUUID = props.getCurrentSpaceUUID;
-    this.domComponent = props.domComponent;
-
-    this.render();
   }
 
   isAuthor = (space, user) => {
-    return String(space.author_id) === String(user.id); // the current user not space user
+    return String(space.author_id) === String(user.id);
   };
 
   renderUserElement = (currentSpace, user) => {
@@ -173,11 +224,9 @@ class SpaceUserListComponent {
         event: async () => {
           if (
             this.isAuthor(currentSpace, this.data.user) &&
-            this.data.user.id != user.id
+            this.data.user.id !== user.id
           ) {
-            platform.confirm(
-              "Are you sure you want to remove this user?"
-            ).then((confirmed) => {
+            platform.confirm("Are you sure you want to remove this user?").then((confirmed) => {
               if (confirmed) {
                 this.socketConn.removeSpaceUser({
                   space_uuid: currentSpace.uuid,
@@ -193,13 +242,10 @@ class SpaceUserListComponent {
   };
 
   renderSpaceUsersList = (currentSpace) => {
-    // Check selected space
-
     const elementList = [];
 
-    if (currentSpace.users) {
-      // space users "invited"
-      currentSpace.users.map((user) => {
+    if (Array.isArray(currentSpace?.users)) {
+      currentSpace.users.forEach((user) => {
         elementList.push(this.renderUserElement(currentSpace, user));
       });
     }
@@ -207,65 +253,80 @@ class SpaceUserListComponent {
     return elementList;
   };
 
-  render = () => {
-    this.domComponent.innerHTML = "";
+  render = async () => {
     const currentSpaceUUID = this.getCurrentSpaceUUID();
 
-    if (currentSpaceUUID) {
-      const currentSpace = this.data.spaces.find(
-        (space) => space.uuid === currentSpaceUUID
-      );
-
-      if (!currentSpace) return;
-
-      this.domComponent.append(
-        createElement("h3", {}, "Users"),
-        ...this.renderSpaceUsersList(currentSpace)
-      );
+    if (!currentSpaceUUID) {
+      return [];
     }
+
+    const currentSpace = (this.data?.spaces || []).find(
+      (space) => space.uuid === currentSpaceUUID
+    );
+
+    if (!currentSpace) {
+      return [];
+    }
+
+    return [createElement("h3", {}, "Users"), ...this.renderSpaceUsersList(currentSpace)];
   };
 }
 
-class SpaceItemComponent {
+class SpaceItemComponent extends Component {
   constructor(props) {
+    super({
+      domElem: props.domElem || createElement("div", { class: "space-item" }),
+      state: {
+        channelsOpen: false,
+      },
+      autoInit: false,
+      autoRender: props.autoRender,
+    });
+
     this.space = props.space;
     this.user = props.user;
     this.openSpaceSettings = props.openSpaceSettings;
     this.loadChannel = props.loadChannel;
-    this.channelsOpen = false;
-    this.domComponent = props.domComponent;
-    this.render();
   }
 
   isAuthor = () => {
     return String(this.space.author_id) === String(this.user.id);
   };
 
+  toggleChannels = async () => {
+    await this.setState((prev) => ({ channelsOpen: !prev.channelsOpen }));
+  };
+
   renderChannelList = () => {
-    return createElement(
-      "div",
-      { class: "channel-list" },
-      (this.space.channels || []).map((channel) =>
-        createElement("div", { class: "channel-item" }, [
-          createElement("span", { class: "channel-hash" }, "#"),
-          createElement("span", {}, channel.name),
-        ], {
-          type: "click",
-          event: () => this.loadChannel(this.space.uuid, channel.uuid),
-        })
-      )
+    const channels = Array.isArray(this.space?.channels) ? this.space.channels : [];
+
+    const channelNodes = this.useMemo(
+      "channel-nodes",
+      () =>
+        channels.map((channel) =>
+          createElement(
+            "div",
+            { class: "channel-item" },
+            [
+              createElement("span", { class: "channel-hash" }, "#"),
+              createElement("span", {}, channel.name),
+            ],
+            {
+              type: "click",
+              event: () => this.loadChannel(this.space.uuid, channel.uuid),
+            }
+          )
+        ),
+      () => channels.map((channel) => `${channel.uuid}:${channel.name}`)
     );
+
+    return createElement("div", { class: "channel-list" }, channelNodes);
   };
 
-  toggleChannels = () => {
-    this.channelsOpen = !this.channelsOpen;
-    this.render();
-  };
+  render = async () => {
+    this.domElem.className = `space-item${this.state.channelsOpen ? " space-item--open" : ""}`;
 
-  render = () => {
-    this.domComponent.textContent = "";
-    this.domComponent.className = `space-item${this.channelsOpen ? " space-item--open" : ""}`;
-    this.domComponent.append(
+    return [
       createElement(
         "div",
         { class: "space-header" },
@@ -286,7 +347,7 @@ class SpaceItemComponent {
         ],
         { type: "click", event: this.toggleChannels }
       ),
-      ...(this.channelsOpen ? [this.renderChannelList()] : [])
-    );
+      ...(this.state.channelsOpen ? [this.renderChannelList()] : []),
+    ];
   };
 }

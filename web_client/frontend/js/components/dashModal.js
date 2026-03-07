@@ -6,24 +6,33 @@ export default class DashModal {
   constructor(app, socketConn) {
     this.app = app;
     this.socketConn = socketConn;
-    this.domComponent = createElement("div", { class: "modal" });
+    this.domElem = createElement("div", { class: "modal" });
     this.promptResolver = null;
   }
 
   open = (props) => {
-    this.domComponent.style.display = "block";
+    this.domElem.style.display = "block";
     return this.render(props);
   };
 
   close = () => {
-    this.domComponent.style.display = "none";
+    this.domElem.style.display = "none";
+  };
+
+  destroy = () => {
+    if (typeof this.promptResolver === "function") {
+      this.promptResolver(null);
+      this.promptResolver = null;
+    }
+    this.close();
+    this.domElem.innerHTML = "";
   };
 
   renderPrompt = (message) => {
     return new Promise((resolve) => {
       this.promptResolver = resolve;
 
-      this.domComponent.append(
+      this.domElem.append(
         createElement("div", { class: "modal-content" }, [
           createElement("div", { class: "modal-header" }, [
             createElement("h2", {}, message || "Enter a value"),
@@ -38,7 +47,7 @@ export default class DashModal {
               createElement("button", { class: "btn" }, "OK", {
                 type: "click",
                 event: () => {
-                  const val = this.domComponent.querySelector("#prompt-input").value;
+                  const val = this.domElem.querySelector("#prompt-input").value;
                   this.close();
                   this.promptResolver(val);
                 },
@@ -199,8 +208,8 @@ export default class DashModal {
     };
 
     const generateBackupText = async () => {
-      const passphraseElem = this.domComponent.querySelector("#identity-export-passphrase");
-      const exportElem = this.domComponent.querySelector("#identity-export-display");
+      const passphraseElem = this.domElem.querySelector("#identity-export-passphrase");
+      const exportElem = this.domElem.querySelector("#identity-export-display");
       const passphrase = (passphraseElem?.value || "").trim();
       if (passphrase.length < 8) {
         throw new Error("Enter a backup passphrase (8+ chars)");
@@ -238,13 +247,13 @@ export default class DashModal {
     };
 
     const updateLastExportedLabel = () => {
-      const exportMetaElem = this.domComponent.querySelector("#last-exported-at");
+      const exportMetaElem = this.domElem.querySelector("#last-exported-at");
       if (!exportMetaElem) return;
       exportMetaElem.textContent = formatDateTime(identityManager.getLastExportedAt());
     };
 
     const renderActiveDevices = () => {
-      const listElem = this.domComponent.querySelector("#active-devices-list");
+      const listElem = this.domElem.querySelector("#active-devices-list");
       if (!listElem) return;
       listElem.innerHTML = "";
       if (!Array.isArray(activeDevices) || activeDevices.length === 0) {
@@ -268,7 +277,7 @@ export default class DashModal {
       listElem.append(...nodes);
     };
 
-    this.domComponent.append(
+    this.domElem.append(
       createElement("div", { class: "modal-content account-modal-content" }, [
         createElement("div", { class: "modal-header" }, [
           createElement("h2", {}, "Account"),
@@ -306,7 +315,7 @@ export default class DashModal {
                 createElement("button", { class: "btn", id: "copy-public-key-btn" }, "Copy Public Key", {
                   type: "click",
                   event: async () => {
-                    const publicKeyElem = this.domComponent.querySelector("#public-key-display");
+                    const publicKeyElem = this.domElem.querySelector("#public-key-display");
                     const publicKey = (publicKeyElem?.value || "").trim();
                     if (!publicKey) {
                       platform.alert("Public key not available yet");
@@ -376,7 +385,7 @@ export default class DashModal {
                 createElement("button", { class: "btn", id: "copy-identity-btn" }, "Copy Backup", {
                   type: "click",
                   event: async () => {
-                    const exportElem = this.domComponent.querySelector("#identity-export-display");
+                    const exportElem = this.domElem.querySelector("#identity-export-display");
                     const text = (exportElem?.value || "").trim();
                     if (!text) {
                       platform.alert("Generate backup first");
@@ -396,7 +405,7 @@ export default class DashModal {
                   type: "click",
                   event: async () => {
                     try {
-                      const exportElem = this.domComponent.querySelector("#identity-export-display");
+                      const exportElem = this.domElem.querySelector("#identity-export-display");
                       const exportText = (exportElem?.value || "").trim() || await generateBackupText();
                       const blob = new Blob([exportText], { type: "application/json" });
                       const url = URL.createObjectURL(blob);
@@ -443,8 +452,8 @@ export default class DashModal {
                 createElement("button", { class: "btn", id: "import-identity-btn" }, "Import Backup", {
                   type: "click",
                   event: async () => {
-                    const importElem = this.domComponent.querySelector("#identity-import-input");
-                    const importPassphraseElem = this.domComponent.querySelector("#identity-import-passphrase");
+                    const importElem = this.domElem.querySelector("#identity-import-input");
+                    const importPassphraseElem = this.domElem.querySelector("#identity-import-passphrase");
                     const importText = (importElem?.value || "").trim();
                     const passphrase = (importPassphraseElem?.value || "").trim();
 
@@ -458,7 +467,7 @@ export default class DashModal {
                 createElement("button", { class: "btn", id: "import-identity-file-btn" }, "Load File", {
                   type: "click",
                   event: () => {
-                    const fileInput = this.domComponent.querySelector("#identity-import-file");
+                    const fileInput = this.domElem.querySelector("#identity-import-file");
                     if (fileInput) {
                       fileInput.value = "";
                       fileInput.click();
@@ -478,7 +487,7 @@ export default class DashModal {
                   if (!file) return;
                   try {
                     const text = await file.text();
-                    const importElem = this.domComponent.querySelector("#identity-import-input");
+                    const importElem = this.domElem.querySelector("#identity-import-input");
                     if (importElem) {
                       importElem.value = text;
                     }
@@ -512,7 +521,7 @@ export default class DashModal {
                 createElement("button", { class: "btn" }, "Save Local Username", {
                   type: "click",
                   event: () => {
-                    const localUsernameElem = this.domComponent.querySelector("#local-identity-username");
+                    const localUsernameElem = this.domElem.querySelector("#local-identity-username");
                     const localUsername = (localUsernameElem?.value || "").trim();
                     identityManager.setIdentityUsername(localUsername);
                     platform.alert("Local fallback username saved");
@@ -583,9 +592,9 @@ export default class DashModal {
     identityManager
       .getOrCreateIdentity()
       .then((identity) => {
-        const publicKeyElem = this.domComponent.querySelector("#public-key-display");
-        const localUsernameElem = this.domComponent.querySelector("#local-identity-username");
-        const keyFingerprint = this.domComponent.querySelector("#account-key-fingerprint");
+        const publicKeyElem = this.domElem.querySelector("#public-key-display");
+        const localUsernameElem = this.domElem.querySelector("#local-identity-username");
+        const keyFingerprint = this.domElem.querySelector("#account-key-fingerprint");
         if (publicKeyElem) {
           publicKeyElem.value = identity.publicKey || "";
         }
@@ -597,9 +606,9 @@ export default class DashModal {
         }
       })
       .catch(() => {
-        const publicKeyElem = this.domComponent.querySelector("#public-key-display");
-        const localUsernameElem = this.domComponent.querySelector("#local-identity-username");
-        const exportElem = this.domComponent.querySelector("#identity-export-display");
+        const publicKeyElem = this.domElem.querySelector("#public-key-display");
+        const localUsernameElem = this.domElem.querySelector("#local-identity-username");
+        const exportElem = this.domElem.querySelector("#identity-export-display");
         if (publicKeyElem) {
           publicKeyElem.value = "";
         }
@@ -615,7 +624,7 @@ export default class DashModal {
   };
 
   renderInvites = (invites, user) => {
-    this.domComponent.append(
+    this.domElem.append(
       createElement("div", { class: "modal-content" }, [
         createElement("div", { class: "modal-header" }, [
           createElement("h2", {}, "Space Invites"),
@@ -669,7 +678,7 @@ export default class DashModal {
   };
 
   render = (props) => {
-    this.domComponent.innerHTML = "";
+    this.domElem.innerHTML = "";
 
     switch (props.type) {
       case "prompt":
@@ -691,7 +700,7 @@ export default class DashModal {
           const user = props.data.user;
           const isAuthor = space.author_id === user.id;
 
-          this.domComponent.append(
+          this.domElem.append(
             createElement("div", { class: "modal-content" }, [
               createElement("div", { class: "modal-header" }, [
                 createElement("h2", {}, `Space Settings: ${space.name}`),

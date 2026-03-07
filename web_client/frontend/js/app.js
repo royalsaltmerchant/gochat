@@ -1,137 +1,258 @@
 import { relayBaseURL } from "./lib/config.js";
-import createElement from "./components/createElement.js";
 import DashboardApp from "./dashboard.js";
 import platform from "./platform/index.js";
+import { Component, createElement } from "./lib/foundation.js";
 
-class App {
+class App extends Component {
   constructor() {
+    const mountElem = document.getElementById("app");
+    if (!mountElem) {
+      throw new Error("Missing #app mount element");
+    }
+
+    super({
+      domElem: mountElem,
+      state: {
+        view: "host_form",
+      },
+      autoInit: false,
+      autoRender: false,
+    });
+    this.dashboard = null;
+
     platform.greet("Hello Parch").then((res) => console.log(res));
 
-    this.domComponent = document.getElementById("app");
-    this.hostForm = new HostForm(this);
-
-    this.render({ type: "host_form" });
+    this.render();
   }
 
-  returnToHostList = async () => {
-    // Remove host UUID
-    localStorage.removeItem("hostUUID");
-    // Leave socket connection
-    if (this.dashboard?.socketConn) {
-      this.dashboard.socketConn.hardClose();
+  openDashboard = async (hostUUID) => {
+    if (hostUUID) {
+      localStorage.setItem("hostUUID", hostUUID);
     }
-    // Set dashboard to null
-    if (this.dashboard?.domComponent) {
-      this.dashboard.domComponent.innerHTML = "";
-    }
-    this.dashboard = null;
-    // Render host form
-    this.render({ type: "host_form" });
+    await this.setState({ view: "dash" });
   };
 
-  render = (props) => {
-    this.domComponent.innerHTML = "";
-    switch (props.type) {
-      case "dash":
-        this.dashboard = new DashboardApp({
-          returnToHostList: this.returnToHostList,
-        });
-        this.domComponent.append(this.dashboard.domComponent);
-        this.dashboard.initialize();
-        break;
-      case "host_form":
-        this.domComponent.append(this.hostForm.domComponent);
-        this.hostForm.render({ type: "known" });
-        break;
-      default:
-        this.domComponent.append(this.hostForm.domComponent);
-        this.hostForm.render({ type: "known" });
+  returnToHostList = async () => {
+    localStorage.removeItem("hostUUID");
+
+    this.dropChild("dashboard");
+    this.dashboard = null;
+
+    await this.setState({ view: "host_form" });
+
+    const hostForm = this._childStore.get("host-form");
+    if (hostForm && typeof hostForm.showKnownHosts === "function") {
+      await hostForm.showKnownHosts();
     }
+  };
+
+  getHostForm = () => {
+    return this.useChild(
+      "host-form",
+      () =>
+        new HostForm({
+          app: this,
+          domElem: createElement("div", { class: "host-form-container" }),
+          autoInit: false,
+          autoRender: false,
+        }),
+      (child) => {
+        child.app = this;
+      }
+    );
+  };
+
+  getDashboard = () => {
+    return this.useChild(
+      "dashboard",
+      () =>
+        new DashboardApp({
+          returnToHostList: this.returnToHostList,
+          domElem: createElement("div", { class: "dashboard-container" }),
+          autoInit: false,
+          autoRender: false,
+        }),
+      (child) => {
+        child.returnToHostList = this.returnToHostList;
+      }
+    );
+  };
+
+  render = async () => {
+    if (this.state.view === "dash") {
+      const dashboard = this.getDashboard();
+      this.dashboard = dashboard;
+      await dashboard.init?.();
+      await dashboard.render();
+      return dashboard.domElem;
+    }
+
+    const hostForm = this.getHostForm();
+    await hostForm.init?.();
+    await hostForm.render();
+    return hostForm.domElem;
   };
 }
 
-export default class HostForm {
-  constructor(app) {
-    this.app = app;
-    this.domComponent = createElement("div", { class: "host-form-container" });
+export default class HostForm extends Component {
+  constructor(props) {
+    super({
+      domElem: props.domElem || createElement("div", { class: "host-form-container" }),
+      state: {
+        mode: "known",
+        hostsData: [],
+        loading: false,
+        errorMessage: "",
+        hasLoadedHosts: false,
+      },
+      autoInit: props.autoInit,
+      autoRender: props.autoRender,
+    });
+    this.app = props.app;
+    this._loadSequence = 0;
   }
 
-  renderHostList = (data) => {
-    if (!data || !data.hosts || !data.hosts.length) {
+  init = async () => {
+    if (this.state.hasLoadedHosts || this.state.loading) {
+      return;
+    }
+    await this.loadKnownHosts();
+  };
+
+  showKnownHosts = async () => {
+    await this.setState({ mode: "known" });
+    await this.loadKnownHosts();
+  };
+
+  showNewHostForm = async () => {
+    await this.setState({ mode: "new" });
+  };
+
+  loadKnownHosts = async () => {
+    const requestSequence = ++this._loadSequence;
+
+    await this.setState(
+      {
+        loading: true,
+        errorMessage: "",
+      },
+      { render: false }
+    );
+
+    let hostsData = [];
+
+    try {
+      const hosts = await platform.getHosts();
+
+      const hostUUIDs = this.useMemo(
+        "known-host-uuids",
+        () => hosts.map((host) => host.uuid),
+        () => [hosts.length, ...hosts.map((host) => host.uuid)]
+      );
+
+      if (hostUUIDs.length > 0) {
+        const res = await fetch(`${relayBaseURL}/api/hosts_by_uuids`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ uuids: hostUUIDs }),
+        });
+        const payload = await res.json();
+        hostsData = Array.isArray(payload?.hosts) ? payload.hosts : [];
+      }
+    } catch (error) {
+      console.log(error);
+      if (requestSequence === this._loadSequence) {
+        await this.setState({
+          loading: false,
+          errorMessage: "Failed to connect to relay server",
+          hasLoadedHosts: true,
+        });
+      }
+      return;
+    }
+
+    if (requestSequence !== this._loadSequence) {
+      return;
+    }
+
+    await this.setState({
+      hostsData: Array.isArray(hostsData) ? hostsData : [],
+      loading: false,
+      hasLoadedHosts: true,
+    });
+  };
+
+  removeHost = async (hostUUID) => {
+    platform.removeHost(hostUUID);
+
+    await this.setState((prev) => ({
+      hostsData: (prev.hostsData || []).filter((host) => host.uuid !== hostUUID),
+    }));
+  };
+
+  renderHostList = (hostsData) => {
+    if (!Array.isArray(hostsData) || hostsData.length === 0) {
       return [createElement("div", { class: "host-empty-state" }, "No saved hosts yet.")];
     }
 
-    const hosts = data.hosts;
+    const sortedHosts = this.useMemo(
+      "sorted-host-list",
+      () =>
+        [...hostsData].sort((a, b) => {
+          const aOnline = Number(a?.online) === 1 ? 1 : 0;
+          const bOnline = Number(b?.online) === 1 ? 1 : 0;
+          if (aOnline !== bOnline) return bOnline - aOnline;
+          return String(a?.name || "").localeCompare(String(b?.name || ""));
+        }),
+      () => hostsData.map((host) => `${host.uuid}:${host.online}:${host.name}`)
+    );
 
-    return hosts.map((host) => {
-      const hostOnline = host.online == 1 ? true : false;
+    return sortedHosts.map((host) => {
+      const hostOnline = Number(host.online) === 1;
+
       return createElement(
         "div",
         { class: "host-item" },
         [
-          createElement(
-            "div",
-            { style: "display: flex; align-items: baseline" },
-            [
-              createElement("span", {
-                class: hostOnline ? "host-online-span" : "host-offline-span",
-              }),
-              createElement(
-                "div",
-                { class: "host-item-name" },
-                `${host.name} `
-              ),
-            ]
-          ),
+          createElement("div", { style: "display: flex; align-items: baseline" }, [
+            createElement("span", {
+              class: hostOnline ? "host-online-span" : "host-offline-span",
+            }),
+            createElement("div", { class: "host-item-name" }, `${host.name} `),
+          ]),
           createElement("button", { class: "btn-small btn-red" }, "Remove", {
             type: "click",
-            event: (event) => {
+            event: async (event) => {
               event.stopPropagation();
-              platform.confirm(
+              const confirmed = await platform.confirm(
                 "Are you sure you want to remove this host?"
-              ).then((confirmed) => {
-                if (confirmed) {
-                  platform.removeHost(host.uuid);
-                  event.target.parentElement.remove();
-                }
-              });
+              );
+              if (confirmed) {
+                await this.removeHost(host.uuid);
+              }
             },
           }),
         ],
         {
           type: "click",
-          event: () => {
-            if (hostOnline) {
-              localStorage.setItem("hostUUID", host.uuid);
-              this.app.render({ type: "dash" });
-            } else platform.alert("Host is not online");
+          event: async () => {
+            if (!hostOnline) {
+              platform.alert("Host is not online");
+              return;
+            }
+            await this.app.openDashboard(host.uuid);
           },
         }
       );
     });
   };
 
-  renderKnownHosts = async () => {
-    const hosts = await platform.getHosts();
-    const hostUUIDs = hosts.map((host) => host.uuid);
+  renderKnownHosts = () => {
+    const showLoading = this.state.loading || !this.state.hasLoadedHosts;
 
-    // Get hosts by UUID from relay API
-    let hostsData = [];
-    try {
-      const res = await fetch(`${relayBaseURL}/api/hosts_by_uuids`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ uuids: hostUUIDs }),
-      });
-      hostsData = await res.json();
-    } catch (error) {
-      console.log(error);
-      platform.alert("Failed to connect to relay server");
-    }
-
-    this.domComponent.append(
+    return [
       createElement("h2", {}, "Connect to a Host"),
       createElement(
         "p",
@@ -142,27 +263,31 @@ export default class HostForm {
       createElement("button", {}, "Refresh", {
         type: "click",
         event: () => {
-          this.render({ type: "known" });
+          this.loadKnownHosts();
         },
       }),
       createElement("br"),
-      createElement("div", { class: "host-list-index" }, [
-        ...this.renderHostList(hostsData),
-      ]),
+      this.state.errorMessage
+        ? createElement("div", { class: "host-empty-state" }, this.state.errorMessage)
+        : createElement("div", { class: "host-list-index" }, [
+            ...(showLoading
+              ? [createElement("div", { class: "host-empty-state" }, "Loading hosts...")]
+              : this.renderHostList(this.state.hostsData)),
+          ]),
       createElement("br"),
       createElement("div", { class: "host-divider-text" }, "Or"),
       createElement("br"),
-      createElement("button", { class: "" }, "Add Host Key", {
+      createElement("button", {}, "Add Host Key", {
         type: "click",
         event: () => {
-          this.render({ type: "new" });
+          this.showNewHostForm();
         },
-      })
-    );
+      }),
+    ];
   };
 
   renderNewHostForm = () => {
-    this.domComponent.append(
+    return [
       createElement("h2", {}, "Add Host Key"),
       createElement(
         "p",
@@ -173,7 +298,6 @@ export default class HostForm {
         "form",
         {
           id: "hostForm",
-          onsubmit: this.handleSubmit,
         },
         [
           createElement("fieldset", {}, [
@@ -195,16 +319,16 @@ export default class HostForm {
           type: "submit",
           event: (event) => {
             event.preventDefault();
-            const hostKey = this.domComponent.querySelector("#hostKey").value;
-            if (!hostKey) return false;
+            const hostKey = this.domElem.querySelector("#hostKey")?.value;
+            if (!hostKey) return;
 
-            platform.verifyHostKey(hostKey)
-              .then((hostName) => {
-                this.render({ type: "known" });
+            platform
+              .verifyHostKey(hostKey)
+              .then(async () => {
+                await this.showKnownHosts();
               })
               .catch((err) => {
                 platform.alert("Invalid host key");
-
                 console.error(err);
               });
           },
@@ -214,25 +338,22 @@ export default class HostForm {
       createElement("button", {}, "Back To Hosts", {
         type: "click",
         event: () => {
-          this.render({ type: "known" });
+          this.showKnownHosts();
         },
-      })
-    );
+      }),
+    ];
   };
 
-  render = (props) => {
-    this.domComponent.innerHTML = ""; // Clear if re-rendering
-
-    switch (props.type) {
-      case "known":
-        this.renderKnownHosts();
-        break;
-      case "new":
-        this.renderNewHostForm();
-        break;
-      default:
-        this.renderKnownHosts();
+  render = async () => {
+    if (this.state.mode === "known" && !this.state.hasLoadedHosts && !this.state.loading) {
+      this.loadKnownHosts();
     }
+
+    if (this.state.mode === "new") {
+      return this.renderNewHostForm();
+    }
+
+    return this.renderKnownHosts();
   };
 }
 
