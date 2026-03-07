@@ -7,15 +7,17 @@ import platform from "./platform/index.js";
 
 class ChatApp {
   constructor(props) {
-    this.domComponent = props.domComponent;
+    this.domElem = props.domElem || createElement("div");
     this.data = props.data;
     this.socketConn = props.socketConn;
     this.chatBoxComponent = null;
   }
 
-  initialize = (channelUUID) => {
+  init = (channelUUID) => {
+    this.chatBoxComponent?.destroy?.();
+
     this.chatBoxComponent = new ChatBoxComponent({
-      domComponent: createElement("div"),
+      domElem: createElement("div"),
       data: this.data,
       socketConn: this.socketConn,
       channelUUID,
@@ -26,18 +28,24 @@ class ChatApp {
     this.socketConn.getMessages(anchorTime, this.chatBoxComponent?.space?.uuid);
   };
 
+  destroy = () => {
+    this.chatBoxComponent?.destroy?.();
+    this.chatBoxComponent = null;
+    this.domElem.innerHTML = "";
+  };
+
   render = () => {
-    this.domComponent.innerHTML = "";
+    this.domElem.innerHTML = "";
     if (this.chatBoxComponent) {
-      this.domComponent.append(this.chatBoxComponent.domComponent);
+      this.domElem.append(this.chatBoxComponent.domElem);
     }
   };
 }
 
 class ChatBoxComponent {
   constructor(props) {
-    this.domComponent = props.domComponent;
-    this.domComponent.className = "chat-box-container";
+    this.domElem = props.domElem || createElement("div");
+    this.domElem.className = "chat-box-container";
     this.data = props.data;
     this.socketConn = props.socketConn;
     this.channelUUID = props.channelUUID;
@@ -52,7 +60,7 @@ class ChatBoxComponent {
     }
 
     this.chatBoxMessagesComponent = new ChatBoxMessagesComponent({
-      domComponent: createElement("div", {
+      domElem: createElement("div", {
         class: "chat-box-messages",
         id: "chat-box-messages",
       }),
@@ -65,10 +73,10 @@ class ChatBoxComponent {
   }
 
   render = () => {
-    this.domComponent.innerHTML = "";
-    this.domComponent.append(
+    this.domElem.innerHTML = "";
+    this.domElem.append(
       createElement("div", { class: "chatapp-channel-title" }, this.channel.name),
-      this.chatBoxMessagesComponent.domComponent,
+      this.chatBoxMessagesComponent.domElem,
       createElement("div", { class: "chat-box-form" }, [
         createElement(
           "textarea",
@@ -139,6 +147,12 @@ class ChatBoxComponent {
       ])
     );
   };
+
+  destroy = () => {
+    this.chatBoxMessagesComponent?.destroy?.();
+    this.chatBoxMessagesComponent = null;
+    this.domElem.innerHTML = "";
+  };
 }
 
 class ChatBoxMessagesComponent {
@@ -153,7 +167,7 @@ class ChatBoxMessagesComponent {
     this.debounceTimeout = null;
     this.isLoading = false;
 
-    this.domComponent = createElement(
+    this.domElem = createElement(
       "div",
       {
         class: "chat-box-messages",
@@ -191,18 +205,18 @@ class ChatBoxMessagesComponent {
   };
 
   scrollDown = () => {
-    this.domComponent.scrollTop = this.domComponent.scrollHeight;
+    this.domElem.scrollTop = this.domElem.scrollHeight;
   };
 
   isScrolledToTop = () => {
-    return this.domComponent.scrollTop <= 20;
+    return this.domElem.scrollTop <= 20;
   };
 
   isScrolledToBottom = () => {
     const offset = 40;
     return (
-      this.domComponent.scrollHeight - this.domComponent.scrollTop <=
-      this.domComponent.clientHeight + offset
+      this.domElem.scrollHeight - this.domElem.scrollTop <=
+      this.domElem.clientHeight + offset
     );
   };
 
@@ -266,9 +280,17 @@ class ChatBoxMessagesComponent {
   };
 
   render = () => {
-    this.domComponent.innerHTML = "";
+    this.domElem.innerHTML = "";
     const allMessages = this.chatBoxMessages.map((data) => this.createMessage(data));
-    this.domComponent.append(...allMessages);
+    this.domElem.append(...allMessages);
+  };
+
+  destroy = () => {
+    if (this.debounceTimeout) {
+      clearTimeout(this.debounceTimeout);
+      this.debounceTimeout = null;
+    }
+    this.domElem.innerHTML = "";
   };
 }
 

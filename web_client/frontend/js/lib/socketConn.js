@@ -413,7 +413,13 @@ export default class SocketConn {
 
   joinAllSpaces = (data) => {
     if (this.socket?.readyState === WebSocket.OPEN) {
-      const uuids = data.data.spaces.map((space) => space.uuid);
+      const spaces = Array.isArray(data?.data?.spaces) ? data.data.spaces : [];
+      const uuids = spaces.map((space) => space?.uuid).filter(Boolean);
+
+      if (uuids.length === 0) {
+        return;
+      }
+
       const capabilityTokens = {};
       uuids.forEach((spaceUUID) => {
         const token = this.getCapabilityToken(spaceUUID);

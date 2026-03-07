@@ -4,13 +4,16 @@
   "type": "module",
   "description": "",
   "main": "index.js",
-  "dependencies": {},
+  "dependencies": {
+    "@royalsaltmerchant/salt-lib": "^0.1.2"
+  },
   "devDependencies": {
     "vite": "^6.3.5"
   },
   "scripts": {
     "dev": "vite",
     "dev:web": "vite",
+    "dev:remote-official": "VITE_RELAY_BASE_URL=https://chat.parchchat.com VITE_RELAY_BASE_URL_WS=wss://chat.parchchat.com/ws VITE_OFFICIAL_HOST_UUID=5837a5c3-5268-45e1-9ea4-ee87d959d067 VITE_OFFICIAL_HOST_NAME='Parch Community' vite",
     "build": "npm run build:web",
     "build:web": "vite build",
     "test:e2ee": "node --test js/lib/e2ee.test.mjs"
