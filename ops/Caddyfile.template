@@ -3,7 +3,7 @@
 	email parchchat@gmail.com
 }
 
-# Main landing + call service
+# Main landing + call service split
 parchchat.com, www.parchchat.com {
 	encode zstd gzip
 
@@ -11,7 +11,18 @@ parchchat.com, www.parchchat.com {
 	@chat_client path /client /client/*
 	redir @chat_client https://chat.parchchat.com{uri} 308
 
-	reverse_proxy 127.0.0.1:8000
+	# Call service owns call pages/APIs and call websocket signaling.
+	@call_service {
+		path /call /call/* /ws
+	}
+	handle @call_service {
+		reverse_proxy 127.0.0.1:8000
+	}
+
+	# Chat relay owns root landing/static and chat API/websocket runtime.
+	handle {
+		reverse_proxy 127.0.0.1:8001
+	}
 }
 
 # Dedicated chat relay service

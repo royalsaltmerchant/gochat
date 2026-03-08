@@ -1,6 +1,10 @@
 # Chat Relay
 
-`chat_relay` is the dedicated chat signaling service, separated from `relay_server` (`call_app`).
+`chat_relay` is the dedicated chat signaling service, separated from `call_service` (`call_app`).
+
+It now also serves:
+- Main web landing (`/`)
+- Shared static assets under `/static`
 
 ## Responsibilities
 
@@ -96,6 +100,9 @@ Relay checks:
 
 - `GET /ws`
 - `GET /healthz`
+- `GET /`
+- `GET /chat/how-it-works` (redirects to `/`)
+- `GET /static/*`
 - `GET /api/host/:uuid`
 - `POST /api/hosts_by_uuids`
 - `POST /api/register_host`

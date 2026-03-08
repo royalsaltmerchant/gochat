@@ -1,7 +1,7 @@
 /*
  * PARCH DESIGN TOKENS - Web Client
  * ============================================
- * Source of truth: relay_server/static/parch-core.css
+ * Source of truth: chat_relay/static/parch-core.css
  *
  * This file is embedded in the Wails binary, so it cannot
  * @import from an external URL. Keep these values in sync

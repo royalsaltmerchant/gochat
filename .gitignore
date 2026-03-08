@@ -5,7 +5,7 @@ testing
 credgen.go
 web_client/build
 host_client_dist
-relay_server_dist
+call_service_dist
 host_cli_dist
 
 # Call app (React)

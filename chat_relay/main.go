@@ -32,7 +32,7 @@ func securityHeadersMiddleware() gin.HandlerFunc {
 		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
 		c.Header(
 			"Content-Security-Policy",
-			"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' ws: wss: https:; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
+			"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; connect-src 'self' ws: wss: https:; font-src 'self' data: https://fonts.gstatic.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
 		)
 		c.Next()
 	}
@@ -76,7 +76,15 @@ func main() {
 		c.JSON(200, gin.H{"status": "ok"})
 	})
 	r.GET("/", func(c *gin.Context) {
+		indexPath := filepath.Join(staticDir, "index.html")
+		if _, err := os.Stat(indexPath); err == nil {
+			c.File(indexPath)
+			return
+		}
 		c.Redirect(http.StatusTemporaryRedirect, "/client")
+	})
+	r.GET("/chat/how-it-works", func(c *gin.Context) {
+		c.Redirect(http.StatusMovedPermanently, "/")
 	})
 
 	r.GET("/ws", HandleSocket)
@@ -92,6 +100,13 @@ func main() {
 		c.File(filepath.Join(staticDir, "client", "index.html"))
 	})
 	r.Static("/client/assets", filepath.Join(staticDir, "client", "assets"))
+	r.Static("/static", staticDir)
+	r.GET("/robots.txt", func(c *gin.Context) {
+		c.File(filepath.Join(staticDir, "robots.txt"))
+	})
+	r.GET("/sitemap.xml", func(c *gin.Context) {
+		c.File(filepath.Join(staticDir, "sitemap.xml"))
+	})
 
 	server := &http.Server{Addr: ":" + port, Handler: r}
 

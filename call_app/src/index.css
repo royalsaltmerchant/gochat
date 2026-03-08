@@ -5,7 +5,7 @@
 /*
  * PARCH DESIGN TOKENS
  * ============================================
- * Source of truth: relay_server/static/parch-core.css
+ * Source of truth: call_service/static/parch-core.css
  * Keep these values in sync with parch-core.css
  *
  * Note: We can't @import parch-core.css here because this app

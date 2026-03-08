@@ -4,7 +4,7 @@
 
 **Goal:** Redesign the main landing page and how-it-works page with an editorial aesthetic that makes Parch's encryption story compelling for privacy-conscious users.
 
-**Architecture:** Two static HTML files (`index.html`, `chat_how_it_works.html`) served by the relay server's existing Gin routes. No build step, no new dependencies. All styling is page-level `<style>` blocks using parch-core.css tokens. Scroll animations via Intersection Observer API.
+**Architecture:** Two static HTML files (`index.html`, `chat_how_it_works.html`) served by the call service's existing Gin routes. No build step, no new dependencies. All styling is page-level `<style>` blocks using parch-core.css tokens. Scroll animations via Intersection Observer API.
 
 **Tech Stack:** Plain HTML5 + CSS3 + vanilla JS, Google Fonts (Playfair Display + Source Serif 4), parch-core.css design tokens
 
@@ -13,11 +13,11 @@
 ### Task 1: Rewrite Landing Page (index.html)
 
 **Files:**
-- Modify: `relay_server/static/index.html` (full rewrite)
+- Modify: `call_service/static/index.html` (full rewrite)
 
 **Step 1: Write the new index.html**
 
-Full rewrite of `relay_server/static/index.html`. The page has these sections:
+Full rewrite of `call_service/static/index.html`. The page has these sections:
 
 1. **Hero** (full viewport height): Bold headline "Your messages. Your keys. Your server.", subtitle about decentralized E2EE chat + video calls, two CTA buttons (Open Web Chat → `https://chat.parchchat.com/client`, Start a Call → `/call`), text link to How It Works (`/chat/how-it-works`). Background uses existing radial gradients + parch-noise overlay.
 
@@ -42,7 +42,7 @@ Full rewrite of `relay_server/static/index.html`. The page has these sections:
 
 **Step 2: Verify the page renders**
 
-Open `http://localhost:<port>/` in a browser (or serve via `go run` if the relay server is runnable locally). Check:
+Open `http://localhost:<port>/` in a browser (or serve via `go run` if the call service is runnable locally). Check:
 - Hero fills viewport, CTAs link correctly
 - Services cards render side by side on desktop, stack on mobile
 - Encryption flow diagram displays horizontally with arrows
@@ -53,7 +53,7 @@ Open `http://localhost:<port>/` in a browser (or serve via `go run` if the relay
 **Step 3: Commit**
 
 ```bash
-git add relay_server/static/index.html
+git add call_service/static/index.html
 git commit -m "landing: redesign index.html with cipher editorial layout
 
 Replaces developer-focused overview with user-facing landing page.
@@ -67,11 +67,11 @@ Source Serif 4 typography, scroll-driven animations."
 ### Task 2: Rewrite How It Works Page (chat_how_it_works.html)
 
 **Files:**
-- Modify: `relay_server/static/chat_how_it_works.html` (full rewrite)
+- Modify: `call_service/static/chat_how_it_works.html` (full rewrite)
 
 **Step 1: Write the new chat_how_it_works.html**
 
-Full rewrite of `relay_server/static/chat_how_it_works.html`. The page has these sections:
+Full rewrite of `call_service/static/chat_how_it_works.html`. The page has these sections:
 
 1. **Back link**: `← Back to Parch` linking to `/`
 
@@ -113,7 +113,7 @@ Open `http://localhost:<port>/chat/how-it-works` in a browser. Check:
 **Step 3: Commit**
 
 ```bash
-git add relay_server/static/chat_how_it_works.html
+git add call_service/static/chat_how_it_works.html
 git commit -m "landing: redesign how-it-works with encryption deep-dive
 
 Replaces basic guide with detailed editorial walkthrough of identity,
@@ -127,8 +127,8 @@ visual flow diagrams and plain-language explanations."
 ### Task 3: Final Review and Polish
 
 **Files:**
-- Review: `relay_server/static/index.html`
-- Review: `relay_server/static/chat_how_it_works.html`
+- Review: `call_service/static/index.html`
+- Review: `call_service/static/chat_how_it_works.html`
 
 **Step 1: Cross-page consistency check**
 
@@ -151,6 +151,6 @@ Verify both pages share:
 **Step 3: Fix any issues found, commit**
 
 ```bash
-git add relay_server/static/index.html relay_server/static/chat_how_it_works.html
+git add call_service/static/index.html call_service/static/chat_how_it_works.html
 git commit -m "landing: polish and cross-page consistency fixes"
 ```

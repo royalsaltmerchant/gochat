@@ -5,7 +5,7 @@ export default defineConfig({
   plugins: [react()],
   base: '/call/',
   build: {
-    outDir: '../relay_server/static/call',
+    outDir: '../call_service/static/call',
     emptyDirBeforeWrite: true,
   },
   server: {

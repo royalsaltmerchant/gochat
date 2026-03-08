@@ -89,5 +89,5 @@
 
 ## Files Modified
 
-- `relay_server/static/index.html` — full rewrite
-- `relay_server/static/chat_how_it_works.html` — full rewrite
+- `call_service/static/index.html` — full rewrite
+- `call_service/static/chat_how_it_works.html` — full rewrite
