@@ -4,7 +4,7 @@
 
 Parch now runs chat and calls as separate services:
 - `chat_relay`: host-backed chat signaling with public-key identities (no email/password auth for chat)
-- `relay_server`: call app auth, billing, and call runtime
+- `call_service`: call app auth, billing, and call runtime
 
 ---
 
@@ -17,7 +17,7 @@ Parch now runs chat and calls as separate services:
 └────────┬────────┘      └────────┬────────┘
          │                        │
 ┌────────▼─────────┐      ┌───────▼─────────┐
-│    Chat Relay    │      │   Relay Server  │
+│    Chat Relay    │      │  Call Service   │
 │      (Go)        │      │      (Go)       │
 └────────┬─────────┘      └───────┬─────────┘
          │                        │
@@ -31,6 +31,12 @@ Detailed chat auth + E2EE flow:
 - `docs/chat-e2ee-architecture.md`
 - `docs/chat-e2ee-key-design-decision.md`
 
+Service boundary organization guidance:
+- `docs/architecture/service-boundaries.md`
+
+Operations runbook:
+- `docs/runbooks/services.md`
+
 ### Components
 
 | Component | Description |
@@ -38,7 +44,7 @@ Detailed chat auth + E2EE flow:
 | **Chat Relay** | Go service for host registration, chat websocket routing, and pubkey identity lookup |
 | **Host Client** | Linux CLI process storing chat data locally (SQLite), manages spaces/channels/messages/invites |
 | **Web Client** | Browser chat app using local public-key identity and end-to-end encryption |
-| **Relay Server** | Go service used by `call_app` (email auth, billing, call APIs, call static pages) |
+| **Call Service** | Go service used by `call_app` (email auth, billing, call APIs, call static pages) |
 | **Call App** | React web app for standalone video/voice calls |
 | **SFU/TURN** | WebRTC infrastructure used by the call stack |
 
@@ -87,11 +93,11 @@ For the full flow with trust boundaries and examples:
 
 ## Environment Variables
 
-Create a `.env` file in `relay_server/` for call features and a separate env for `chat_relay`:
+Create a `.env` file in `call_service/` for call features and a separate env for `chat_relay`:
 
 ```bash
-# relay_server (call_app)
-RELAY_PORT=8000
+# call_service (call_app)
+CALL_SERVICE_PORT=8000
 HOST_DB_FILE=./relay.db
 JWT_SECRET=your-jwt-secret-key
 TURN_URL=turn:your-turn-server:3478
@@ -127,7 +133,7 @@ Recommended public DNS:
 - Optional: `CNAME` `www.parchchat.com` -> `parchchat.com`
 
 DNS does not include ports. Caddy listens on public `:80/:443` and proxies internally:
-- `parchchat.com` -> `127.0.0.1:8000` (`relay_server`)
+- `parchchat.com` -> `127.0.0.1:8001` (`chat_relay`) except `/call*` + `/ws` routed to `call_service`
 - `chat.parchchat.com` -> `127.0.0.1:8001` (`chat_relay`)
 - `sfu.parchchat.com` -> `127.0.0.1:7000` (SFU)
 
@@ -175,15 +181,14 @@ Integration tests:
 Then open:
 - `http://localhost:8001/client`
 
-### Relay Server (Call App)
+### Call Service (Call App)
 
 ```bash
-cd relay_server
+cd call_service
 go mod tidy
 go run .
 ```
 Then open:
-- `http://localhost:8000/` (landing page)
 - `http://localhost:8000/call` (on-demand call landing)
 
 ### Call App (Video Calls)
@@ -192,7 +197,7 @@ Then open:
 cd call_app
 npm install
 npm run dev      # Development server at http://localhost:5173
-npm run build    # Build to relay_server/static/call/
+npm run build    # Build to call_service/static/call/
 ```
 
 **Note:** For local development against production servers, edit `src/config/endpoints.ts`:
@@ -232,7 +237,7 @@ This prevents old DB layouts from interfering with the new decentralized host sc
 `chat_relay` no longer uses migration files.
 Its schema is bootstrapped directly in code on startup, including compatibility column checks.
 
-### Relay Server (SQLite)
+### Call Service (SQLite)
 
 Migrations are embedded and run automatically on startup.
 
@@ -249,18 +254,14 @@ Migrations are embedded and run automatically on startup.
 Build and deploy from local machine:
 
 ```bash
-# Relay server (deploys to /root/relay_dist, preserves DB files, restarts relay_server)
-./scripts/deploy-relay.sh
+# Call service (deploys to /root/call_service_dist, preserves DB files, restarts call-service)
+./scripts/deploy-call-service.sh
 
 # Host client (deploys to /root/host_client, preserves DB/config files, restarts parch-host)
 ./scripts/deploy-host.sh
 
 # Chat relay (deploys to /root/go_chat/chat_relay, preserves DB/env files, restarts chat-relay)
 ./scripts/deploy-chat-relay.sh
-
-# Optional (only if call_app/landing/relay changed)
-# Relay server (deploys to /root/relay_dist, preserves DB files, restarts relay_server)
-./scripts/deploy-relay.sh
 ```
 
 If you are migrating an existing host to a fresh `chat_relay.db`, ensure the host row exists in `hosts` using the same `uuid` and `signing_public_key` from `~/.config/ParchHost/host_config.json`:

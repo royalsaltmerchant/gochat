@@ -1,0 +1,13 @@
+[Unit]
+Description=Parch Call Service
+After=network.target
+
+[Service]
+ExecStart=/root/call_service_dist/call_service
+EnvironmentFile=-/root/call_service_dist/.env
+Restart=always
+User=root
+WorkingDirectory=/root/call_service_dist
+
+[Install]
+WantedBy=multi-user.target

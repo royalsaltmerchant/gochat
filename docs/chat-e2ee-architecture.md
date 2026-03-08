@@ -11,7 +11,7 @@ Scope:
 - `host_client` (host-owned chat data + permissions)
 
 Out of scope:
-- `relay_server` and `call_app` auth/billing/calls (unchanged)
+- `call_service` and `call_app` auth/billing/calls (unchanged)
 
 ## 1) Design Goals
 
@@ -229,14 +229,14 @@ Removed for chat path:
 - centralized chat identity storage in relay
 
 Kept unchanged:
-- `relay_server` + `call_app` user/email auth and billing paths
+- `call_service` + `call_app` user/email auth and billing paths
 - call infrastructure (SFU/TURN/call APIs)
 
 ## 11) Operational Notes
 
 - Build web bundle into `chat_relay/static/client`.
 - Deploy `chat_relay` and `host_client` from local scripts.
-- Relay server deploy is optional unless landing/call_app changed.
+- Call service deploy is optional unless call pages/call_app changed.
 
 Recommended validation after deploy:
 - New browser can authenticate with generated keypair.

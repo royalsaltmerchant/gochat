@@ -2,7 +2,7 @@
  * Tailwind CSS Configuration for call_app
  *
  * PARCH DESIGN TOKENS
- * Source of truth: relay_server/static/parch-core.css
+ * Source of truth: call_service/static/parch-core.css
  * Keep color values in sync with parch-core.css
  *
  * @type {import('tailwindcss').Config}

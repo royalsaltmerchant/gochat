@@ -17,7 +17,16 @@ parchchat.com, www.parchchat.com {
 	@chatClient path /client /client/*
 	redir @chatClient https://chat.parchchat.com{uri} 308
 
-	reverse_proxy localhost:8000
+	@callService {
+		path /call /call/* /ws
+	}
+	handle @callService {
+		reverse_proxy localhost:8000
+	}
+
+	handle {
+		reverse_proxy localhost:8001
+	}
 }
 
 chat.parchchat.com {
