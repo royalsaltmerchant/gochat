@@ -4,6 +4,7 @@ import (
 	"gochat/db"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	jwt "github.com/golang-jwt/jwt/v5"
@@ -359,21 +360,41 @@ func sendCallRoomVoiceCredentials(participant *CallRoomParticipant, roomID strin
 	turnSecret := os.Getenv("TURN_SECRET")
 	sfuSecret := os.Getenv("SFU_SECRET")
 
-	if turnURL == "" || turnSecret == "" {
-		log.Println("TURN credentials not configured, skipping voice_credentials for call room")
+	missingConfig := []string{}
+	if turnURL == "" {
+		missingConfig = append(missingConfig, "TURN_URL")
+	}
+	if turnSecret == "" {
+		missingConfig = append(missingConfig, "TURN_SECRET")
+	}
+	if sfuSecret == "" {
+		missingConfig = append(missingConfig, "SFU_SECRET")
+	}
+
+	if len(missingConfig) > 0 {
+		log.Printf(
+			"Call media credentials not configured, missing %s for room %s",
+			strings.Join(missingConfig, ", "),
+			roomID,
+		)
+		participant.SendQueue <- WSMessage{
+			Type: "error",
+			Data: ChatError{Content: "Call media is not configured on the server. Please contact support."},
+		}
 		return
 	}
 
 	ttl := int64(8 * 3600)
 	turnUsername, turnCredential := generateTurnCredentials(turnSecret, ttl)
 
-	var sfuToken string
-	if sfuSecret != "" {
-		var err error
-		sfuToken, err = GenerateSFUToken(0, participant.DisplayName, roomID, sfuSecret, 8*time.Hour)
-		if err != nil {
-			log.Printf("Failed to generate SFU token for call room: %v", err)
+	sfuToken, err := GenerateSFUToken(0, participant.DisplayName, roomID, sfuSecret, 8*time.Hour)
+	if err != nil {
+		log.Printf("Failed to generate SFU token for call room %s: %v", roomID, err)
+		participant.SendQueue <- WSMessage{
+			Type: "error",
+			Data: ChatError{Content: "Unable to start the call right now. Please try again."},
 		}
+		return
 	}
 
 	participant.SendQueue <- WSMessage{

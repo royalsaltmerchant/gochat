@@ -18,6 +18,7 @@ interface CallRoomProps {
 }
 
 type CallState = 'preview' | 'joining' | 'connected' | 'ended';
+const JOIN_TIMEOUT_MS = 10000;
 
 function formatTime(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -30,12 +31,15 @@ function formatTime(seconds: number): string {
 export function CallRoom({ roomId }: CallRoomProps) {
   const [callState, setCallState] = useState<CallState>('preview');
   const [displayName, setDisplayName] = useState('');
+  const [joinError, setJoinError] = useState<string | null>(null);
   const [showShareLink, setShowShareLink] = useState(false);
   const [displayTime, setDisplayTime] = useState<number | null>(null);
   const [showTimeWarningModal, setShowTimeWarningModal] = useState(false);
   const warningShownRef = useRef(false);
   const { token } = useAuth();
-  const pendingJoinRef = useRef<{ name: string; streamId: string } | null>(null);
+  const pendingJoinRef = useRef<{ name: string; streamId: string; attemptId: number } | null>(null);
+  const joinAttemptRef = useRef(0);
+  const joinTimeoutRef = useRef<number | null>(null);
   const hideControlsTimeoutRef = useRef<number | null>(null);
   const [showControls, setShowControls] = useState(true);
 
@@ -71,6 +75,7 @@ export function CallRoom({ roomId }: CallRoomProps) {
     participantId,
     participants,
     voiceCredentials,
+    error: wsError,
     timeRemaining,
     roomTier,
     timeWarning,
@@ -93,6 +98,26 @@ export function CallRoom({ roomId }: CallRoomProps) {
     switchVideoDevice,
   } = useRTCConnection();
 
+  const clearJoinTimeout = useCallback(() => {
+    if (joinTimeoutRef.current !== null) {
+      window.clearTimeout(joinTimeoutRef.current);
+      joinTimeoutRef.current = null;
+    }
+  }, []);
+
+  const failPendingJoin = useCallback(
+    (message: string) => {
+      joinAttemptRef.current += 1;
+      pendingJoinRef.current = null;
+      clearJoinTimeout();
+      leaveRoom(roomId);
+      void disconnectRTC();
+      setJoinError(message);
+      setCallState('preview');
+    },
+    [clearJoinTimeout, disconnectRTC, leaveRoom, roomId]
+  );
+
   // Filter out the local user from participants list (should not be included, but filter as safety)
   const remoteParticipants = useMemo(() => {
     if (!participantId) return participants;
@@ -103,9 +128,10 @@ export function CallRoom({ roomId }: CallRoomProps) {
   useEffect(() => {
     startStream();
     return () => {
+      clearJoinTimeout();
       stopStream();
     };
-  }, [startStream, stopStream]);
+  }, [clearJoinTimeout, startStream, stopStream]);
 
   // Countdown timer synced with server time
   useEffect(() => {
@@ -133,7 +159,9 @@ export function CallRoom({ roomId }: CallRoomProps) {
   // Handle joining when voice credentials are received
   useEffect(() => {
     if (voiceCredentials && pendingJoinRef.current && callState === 'joining') {
-      const { name } = pendingJoinRef.current;
+      clearJoinTimeout();
+      setJoinError(null);
+      const { name, attemptId } = pendingJoinRef.current;
       pendingJoinRef.current = null;
 
       // Initialize connected state from preview state
@@ -145,6 +173,9 @@ export function CallRoom({ roomId }: CallRoomProps) {
       // Now connect RTC with the credentials
       connectRTC(roomId, name, voiceCredentials, previewStream || undefined)
         .then((rtcStreamId) => {
+          if (attemptId !== joinAttemptRef.current) {
+            return;
+          }
           if (rtcStreamId) {
             console.log('RTC connected with stream:', rtcStreamId);
             // Update the server with the actual RTC stream ID so other participants can match streams
@@ -152,29 +183,58 @@ export function CallRoom({ roomId }: CallRoomProps) {
             setCallState('connected');
           } else {
             console.error('Failed to connect RTC');
-            setCallState('preview');
+            failPendingJoin('Unable to connect to the video server. Please try again.');
           }
         })
         .catch((err) => {
+          if (attemptId !== joinAttemptRef.current) {
+            return;
+          }
           console.error('RTC connection error:', err);
-          setCallState('preview');
+          failPendingJoin('Unable to connect to the video server. Please try again.');
         });
     }
-  }, [voiceCredentials, callState, roomId, previewStream, previewAudioEnabled, previewVideoEnabled, selectedAudioDeviceId, selectedVideoDeviceId, connectRTC, updateStreamId]);
+  }, [voiceCredentials, callState, roomId, previewStream, previewAudioEnabled, previewVideoEnabled, selectedAudioDeviceId, selectedVideoDeviceId, clearJoinTimeout, connectRTC, failPendingJoin, updateStreamId]);
+
+  useEffect(() => {
+    if (callState !== 'joining' || !wsError) {
+      return;
+    }
+    failPendingJoin(wsError);
+  }, [callState, failPendingJoin, wsError]);
+
+  useEffect(() => {
+    if (callState !== 'joining') {
+      return;
+    }
+
+    clearJoinTimeout();
+    joinTimeoutRef.current = window.setTimeout(() => {
+      failPendingJoin('Timed out waiting for the call service. Please try again.');
+    }, JOIN_TIMEOUT_MS);
+
+    return () => {
+      clearJoinTimeout();
+    };
+  }, [callState, clearJoinTimeout, failPendingJoin]);
 
   const handleJoin = useCallback((name: string) => {
     if (!wsConnected) {
       console.error('WebSocket not connected');
+      setJoinError('Still connecting to the call service. Please try again in a moment.');
       return;
     }
 
+    setJoinError(null);
     setDisplayName(name);
     setCallState('joining');
+    joinAttemptRef.current += 1;
+    const attemptId = joinAttemptRef.current;
 
     // Generate a temporary stream ID for the WebSocket join
     // The actual RTC stream ID will be used after connection
     const tempStreamId = `pending-${Date.now()}`;
-    pendingJoinRef.current = { name, streamId: tempStreamId };
+    pendingJoinRef.current = { name, streamId: tempStreamId, attemptId };
 
     // Join WebSocket room first - this triggers voice_credentials to be sent
     // Use token from context, or fall back to localStorage in case auth restore is still in-flight
@@ -183,10 +243,14 @@ export function CallRoom({ roomId }: CallRoomProps) {
   }, [roomId, wsConnected, joinRoom, token]);
 
   const handleLeave = useCallback(() => {
+    joinAttemptRef.current += 1;
+    pendingJoinRef.current = null;
+    clearJoinTimeout();
+    setJoinError(null);
     leaveRoom(roomId);
-    disconnectRTC();
+    void disconnectRTC();
     setCallState('ended');
-  }, [roomId, leaveRoom, disconnectRTC]);
+  }, [clearJoinTimeout, roomId, leaveRoom, disconnectRTC]);
 
   const handleUserActivity = useCallback(() => {
     setShowControls(true);
@@ -288,7 +352,7 @@ export function CallRoom({ roomId }: CallRoomProps) {
         onToggleAudio={handleToggleAudio}
         onToggleVideo={handleToggleVideo}
         onJoin={handleJoin}
-        error={mediaError}
+        error={joinError || mediaError}
         isJoining={callState === 'joining'}
         audioDevices={audioDevices}
         videoDevices={videoDevices}

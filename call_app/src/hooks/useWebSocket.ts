@@ -32,6 +32,7 @@ export interface UseWebSocketReturn {
   participantId: string | null;
   participants: CallParticipant[];
   voiceCredentials: VoiceCredentials | null;
+  error: string | null;
   timeRemaining: number | null;
   roomTier: string | null;
   maxDuration: number | null;
@@ -48,6 +49,7 @@ export function useWebSocket(): UseWebSocketReturn {
   const [participantId, setParticipantId] = useState<string | null>(null);
   const [participants, setParticipants] = useState<CallParticipant[]>([]);
   const [voiceCredentials, setVoiceCredentials] = useState<VoiceCredentials | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null); // seconds
   const [roomTier, setRoomTier] = useState<string | null>(null);
   const [maxDuration, setMaxDuration] = useState<number | null>(null); // seconds
@@ -63,12 +65,17 @@ export function useWebSocket(): UseWebSocketReturn {
     ws.onopen = () => {
       console.log('WebSocket connected');
       setIsConnected(true);
+      setError(null);
     };
 
     ws.onclose = () => {
       console.log('WebSocket disconnected');
       setIsConnected(false);
       setParticipantId(null);
+      setVoiceCredentials(null);
+      if (currentRoomRef.current) {
+        setError('Connection to the call service was lost. Please try again.');
+      }
     };
 
     ws.onerror = (error) => {
@@ -101,6 +108,7 @@ export function useWebSocket(): UseWebSocketReturn {
       case 'call_room_joined': {
         const data = msg.data as { room_id: string; participant_id: string };
         setParticipantId(data.participant_id);
+        setError(null);
         break;
       }
       case 'call_participant_joined': {
@@ -147,6 +155,7 @@ export function useWebSocket(): UseWebSocketReturn {
       case 'voice_credentials': {
         const creds = msg.data as VoiceCredentials;
         console.log('Received voice credentials for room:', creds.channel_uuid);
+        setError(null);
         setVoiceCredentials(creds);
         break;
       }
@@ -169,7 +178,9 @@ export function useWebSocket(): UseWebSocketReturn {
       }
       case 'error': {
         const data = msg.data as { error?: string; content?: string };
-        console.error('Server error:', data.error || data.content);
+        const message = data.error || data.content || 'The call service returned an error.';
+        console.error('Server error:', message);
+        setError(message);
         break;
       }
     }
@@ -183,6 +194,10 @@ export function useWebSocket(): UseWebSocketReturn {
 
   const joinRoom = useCallback((roomId: string, displayName: string, streamId: string, token?: string) => {
     currentRoomRef.current = roomId;
+    setError(null);
+    setVoiceCredentials(null);
+    setTimeWarning(false);
+    setTimeExpired(false);
     sendMessage({
       type: 'join_call_room',
       data: {
@@ -210,6 +225,7 @@ export function useWebSocket(): UseWebSocketReturn {
     setMaxDuration(null);
     setTimeWarning(false);
     setTimeExpired(false);
+    setError(null);
   }, [sendMessage]);
 
   const updateMedia = useCallback((roomId: string, isAudioOn: boolean, isVideoOn: boolean) => {
@@ -238,6 +254,7 @@ export function useWebSocket(): UseWebSocketReturn {
     participantId,
     participants,
     voiceCredentials,
+    error,
     timeRemaining,
     roomTier,
     maxDuration,
