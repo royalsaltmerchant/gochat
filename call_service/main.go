@@ -77,11 +77,21 @@ func main() {
 	if !strings.HasPrefix(port, ":") {
 		port = ":" + port
 	}
-	dbName := os.Getenv("HOST_DB_FILE")
+	dbName := strings.TrimSpace(os.Getenv("HOST_DB_FILE"))
+	if dbName == "" {
+		dbName = "./relay.db"
+	}
+	dbPathForLog := dbName
+	if !filepath.IsAbs(dbPathForLog) {
+		if abs, err := filepath.Abs(dbPathForLog); err == nil {
+			dbPathForLog = abs
+		}
+	}
 	allowedOrigins := parseAllowedOriginsFromEnv(os.Getenv("ALLOWED_ORIGINS"))
 	setAllowedWebSocketOrigins(allowedOrigins)
 	staticDir := resolveStaticDir()
 	log.Printf("Using static directory: %s", staticDir)
+	log.Printf("Using host database: %s", dbPathForLog)
 
 	// Init DB
 	var err error

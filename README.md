@@ -98,7 +98,7 @@ Create a `.env` file in `call_service/` for call features and a separate env for
 ```bash
 # call_service (call_app)
 CALL_SERVICE_PORT=8000
-HOST_DB_FILE=./relay.db
+HOST_DB_FILE=./relay.db                      # local dev; for production prefer an absolute path such as /root/host.db
 JWT_SECRET=your-jwt-secret-key
 TURN_URL=turn:your-turn-server:3478
 TURN_SECRET=your-coturn-static-auth-secret
@@ -123,6 +123,10 @@ CHAT_RELAY_HOST=chat.parchchat.com
 CHAT_RELAY_SCHEME=https
 CHAT_RELAY_WS_SCHEME=wss
 ```
+
+For deployed `call_service` systemd units, prefer an absolute `HOST_DB_FILE`.
+Relative paths resolve from the unit working directory and can silently point
+the service at a fresh empty database after a migration or directory move.
 
 ## DNS And Caddy
 
