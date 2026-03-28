@@ -193,7 +193,10 @@ ssh -i ~/.ssh/id_rsa root@64.23.134.139 "mkdir -p /root/call_service_dist && tou
 ```bash
 ssh -i ~/.ssh/id_rsa root@64.23.134.139 "if [ -f /root/.env ] && [ ! -s /root/call_service_dist/.env ]; then cp /root/.env /root/call_service_dist/.env; fi"
 ```
-3. Confirm unit points to new env/workdir:
+3. Normalize `HOST_DB_FILE` before restart. Use an absolute path in `/root/call_service_dist/.env`.
+   For migrated instances, `HOST_DB_FILE=/root/host.db` may be the correct value.
+   A relative value like `host.db` resolves under `/root/call_service_dist` because the unit sets `WorkingDirectory=/root/call_service_dist`, which can strand the real user DB in a different location.
+4. Confirm unit points to new env/workdir:
 ```bash
 ssh -i ~/.ssh/id_rsa root@64.23.134.139 "systemctl cat call-service"
 ```
