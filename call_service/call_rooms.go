@@ -55,7 +55,7 @@ func dispatchCallRoomMessage(conn *websocket.Conn, wsMsg WSMessage) {
 func handleJoinCallRoom(conn *websocket.Conn, wsMsg *WSMessage) {
 	data, err := decodeData[JoinCallRoomClient](wsMsg.Data)
 	if err != nil {
-		_ = conn.WriteJSON(WSMessage{Type: "error", Data: ChatError{Content: "Invalid join call room data"}})
+		sendToConn(conn, WSMessage{Type: "error", Data: ChatError{Content: "Invalid join call room data"}})
 		return
 	}
 
@@ -102,6 +102,12 @@ func handleJoinCallRoom(conn *websocket.Conn, wsMsg *WSMessage) {
 	}
 	callRoomsMu.Unlock()
 
+	client := getSocketClient(conn)
+	if client == nil {
+		sendToConn(conn, WSMessage{Type: "error", Data: ChatError{Content: "Socket client unavailable"}})
+		return
+	}
+
 	participantID := uuid.New().String()
 	participant := &CallRoomParticipant{
 		ID:          participantID,
@@ -110,8 +116,7 @@ func handleJoinCallRoom(conn *websocket.Conn, wsMsg *WSMessage) {
 		IsAudioOn:   true,
 		IsVideoOn:   true,
 		Conn:        conn,
-		SendQueue:   make(chan WSMessage, 64),
-		Done:        make(chan struct{}),
+		Client:      client,
 	}
 
 	room.mu.Lock()
@@ -131,23 +136,21 @@ func handleJoinCallRoom(conn *websocket.Conn, wsMsg *WSMessage) {
 	room.Participants[conn] = participant
 	room.mu.Unlock()
 
-	go participant.WritePump()
-
-	participant.SendQueue <- WSMessage{
+	sendToParticipant(participant, WSMessage{
 		Type: "call_room_state",
 		Data: CallRoomState{
 			RoomID:       data.RoomID,
 			Participants: currentParticipants,
 		},
-	}
+	})
 
-	participant.SendQueue <- WSMessage{
+	sendToParticipant(participant, WSMessage{
 		Type: "call_room_joined",
 		Data: map[string]string{
 			"room_id":        data.RoomID,
 			"participant_id": participantID,
 		},
-	}
+	})
 
 	sendCallRoomVoiceCredentials(participant, data.RoomID)
 
@@ -156,7 +159,7 @@ func handleJoinCallRoom(conn *websocket.Conn, wsMsg *WSMessage) {
 	if remaining < 0 {
 		remaining = 0
 	}
-	participant.SendQueue <- WSMessage{
+	sendToParticipant(participant, WSMessage{
 		Type: "call_time_remaining",
 		Data: CallTimeRemaining{
 			RoomID:         data.RoomID,
@@ -164,7 +167,7 @@ func handleJoinCallRoom(conn *websocket.Conn, wsMsg *WSMessage) {
 			Tier:           room.Tier,
 			MaxDurationSec: int(room.MaxDuration.Seconds()),
 		},
-	}
+	})
 
 	newParticipant := CallParticipant{
 		ID:          participantID,
@@ -186,15 +189,14 @@ func handleJoinCallRoom(conn *websocket.Conn, wsMsg *WSMessage) {
 func handleLeaveCallRoom(conn *websocket.Conn, wsMsg *WSMessage) {
 	data, err := decodeData[LeaveCallRoomClient](wsMsg.Data)
 	if err != nil {
-		_ = conn.WriteJSON(WSMessage{Type: "error", Data: ChatError{Content: "Invalid leave call room data"}})
+		sendToConn(conn, WSMessage{Type: "error", Data: ChatError{Content: "Invalid leave call room data"}})
 		return
 	}
 
 	callRoomsMu.Lock()
 	room, exists := CallRooms[data.RoomID]
-	callRoomsMu.Unlock()
-
 	if !exists {
+		callRoomsMu.Unlock()
 		return
 	}
 
@@ -202,6 +204,7 @@ func handleLeaveCallRoom(conn *websocket.Conn, wsMsg *WSMessage) {
 	participant, ok := room.Participants[conn]
 	if !ok {
 		room.mu.Unlock()
+		callRoomsMu.Unlock()
 		return
 	}
 
@@ -209,15 +212,11 @@ func handleLeaveCallRoom(conn *websocket.Conn, wsMsg *WSMessage) {
 	delete(room.Participants, conn)
 
 	if len(room.Participants) == 0 {
-		close(room.TimerDone)
-		callRoomsMu.Lock()
+		signalRoomTimerDone(room)
 		delete(CallRooms, data.RoomID)
-		callRoomsMu.Unlock()
 	}
 	room.mu.Unlock()
-
-	close(participant.SendQueue)
-	close(participant.Done)
+	callRoomsMu.Unlock()
 
 	broadcastToCallRoom(room, nil, WSMessage{
 		Type: "call_participant_left",
@@ -231,7 +230,7 @@ func handleLeaveCallRoom(conn *websocket.Conn, wsMsg *WSMessage) {
 func handleUpdateCallMedia(conn *websocket.Conn, wsMsg *WSMessage) {
 	data, err := decodeData[UpdateCallMediaClient](wsMsg.Data)
 	if err != nil {
-		_ = conn.WriteJSON(WSMessage{Type: "error", Data: ChatError{Content: "Invalid update call media data"}})
+		sendToConn(conn, WSMessage{Type: "error", Data: ChatError{Content: "Invalid update call media data"}})
 		return
 	}
 
@@ -269,7 +268,7 @@ func handleUpdateCallMedia(conn *websocket.Conn, wsMsg *WSMessage) {
 func handleUpdateCallStreamID(conn *websocket.Conn, wsMsg *WSMessage) {
 	data, err := decodeData[UpdateCallStreamIDClient](wsMsg.Data)
 	if err != nil {
-		_ = conn.WriteJSON(WSMessage{Type: "error", Data: ChatError{Content: "Invalid update call stream ID data"}})
+		sendToConn(conn, WSMessage{Type: "error", Data: ChatError{Content: "Invalid update call stream ID data"}})
 		return
 	}
 
@@ -310,9 +309,7 @@ func broadcastToCallRoom(room *CallRoom, exclude *websocket.Conn, msg WSMessage)
 		if conn == exclude {
 			continue
 		}
-		select {
-		case participant.SendQueue <- msg:
-		default:
+		if !sendToParticipant(participant, msg) {
 			log.Printf("broadcastToCallRoom: send queue full for participant %s", participant.ID)
 		}
 	}
@@ -329,24 +326,18 @@ func cleanupCallRoomParticipant(conn *websocket.Conn) {
 			participantID := participant.ID
 			delete(room.Participants, conn)
 
-			close(participant.SendQueue)
-			close(participant.Done)
-
 			for _, p := range room.Participants {
-				select {
-				case p.SendQueue <- WSMessage{
+				sendToParticipant(p, WSMessage{
 					Type: "call_participant_left",
 					Data: CallParticipantLeft{
 						RoomID:        roomID,
 						ParticipantID: participantID,
 					},
-				}:
-				default:
-				}
+				})
 			}
 
 			if len(room.Participants) == 0 {
-				close(room.TimerDone)
+				signalRoomTimerDone(room)
 				delete(CallRooms, roomID)
 			}
 		}
@@ -377,27 +368,27 @@ func sendCallRoomVoiceCredentials(participant *CallRoomParticipant, roomID strin
 			strings.Join(missingConfig, ", "),
 			roomID,
 		)
-		participant.SendQueue <- WSMessage{
+		sendToParticipant(participant, WSMessage{
 			Type: "error",
 			Data: ChatError{Content: "Call media is not configured on the server. Please contact support."},
-		}
+		})
 		return
 	}
 
 	ttl := int64(8 * 3600)
 	turnUsername, turnCredential := generateTurnCredentials(turnSecret, ttl)
 
-	sfuToken, err := GenerateSFUToken(0, participant.DisplayName, roomID, sfuSecret, 8*time.Hour)
+	sfuToken, err := GenerateSFUToken(0, participant.ID, roomID, sfuSecret, 8*time.Hour)
 	if err != nil {
 		log.Printf("Failed to generate SFU token for call room %s: %v", roomID, err)
-		participant.SendQueue <- WSMessage{
+		sendToParticipant(participant, WSMessage{
 			Type: "error",
 			Data: ChatError{Content: "Unable to start the call right now. Please try again."},
-		}
+		})
 		return
 	}
 
-	participant.SendQueue <- WSMessage{
+	sendToParticipant(participant, WSMessage{
 		Type: "voice_credentials",
 		Data: VoiceCredentials{
 			TurnURL:        turnURL,
@@ -406,5 +397,5 @@ func sendCallRoomVoiceCredentials(participant *CallRoomParticipant, roomID strin
 			SFUToken:       sfuToken,
 			ChannelUUID:    roomID,
 		},
-	}
+	})
 }

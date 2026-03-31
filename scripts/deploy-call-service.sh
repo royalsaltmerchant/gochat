@@ -12,6 +12,14 @@ trap 'rm -rf "$STAGE_DIR"' EXIT
 
 mkdir -p "$OUT_DIR"
 
+if [ ! -d "$REPO_DIR/call_app/node_modules" ]; then
+  echo "Missing call_app/node_modules. Run npm install in call_app first." >&2
+  exit 1
+fi
+
+echo "Building call app locally..."
+npm --prefix "$REPO_DIR/call_app" run build -- --emptyOutDir
+
 echo "Building call service locally (linux/amd64)..."
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o "$BIN" "$REPO_DIR/call_service"
 
