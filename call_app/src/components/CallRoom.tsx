@@ -37,7 +37,7 @@ export function CallRoom({ roomId }: CallRoomProps) {
   const [showTimeWarningModal, setShowTimeWarningModal] = useState(false);
   const warningShownRef = useRef(false);
   const { token } = useAuth();
-  const pendingJoinRef = useRef<{ name: string; streamId: string; attemptId: number } | null>(null);
+  const pendingJoinRef = useRef<{ attemptId: number } | null>(null);
   const joinAttemptRef = useRef(0);
   const joinTimeoutRef = useRef<number | null>(null);
   const hideControlsTimeoutRef = useRef<number | null>(null);
@@ -158,10 +158,10 @@ export function CallRoom({ roomId }: CallRoomProps) {
 
   // Handle joining when voice credentials are received
   useEffect(() => {
-    if (voiceCredentials && pendingJoinRef.current && callState === 'joining') {
+    if (voiceCredentials && participantId && pendingJoinRef.current && callState === 'joining') {
       clearJoinTimeout();
       setJoinError(null);
-      const { name, attemptId } = pendingJoinRef.current;
+      const { attemptId } = pendingJoinRef.current;
       pendingJoinRef.current = null;
 
       // Initialize connected state from preview state
@@ -171,7 +171,7 @@ export function CallRoom({ roomId }: CallRoomProps) {
       setConnectedSelectedVideoDeviceId(selectedVideoDeviceId);
 
       // Now connect RTC with the credentials
-      connectRTC(roomId, name, voiceCredentials, previewStream || undefined)
+      connectRTC(roomId, participantId, voiceCredentials, previewStream || undefined)
         .then((rtcStreamId) => {
           if (attemptId !== joinAttemptRef.current) {
             return;
@@ -194,7 +194,7 @@ export function CallRoom({ roomId }: CallRoomProps) {
           failPendingJoin('Unable to connect to the video server. Please try again.');
         });
     }
-  }, [voiceCredentials, callState, roomId, previewStream, previewAudioEnabled, previewVideoEnabled, selectedAudioDeviceId, selectedVideoDeviceId, clearJoinTimeout, connectRTC, failPendingJoin, updateStreamId]);
+  }, [voiceCredentials, participantId, callState, roomId, previewStream, previewAudioEnabled, previewVideoEnabled, selectedAudioDeviceId, selectedVideoDeviceId, clearJoinTimeout, connectRTC, failPendingJoin, updateStreamId]);
 
   useEffect(() => {
     if (callState !== 'joining' || !wsError) {
@@ -234,7 +234,7 @@ export function CallRoom({ roomId }: CallRoomProps) {
     // Generate a temporary stream ID for the WebSocket join
     // The actual RTC stream ID will be used after connection
     const tempStreamId = `pending-${Date.now()}`;
-    pendingJoinRef.current = { name, streamId: tempStreamId, attemptId };
+    pendingJoinRef.current = { attemptId };
 
     // Join WebSocket room first - this triggers voice_credentials to be sent
     // Use token from context, or fall back to localStorage in case auth restore is still in-flight
